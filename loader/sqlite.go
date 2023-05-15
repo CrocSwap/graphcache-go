@@ -1,11 +1,11 @@
-package main
+package loader
 
 import (
 	"database/sql"
 	"log"
 )
 
-func openSqliteDb(path string) *sql.DB {
+func OpenSqliteDb(path string) *sql.DB {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		log.Fatal(err)

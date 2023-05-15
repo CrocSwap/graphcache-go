@@ -2,7 +2,9 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"strconv"
 )
 
 type Balance struct {
@@ -15,22 +17,55 @@ type Balance struct {
 	Token   string `db:"token"`
 }
 
-type BalanceFn func(bal Balance)
+type BalanceSubGraph struct {
+	ID              string `json:"id"`
+	TransactionHash string `json:"transactionHash"`
+	Block           string `json:"block"`
+	Time            string `json:"time"`
+	User            string `json:"user"`
+	Token           string `json:"token"`
+}
 
-func LoadTokenBalancesSql(db *sql.DB, ingestFn func(Balance)) {
-	// Query the "balances" table
-	rows, err := db.Query("SELECT * FROM balances")
+type BalanceSubGrapData struct {
+	UserBalances []BalanceSubGraph `json:"userBalances"`
+}
+
+type BalanceSubGraphResp struct {
+	Data BalanceSubGrapData `json:"data"`
+}
+
+func ConvertBalanceToSql(r BalanceSubGraph, network string) Balance {
+	return Balance{
+		ID:      network + r.ID,
+		Network: network,
+		Tx:      r.TransactionHash,
+		Block:   stringNum(r.Block),
+		Time:    stringNum(r.Time),
+		User:    r.User,
+		Token:   r.Token,
+	}
+}
+
+func stringNum(val string) int {
+	ret, err := strconv.Atoi(val)
+	if err != nil {
+		log.Fatal("Subgraph number conversion error")
+	}
+	return ret
+}
+
+func LoadTokenBalancesSql(db *sql.DB, network string, ingestFn func(Balance)) {
+	query := fmt.Sprintf("SELECT * FROM balances WHERE network == '%s'", network)
+	rows, err := db.Query(query)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 
-	// Iterate over the rows
 	for rows.Next() {
-		// Create a new Balance struct
 		var balance Balance
 
-		// Scan the row values into the Balance struct fields
 		err := rows.Scan(
 			&balance.ID,
 			&balance.Network,
@@ -47,7 +82,6 @@ func LoadTokenBalancesSql(db *sql.DB, ingestFn func(Balance)) {
 		ingestFn(balance)
 	}
 
-	// Check for any errors during iteration
 	err = rows.Err()
 	if err != nil {
 		log.Fatal(err)
