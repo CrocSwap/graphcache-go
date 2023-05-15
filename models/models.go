@@ -21,12 +21,12 @@ func (m *Models) LatestBlock(chainId types.ChainId) int64 {
 	}
 }
 
-func (m *Models) RetrieveUserBalances(chainId types.ChainId, user: types.EthAddress) []types.UserBalance {
+func (m *Models) RetrieveUserBalances(chainId types.ChainId, user types.EthAddress) []types.UserBalance {
 	key := chainAndAddr{chainId: chainId, ethAddr: user}
 	bals, okay := m.cache.userBals.lookup(key)
 	if okay {
 		return bals
 	} else {
-		return make([]types.UserBalance, )
+		return make([]types.UserBalance, 0)
 	}
 }
