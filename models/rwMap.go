@@ -10,7 +10,7 @@ type RWLockMap[Key comparable, Val any] struct {
 func (m *RWLockMap[Key, Val]) lookup(key Key) (Val, bool) {
 	m.lock.RLock()
 	result, ok := m.entries[key]
-	m.lock.Unlock()
+	m.lock.RUnlock()
 	return result, ok
 }
 

@@ -9,8 +9,6 @@ import (
 
 type APIWebServer struct {
 	Views views.IViews
-	host  string
-	port  int
 }
 
 func (s *APIWebServer) Serve() {

@@ -8,9 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ResponseProvenance struct {
-	hostname  string `json:"hostname"`
-	serveTime int    `json:"serveTime"`
+type responseProvenance struct {
+	Hostname  string `json:"hostname"`
+	ServeTime int    `json:"serveTime"`
+}
+
+type fullResponse struct {
+	Data       any                `json:"data"`
+	Provenance responseProvenance `json:"provenance"`
 }
 
 func wrapDataResp(c *gin.Context, result any) {
@@ -19,12 +24,12 @@ func wrapDataResp(c *gin.Context, result any) {
 		hostname = "getHostnameError"
 	}
 
-	prov := ResponseProvenance{
-		hostname:  hostname,
-		serveTime: int(time.Now().UnixMilli()),
+	prov := responseProvenance{
+		Hostname:  hostname,
+		ServeTime: int(time.Now().UnixMilli()),
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": result, "provenance": prov})
+	c.JSON(http.StatusOK, fullResponse{Data: result, Provenance: prov})
 }
 
 func wrapDataErrResp(c *gin.Context, result any, err error) {
