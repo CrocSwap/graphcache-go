@@ -4,19 +4,19 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-type UserBalanceResponse struct {
-	ChainId types.ChainId       `json:"chainId"`
-	User    types.EthAddress    `json:"user"`
-	Block   int64               `json:"block"`
-	Tokens  []types.UserBalance `json:"tokens"`
+type UserTokensResponse struct {
+	ChainId types.ChainId      `json:"chainId"`
+	User    types.EthAddress   `json:"user"`
+	Block   int64              `json:"block"`
+	Tokens  []types.EthAddress `json:"tokens"`
 }
 
-func (v *Views) QueryUserBalances(chainId types.ChainId, user types.EthAddress) (UserBalanceResponse, error) {
-	resp := UserBalanceResponse{
+func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) (UserTokensResponse, error) {
+	resp := UserTokensResponse{
 		ChainId: chainId,
 		User:    user,
 		Block:   v.Models.LatestBlock(chainId),
-		Tokens:  make([]types.UserBalance, 0),
+		Tokens:  make([]types.EthAddress, 0),
 	}
 
 	balances := v.Models.RetrieveUserBalances(chainId, user)
