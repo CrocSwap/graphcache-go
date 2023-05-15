@@ -24,7 +24,7 @@ type ChainConfig struct {
 
 type NetworkConfig map[types.NetworkName]ChainConfig
 
-func LoadChainConfigs(path string) NetworkConfig {
+func LoadNetworkConfig(path string) NetworkConfig {
 	jsonData, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +39,7 @@ func LoadChainConfigs(path string) NetworkConfig {
 	return config
 }
 
-func (c *NetworkConfig) networkForChainID(chainId types.ChainId) (types.NetworkName, bool) {
+func (c *NetworkConfig) NetworkForChainID(chainId types.ChainId) (types.NetworkName, bool) {
 	for networkKey, configElem := range *c {
 		if chainId == types.IntToChainId(configElem.ChainID) {
 			return networkKey, true
@@ -48,7 +48,7 @@ func (c *NetworkConfig) networkForChainID(chainId types.ChainId) (types.NetworkN
 	return "", false
 }
 
-func (c *NetworkConfig) chainIDForNetwork(network types.NetworkName) (types.ChainId, bool) {
+func (c *NetworkConfig) ChainIDForNetwork(network types.NetworkName) (types.ChainId, bool) {
 	lookup, ok := (*c)[network]
 	if ok {
 		return types.IntToChainId(lookup.ChainID), true

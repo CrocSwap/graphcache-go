@@ -30,3 +30,8 @@ func (m *Models) RetrieveUserBalances(chainId types.ChainId, user types.EthAddre
 		return make([]types.EthAddress, 0)
 	}
 }
+
+func (m *Models) AddUserBalance(chainId types.ChainId, user types.EthAddress, token types.EthAddress) {
+	key := chainAndAddr{chainId: chainId, ethAddr: user}
+	m.cache.userBalTokens.insertList(key, token)
+}

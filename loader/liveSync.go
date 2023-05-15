@@ -1,7 +1,6 @@
 package loader
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -43,7 +42,8 @@ func NewSyncChannel(config SyncChannelConfig, consumeFn func(tables.Balance)) Sy
 	}
 }
 
-func (s *SyncChannel) SyncTableFromDb(db *sql.DB) {
+func (s *SyncChannel) SyncTableFromDb(dbPath string) {
+	db := openSqliteDb(dbPath)
 	tables.LoadTokenBalancesSql(db, string(s.config.Network), s.ingestEntry)
 }
 

@@ -4,7 +4,7 @@ import "github.com/CrocSwap/graphcache-go/types"
 
 type MemoryCache struct {
 	latestBlocks  RWLockMap[types.ChainId, int64]
-	userBalTokens RWLockMap[chainAndAddr, []types.EthAddress]
+	userBalTokens RWLockMapArray[chainAndAddr, types.EthAddress]
 }
 
 type chainAndAddr struct {
@@ -15,6 +15,6 @@ type chainAndAddr struct {
 func newMemCache() MemoryCache {
 	return MemoryCache{
 		latestBlocks:  newRwLockMap[types.ChainId, int64](),
-		userBalTokens: newRwLockMap[chainAndAddr, []types.EthAddress](),
+		userBalTokens: newRwLockMapArray[chainAndAddr, types.EthAddress](),
 	}
 }
