@@ -7,6 +7,7 @@ import (
 
 type IViews interface {
 	QueryUserTokens(chainId types.ChainId, user types.EthAddress) (UserTokensResponse, error)
+	QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error)
 }
 
 type Views struct {

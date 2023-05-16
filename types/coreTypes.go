@@ -8,6 +8,8 @@ import (
 
 type ChainId string
 type EthAddress string
+type EthTxHash string
+type EthStorageHash string
 type NetworkName string
 
 func ValidateEthAddr(arg string) EthAddress {

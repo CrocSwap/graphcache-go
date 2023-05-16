@@ -14,8 +14,8 @@ type responseProvenance struct {
 }
 
 type fullResponse struct {
-	Data       any                `json:"data"`
-	Provenance responseProvenance `json:"provenance"`
+	Data     any                `json:"data"`
+	Metadata responseProvenance `json:"provenance"`
 }
 
 func wrapDataResp(c *gin.Context, result any) {
@@ -29,7 +29,7 @@ func wrapDataResp(c *gin.Context, result any) {
 		ServeTime: int(time.Now().UnixMilli()),
 	}
 
-	c.JSON(http.StatusOK, fullResponse{Data: result, Provenance: prov})
+	c.JSON(http.StatusOK, fullResponse{Data: result, Metadata: prov})
 }
 
 func wrapDataErrResp(c *gin.Context, result any, err error) {

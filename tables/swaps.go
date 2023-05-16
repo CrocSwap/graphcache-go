@@ -3,7 +3,6 @@ package tables
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 )
@@ -117,7 +116,6 @@ func (tbl SwapsTable) SqlTableName() string { return "swaps" }
 
 func (tbl SwapsTable) ReadSqlRow(rows *sql.Rows) Swap {
 	var swap Swap
-	fmt.Println(rows.Columns())
 	err := rows.Scan(
 		&swap.ID,
 		&swap.CallIndex,
