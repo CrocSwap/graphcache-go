@@ -34,10 +34,10 @@ func main() {
 	sync.SyncTableFromDb("../_data/database.db")
 	sync.SyncTableToSubgraph()
 
-	cfg.Query = "../graphcache/webserver/queries/swaps.query"
-	tbl2 := tables.SwapsTable{}
-	sync2 := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tbl2, cfg, func(l tables.Swap) { fmt.Println(l) })
+	cfg.Query = "../graphcache/webserver/queries/feechanges.query"
+	tbl2 := tables.FeeTable{}
+	sync2 := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
+		tbl2, cfg, func(l tables.FeeChange) { fmt.Println(l) })
 
 	sync2.SyncTableFromDb("../_data/database.db")
 	sync2.SyncTableToSubgraph()
