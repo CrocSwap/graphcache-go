@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/CrocSwap/graphcache-go/controller"
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/models"
@@ -24,12 +26,21 @@ func main() {
 		Network: "goerli",
 		Query:   "../graphcache/webserver/queries/balances.query",
 	}
+
 	tbl := tables.BalanceTable{}
 	sync := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
 		tbl, cfg, goerliCntrl.IngestBalance)
 
 	sync.SyncTableFromDb("../_data/database.db")
 	sync.SyncTableToSubgraph()
+
+	cfg.Query = "../graphcache/webserver/queries/swaps.query"
+	tbl2 := tables.SwapsTable{}
+	sync2 := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
+		tbl2, cfg, func(l tables.Swap) { fmt.Println(l) })
+
+	sync2.SyncTableFromDb("../_data/database.db")
+	sync2.SyncTableToSubgraph()
 
 	views := views.Views{Models: models}
 	apiServer := server.APIWebServer{Views: &views}

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
-	"strconv"
 )
 
 type BalanceTable struct {
@@ -50,19 +49,11 @@ func (tbl BalanceTable) ConvertSubGraphRow(r BalanceSubGraph, network string) Ba
 		ID:      network + r.ID,
 		Network: network,
 		Tx:      r.TransactionHash,
-		Block:   stringNum(r.Block),
-		Time:    stringNum(r.Time),
+		Block:   parseInt(r.Block),
+		Time:    parseInt(r.Time),
 		User:    r.User,
 		Token:   r.Token,
 	}
-}
-
-func stringNum(val string) int {
-	ret, err := strconv.Atoi(val)
-	if err != nil {
-		log.Fatal("Subgraph number conversion error")
-	}
-	return ret
 }
 
 func (tbl BalanceTable) SqlTableName() string { return "balances" }
