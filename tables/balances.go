@@ -2,10 +2,21 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"log"
 	"strconv"
 )
+
+type BalanceTable struct {
+}
+
+func (tbl BalanceTable) GetID(r Balance) string {
+	return r.ID
+}
+
+func (tbl BalanceTable) GetTime(r Balance) int {
+	return r.Time
+}
 
 type Balance struct {
 	ID      string `db:"id"`
@@ -34,7 +45,7 @@ type BalanceSubGraphResp struct {
 	Data BalanceSubGrapData `json:"data"`
 }
 
-func ConvertBalanceToSql(r BalanceSubGraph, network string) Balance {
+func (tbl BalanceTable) ConvertSubGraphRow(r BalanceSubGraph, network string) Balance {
 	return Balance{
 		ID:      network + r.ID,
 		Network: network,
@@ -54,36 +65,36 @@ func stringNum(val string) int {
 	return ret
 }
 
-func LoadTokenBalancesSql(db *sql.DB, network string, ingestFn func(Balance)) {
-	query := fmt.Sprintf("SELECT * FROM balances WHERE network == '%s'", network)
-	rows, err := db.Query(query)
+func (tbl BalanceTable) SqlTableName() string { return "balances" }
 
+func (tbl BalanceTable) ReadSqlRow(rows *sql.Rows) Balance {
+	var balance Balance
+	err := rows.Scan(
+		&balance.ID,
+		&balance.Network,
+		&balance.Tx,
+		&balance.Block,
+		&balance.Time,
+		&balance.User,
+		&balance.Token,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rows.Close()
+	return balance
+}
 
-	for rows.Next() {
-		var balance Balance
+func (tbl BalanceTable) ParseSubGraphResp(body []byte) ([]BalanceSubGraph, error) {
+	var parsed BalanceSubGraphResp
 
-		err := rows.Scan(
-			&balance.ID,
-			&balance.Network,
-			&balance.Tx,
-			&balance.Block,
-			&balance.Time,
-			&balance.User,
-			&balance.Token,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		ingestFn(balance)
-	}
-
-	err = rows.Err()
+	err := json.Unmarshal(body, &parsed)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
+	ret := make([]BalanceSubGraph, 0)
+	for _, entry := range parsed.Data.UserBalances {
+		ret = append(ret, entry)
+	}
+	return ret, nil
 }

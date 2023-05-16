@@ -1,18 +1,19 @@
 package loader
 
 import (
-	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-type SyncChannel struct {
+type SyncChannel[R any, S any] struct {
 	lastObserved int
 	idsObserved  map[string]bool
-	consumeFn    func(tables.Balance)
+	consumeFn    func(R)
 	config       SyncChannelConfig
+	tbl          tables.ITable[R, S]
 }
 
 type SyncChannelConfig struct {
@@ -21,33 +22,53 @@ type SyncChannelConfig struct {
 	Query   string
 }
 
-func (s *SyncChannel) ingestEntry(b tables.Balance) {
-	if b.Time > s.lastObserved {
-		s.lastObserved = b.Time
+func (s *SyncChannel[R, S]) ingestEntry(r R) {
+	if s.tbl.GetTime(r) > s.lastObserved {
+		s.lastObserved = s.tbl.GetTime(r)
 	}
 
-	_, hasEntry := s.idsObserved[b.ID]
+	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]
 	if !hasEntry {
-		s.idsObserved[b.ID] = true
-		s.consumeFn(b)
+		s.idsObserved[s.tbl.GetID(r)] = true
+		s.consumeFn(r)
 	}
 }
 
-func NewSyncChannel(config SyncChannelConfig, consumeFn func(tables.Balance)) SyncChannel {
-	return SyncChannel{
+func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
+	consumeFn func(R)) SyncChannel[R, S] {
+	return SyncChannel[R, S]{
 		lastObserved: 0,
 		idsObserved:  make(map[string]bool),
 		consumeFn:    consumeFn,
 		config:       config,
+		tbl:          tbl,
 	}
 }
 
-func (s *SyncChannel) SyncTableFromDb(dbPath string) {
+func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
 	db := openSqliteDb(dbPath)
-	tables.LoadTokenBalancesSql(db, string(s.config.Network), s.ingestEntry)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE network == '%s'",
+		s.tbl.SqlTableName(),
+		string(s.config.Network))
+
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		entry := s.tbl.ReadSqlRow(rows)
+		s.ingestEntry(entry)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func (s *SyncChannel) SyncTableToSubgraph() error {
+func (s *SyncChannel[R, S]) SyncTableToSubgraph() error {
 	var parsed tables.BalanceSubGraphResp
 	query := readQueryPath(s.config.Query)
 
@@ -60,14 +81,14 @@ func (s *SyncChannel) SyncTableToSubgraph() error {
 			return err
 		}
 
-		err = json.Unmarshal(resp, &parsed)
+		entries, err := s.tbl.ParseSubGraphResp(resp)
 		if err != nil {
-			fmt.Println("Warning subgraph request decode error " + err.Error())
+			log.Println("Warning subgraph request decode error " + err.Error())
 			return err
 		}
 
-		for _, entry := range parsed.Data.UserBalances {
-			row := tables.ConvertBalanceToSql(entry, string(s.config.Network))
+		for _, entry := range entries {
+			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
 			s.ingestEntry(row)
 		}
 

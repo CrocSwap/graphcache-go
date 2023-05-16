@@ -5,6 +5,7 @@ import (
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/models"
 	"github.com/CrocSwap/graphcache-go/server"
+	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 	"github.com/CrocSwap/graphcache-go/views"
 	_ "github.com/mattn/go-sqlite3"
@@ -23,7 +24,9 @@ func main() {
 		Network: "goerli",
 		Query:   "../graphcache/webserver/queries/balances.query",
 	}
-	sync := loader.NewSyncChannel(cfg, goerliCntrl.IngestBalance)
+	tbl := tables.BalanceTable{}
+	sync := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
+		tbl, cfg, goerliCntrl.IngestBalance)
 
 	sync.SyncTableFromDb("../_data/database.db")
 	sync.SyncTableToSubgraph()
