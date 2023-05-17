@@ -14,6 +14,8 @@ import (
 func main() {
 	netCfgPath := "../graphcache/webserver/config/networks.json"
 	netCfg := loader.LoadNetworkConfig(netCfgPath)
+	onChain := loader.OnChainLoader{Cfg: netCfg}
+
 	cache := cache.New()
 	controller := controller.New(netCfg, cache)
 
@@ -40,7 +42,7 @@ func main() {
 	sync2.SyncTableFromDb("../_data/database.db")
 	sync2.SyncTableToSubgraph()
 
-	views := views.Views{Cache: cache}
+	views := views.Views{Cache: cache, OnChain: &onChain}
 	apiServer := server.APIWebServer{Views: &views}
 	apiServer.Serve()
 }

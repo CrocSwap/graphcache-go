@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -22,6 +23,18 @@ func (m *MemoryCache) RetrieveUserBalances(chainId types.ChainId, user types.Eth
 	} else {
 		return make([]types.EthAddress, 0)
 	}
+}
+
+func (m *MemoryCache) MaterializeTokenMetata(onChain *loader.OnChainLoader,
+	chainId types.ChainId, token types.EthAddress) *model.TokenMetadataHandle {
+
+	key := chainAndAddr{chainId, token}
+	hndl, okay := m.tokenMetadata.lookup(key)
+	if !okay {
+		hndl = model.InitTokenMetadata(onChain, chainId, token)
+		m.tokenMetadata.insert(key, hndl)
+	}
+	return hndl
 }
 
 func (m *MemoryCache) RetrieveUserPositions(

@@ -39,6 +39,27 @@ func LoadNetworkConfig(path string) NetworkConfig {
 	return config
 }
 
+func (c *NetworkConfig) ChainConfig(chainId types.ChainId) (ChainConfig, bool) {
+	netName, isValid := c.NetworkForChainID(chainId)
+	if isValid {
+		cfg, hasCfg := (*c)[netName]
+		if hasCfg {
+			return cfg, true
+		}
+	}
+	return ChainConfig{}, false
+}
+
+func (c *ChainConfig) RPCEndpoint() string {
+	for _, rpcs := range c.RPCs {
+		for _, rpc := range rpcs {
+			return rpc
+		}
+	}
+	log.Fatal("No configured RPC endpoint for " + types.IntToChainId(c.ChainID))
+	return ""
+}
+
 func (c *NetworkConfig) NetworkForChainID(chainId types.ChainId) (types.NetworkName, bool) {
 	for networkKey, configElem := range *c {
 		if chainId == types.IntToChainId(configElem.ChainID) {

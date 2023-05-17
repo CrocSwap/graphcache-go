@@ -22,18 +22,6 @@ type SyncChannelConfig struct {
 	Query   string
 }
 
-func (s *SyncChannel[R, S]) ingestEntry(r R) {
-	if s.tbl.GetTime(r) > s.lastObserved {
-		s.lastObserved = s.tbl.GetTime(r)
-	}
-
-	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]
-	if !hasEntry {
-		s.idsObserved[s.tbl.GetID(r)] = true
-		s.consumeFn(r)
-	}
-}
-
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
 	consumeFn func(R)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
@@ -96,4 +84,16 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph() error {
 		numObs = len(parsed.Data.UserBalances)
 	}
 	return nil
+}
+
+func (s *SyncChannel[R, S]) ingestEntry(r R) {
+	if s.tbl.GetTime(r) > s.lastObserved {
+		s.lastObserved = s.tbl.GetTime(r)
+	}
+
+	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]
+	if !hasEntry {
+		s.idsObserved[s.tbl.GetID(r)] = true
+		s.consumeFn(r)
+	}
 }

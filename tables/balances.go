@@ -6,8 +6,7 @@ import (
 	"log"
 )
 
-type BalanceTable struct {
-}
+type BalanceTable struct{}
 
 func (tbl BalanceTable) GetID(r Balance) string {
 	return r.ID

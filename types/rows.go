@@ -7,19 +7,23 @@ type UserBalance struct {
 	Balance big.Int    `json:"balance"`
 }
 
-type LiqPosition struct {
-	ChainID      string         `json:"chainId"`
-	TX           EthTxHash      `json:"tx"`
-	Base         EthAddress     `json:"base"`
-	Quote        EthAddress     `json:"quote"`
-	PoolIdx      int            `json:"poolId"`
-	PoolHash     EthTxHash      `json:"poolHash"`
-	User         EthAddress     `json:"user"`
-	Block        int            `json:"block"`
-	Time         int            `json:"time"`
-	PositionType string         `json:"positionType"`
-	BidTick      int            `json:"bidTick"`
-	AskTick      int            `json:"askTick"`
-	IsBid        bool           `json:"isBid"`
-	PosSlot      EthStorageHash `json:"positionStorageSlot"`
+type TokenMetadata struct {
+	Decimals int    `json:"decimals"`
+	Symbol   string `json:"symbol"`
+}
+
+type TokenPairMetadata struct {
+	BaseDecimals  int    `json:"baseDecimals"`
+	BaseSymbol    string `json:"baseSymbol"`
+	QuoteDecimals int    `json:"quoteDecimals"`
+	QuoteSymbol   string `json:"quoteSymbol"`
+}
+
+func PairTokenMetadata(base TokenMetadata, quote TokenMetadata) TokenPairMetadata {
+	return TokenPairMetadata{
+		BaseSymbol:    base.Symbol,
+		BaseDecimals:  base.Decimals,
+		QuoteSymbol:   quote.Symbol,
+		QuoteDecimals: quote.Decimals,
+	}
 }
