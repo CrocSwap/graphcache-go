@@ -3,21 +3,23 @@ package controller
 import (
 	"log"
 
+	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/loader"
-	"github.com/CrocSwap/graphcache-go/models"
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
 type Controller struct {
-	netCfg loader.NetworkConfig
-	models *models.Models
+	netCfg  loader.NetworkConfig
+	cache   *cache.MemoryCache
+	workers *workers
 }
 
-func New(netCfg loader.NetworkConfig, models *models.Models) *Controller {
+func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
 	return &Controller{
-		netCfg: netCfg,
-		models: models,
+		netCfg:  netCfg,
+		cache:   cache,
+		workers: initWorkers(),
 	}
 }
 
@@ -41,7 +43,7 @@ func (c *Controller) OnNetwork(network types.NetworkName) *ControllerOverNetwork
 func (c *ControllerOverNetwork) IngestBalance(b tables.Balance) {
 	token := types.RequireEthAddr(b.Token)
 	user := types.RequireEthAddr(b.User)
-	c.ctrl.models.AddUserBalance(c.chainId, user, token)
+	c.ctrl.cache.AddUserBalance(c.chainId, user, token)
 }
 
 func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
@@ -52,19 +54,14 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 		Base:    types.RequireEthAddr(l.Base),
 		Quote:   types.RequireEthAddr(l.Quote),
 	}
-	pos := types.PositionLocation{
+	loc := types.PositionLocation{
 		PoolLocation:      pool,
 		LiquidityLocation: liq,
 		User:              types.RequireEthAddr(l.User),
 	}
 
-	if l.ChangeType == "mint" {
-		c.ctrl.models.UpdatePositionMint(pos, l.Time)
-	} else if l.ChangeType == "burn" {
-		c.ctrl.models.UpdatePositionBurn(pos, l.Time)
-	} else if l.ChangeType == "harvest" {
-		c.ctrl.models.UpdatePositionHarvest(pos, l.Time)
-	}
+	pos := c.ctrl.cache.MaterializePosition(loc)
+	c.ctrl.workers.posUpdates <- posUpdateMsg{liq: l, pos: pos}
 }
 
 func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {

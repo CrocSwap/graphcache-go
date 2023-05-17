@@ -15,11 +15,11 @@ func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) (U
 	resp := UserTokensResponse{
 		ChainId: chainId,
 		User:    user,
-		Block:   v.Models.LatestBlock(chainId),
+		Block:   v.Cache.LatestBlock(chainId),
 		Tokens:  make([]types.EthAddress, 0),
 	}
 
-	balances := v.Models.RetrieveUserBalances(chainId, user)
+	balances := v.Cache.RetrieveUserBalances(chainId, user)
 	for _, bal := range balances {
 		resp.Tokens = append(resp.Tokens, bal)
 	}

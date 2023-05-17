@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/controller"
 	"github.com/CrocSwap/graphcache-go/loader"
-	"github.com/CrocSwap/graphcache-go/models"
 	"github.com/CrocSwap/graphcache-go/server"
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -14,8 +14,8 @@ import (
 func main() {
 	netCfgPath := "../graphcache/webserver/config/networks.json"
 	netCfg := loader.LoadNetworkConfig(netCfgPath)
-	models := models.New()
-	controller := controller.New(netCfg, models)
+	cache := cache.New()
+	controller := controller.New(netCfg, cache)
 
 	goerlChainConfig, _ := netCfg["goerli"]
 	goerliCntrl := controller.OnNetwork(types.NetworkName("goerli"))
@@ -40,7 +40,7 @@ func main() {
 	sync2.SyncTableFromDb("../_data/database.db")
 	sync2.SyncTableToSubgraph()
 
-	views := views.Views{Models: models}
+	views := views.Views{Cache: cache}
 	apiServer := server.APIWebServer{Views: &views}
 	apiServer.Serve()
 }

@@ -1,7 +1,7 @@
 package views
 
 import (
-	"github.com/CrocSwap/graphcache-go/models"
+	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
@@ -11,5 +11,5 @@ type IViews interface {
 }
 
 type Views struct {
-	Models *models.Models
+	Cache *cache.MemoryCache
 }
