@@ -27,3 +27,9 @@ func PairTokenMetadata(base TokenMetadata, quote TokenMetadata) TokenPairMetadat
 		QuoteDecimals: quote.Decimals,
 	}
 }
+
+type PoolPriceLiq struct {
+	PriceNonDisp  float64 `json:"priceNonDisp"`
+	PriceDisplay  float64 `json:"priceDisplay"`
+	PoolLiquidity big.Int `json:"poolLiquidity"`
+}

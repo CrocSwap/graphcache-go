@@ -35,7 +35,7 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 
 func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
 	db := openSqliteDb(dbPath)
-	query := fmt.Sprintf("SELECT * FROM %s WHERE network == '%s'",
+	query := fmt.Sprintf("SELECT * FROM %s WHERE network == '%s' ORDER BY time ASC",
 		s.tbl.SqlTableName(),
 		string(s.config.Network))
 

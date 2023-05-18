@@ -6,8 +6,10 @@ import (
 )
 
 type MemoryCache struct {
-	latestBlocks  RWLockMap[types.ChainId, int64]
-	tokenMetadata RWLockMap[chainAndAddr, *model.TokenMetadataHandle]
+	latestBlocks RWLockMap[types.ChainId, int64]
+
+	tokenMetadata RWLockMap[chainAndAddr, *model.ExpiryHandle[types.TokenMetadata]]
+	poolPrices    RWLockMap[types.PoolLocation, *model.ExpiryHandle[types.PoolPriceLiq]]
 
 	userBalTokens RWLockMapArray[chainAndAddr, types.EthAddress]
 
@@ -19,8 +21,11 @@ type MemoryCache struct {
 
 func New() *MemoryCache {
 	return &MemoryCache{
-		latestBlocks:         newRwLockMap[types.ChainId, int64](),
-		tokenMetadata:        newRwLockMap[chainAndAddr, *model.TokenMetadataHandle](),
+		latestBlocks: newRwLockMap[types.ChainId, int64](),
+
+		tokenMetadata: newRwLockMap[chainAndAddr, *model.ExpiryHandle[types.TokenMetadata]](),
+		poolPrices:    newRwLockMap[types.PoolLocation, *model.ExpiryHandle[types.PoolPriceLiq]](),
+
 		userBalTokens:        newRwLockMapArray[chainAndAddr, types.EthAddress](),
 		liqPosition:          newRwLockMap[types.PositionLocation, *model.PositionTracker](),
 		userPositions:        newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker](),

@@ -14,7 +14,7 @@ type UserPosition struct {
 func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error) {
 	positions := v.Cache.RetrieveUserPositions(chainId, user)
 
-	for key, _ := range positions {
+	for key := range positions {
 		v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Base)
 		v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Quote)
 	}

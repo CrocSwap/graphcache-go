@@ -26,13 +26,24 @@ func (m *MemoryCache) RetrieveUserBalances(chainId types.ChainId, user types.Eth
 }
 
 func (m *MemoryCache) MaterializeTokenMetata(onChain *loader.OnChainLoader,
-	chainId types.ChainId, token types.EthAddress) *model.TokenMetadataHandle {
+	chainId types.ChainId, token types.EthAddress) *model.ExpiryHandle[types.TokenMetadata] {
 
 	key := chainAndAddr{chainId, token}
 	hndl, okay := m.tokenMetadata.lookup(key)
 	if !okay {
 		hndl = model.InitTokenMetadata(onChain, chainId, token)
 		m.tokenMetadata.insert(key, hndl)
+	}
+	return hndl
+}
+
+func (m *MemoryCache) MaterializePoolPrice(onChain *loader.OnChainLoader,
+	loc types.PoolLocation) *model.ExpiryHandle[types.PoolPriceLiq] {
+
+	hndl, okay := m.poolPrices.lookup(loc)
+	if !okay {
+		hndl = model.InitPoolState(onChain, loc)
+		m.poolPrices.insert(loc, hndl)
 	}
 	return hndl
 }
