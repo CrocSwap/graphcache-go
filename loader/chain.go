@@ -51,11 +51,6 @@ func (c *OnChainLoader) FetchTokenMetadata(chain types.ChainId, token types.EthA
 	return metadata, err
 }
 
-const erc20ABI = `[
-	{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
-	{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint64"}],"payable":false,"stateMutability":"view","type":"function"}
-]`
-
 func tokenSymbolQuery(client *ethclient.Client, token types.EthAddress) (string, error) {
 	result, err := callContractFn("symbol", token, client, tokenABI())
 	if err != nil {
@@ -91,6 +86,11 @@ func callContractFn(methodName string, token types.EthAddress, client *ethclient
 
 	return unparsed[0], nil
 }
+
+const erc20ABI = `[
+	{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+	{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint64"}],"payable":false,"stateMutability":"view","type":"function"}
+]`
 
 func tokenABI() abi.ABI {
 	parsedABI, err := abi.JSON(strings.NewReader(erc20ABI))

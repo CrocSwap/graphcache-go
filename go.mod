@@ -6,6 +6,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/ethereum/go-ethereum v1.11.6 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

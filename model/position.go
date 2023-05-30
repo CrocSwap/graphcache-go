@@ -5,11 +5,10 @@ import (
 )
 
 type PositionTracker struct {
-	PositionID       string `json:"positionId"`
-	TimeFirstMint    int    `json:"timeFirstMint"`
-	Time             int    `json:"time"`
-	Block            int    `json:"block"`
-	LatestUpdateTime int    `json:"latestUpdateTime"`
+	TimeFirstMint    int `json:"timeFirstMint"`
+	Time             int `json:"time"`
+	Block            int `json:"block"`
+	LatestUpdateTime int `json:"latestUpdateTime"`
 }
 
 func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
