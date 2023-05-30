@@ -9,7 +9,8 @@ import (
 )
 
 type SyncChannel[R any, S any] struct {
-	lastObserved int
+	LastObserved int
+	RowsIngested int
 	idsObserved  map[string]bool
 	consumeFn    func(R)
 	config       SyncChannelConfig
@@ -25,7 +26,7 @@ type SyncChannelConfig struct {
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
 	consumeFn func(R)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
-		lastObserved: 0,
+		LastObserved: 0,
 		idsObserved:  make(map[string]bool),
 		consumeFn:    consumeFn,
 		config:       config,
@@ -56,39 +57,42 @@ func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
 	}
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraph() error {
-	var parsed tables.BalanceSubGraphResp
+func (s *SyncChannel[R, S]) SyncTableToSubgraph() (int, error) {
 	query := readQueryPath(s.config.Query)
 
 	hasMore := true
-	numObs := len(s.idsObserved)
+	prevObs := 0
+	nIngested := 0
 
 	for hasMore {
-		resp, err := queryFromSubgraph(s.config.Chain, query, s.lastObserved)
+		log.Printf("Loading from subgraph query %s starting at %d", s.config.Query, s.LastObserved)
+
+		resp, err := queryFromSubgraph(s.config.Chain, query, s.LastObserved)
 		if err != nil {
-			return err
+			return nIngested, err
 		}
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
 		if err != nil {
 			log.Println("Warning subgraph request decode error " + err.Error())
-			return err
+			return nIngested, err
 		}
 
 		for _, entry := range entries {
 			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
 			s.ingestEntry(row)
+			nIngested += 1
 		}
 
-		hasMore = len(parsed.Data.UserBalances) > numObs
-		numObs = len(parsed.Data.UserBalances)
+		hasMore = s.LastObserved > prevObs
+		prevObs = s.LastObserved
 	}
-	return nil
+	return nIngested, nil
 }
 
 func (s *SyncChannel[R, S]) ingestEntry(r R) {
-	if s.tbl.GetTime(r) > s.lastObserved {
-		s.lastObserved = s.tbl.GetTime(r)
+	if s.tbl.GetTime(r) > s.LastObserved {
+		s.LastObserved = s.tbl.GetTime(r)
 	}
 
 	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]

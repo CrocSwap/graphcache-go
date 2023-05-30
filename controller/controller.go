@@ -64,6 +64,15 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 	c.ctrl.workers.posUpdates <- posUpdateMsg{liq: l, pos: pos}
 }
 
+func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
+}
+
+func (c *ControllerOverNetwork) IngestFee(l tables.FeeChange) {
+}
+
+func (c *ControllerOverNetwork) IngestKnockout(l tables.KnockoutCross) {
+}
+
 func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
 	if l.PositionType == "ambient" {
 		return types.AmbientLiquidityLocation()
