@@ -99,6 +99,9 @@ func (r *LiquidityRefresher) watchPending() {
 	}
 }
 
+const RETRY_QUERY_DURATION = 10 * time.Second
+const N_MAX_RETRIES = 3
+
 func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, postProcess chan *PositionRefresher) {
 	for true {
 		posRefresher := <-workQueue
@@ -106,22 +109,36 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, post
 
 		if posType == "ambient" {
 			ambientSeeds, err := r.query.QueryAmbientSeeds(posRefresher.location)
-			if err == nil {
-				defer posRefresher.lock.Unlock()
-				posRefresher.lock.Lock()
-				posRefresher.pos.UpdateAmbient(*ambientSeeds)
+
+			for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
+				time.Sleep(RETRY_QUERY_DURATION)
+				ambientSeeds, err = r.query.QueryAmbientSeeds(posRefresher.location)
 			}
+			if err != nil {
+				log.Fatal("Unable to sync liquidity on ambient order")
+			}
+
+			defer posRefresher.lock.Unlock()
+			posRefresher.lock.Lock()
+			posRefresher.pos.UpdateAmbient(*ambientSeeds)
 		}
 
 		if posType == "range" {
 			concLiq, err := r.query.QueryRangeLiquidity(posRefresher.location)
 			rewardLiq, err2 := r.query.QueryRangeRewardsLiq(posRefresher.location)
 
-			if err == nil && err2 == nil {
-				defer posRefresher.lock.Unlock()
-				posRefresher.lock.Lock()
-				posRefresher.pos.UpdateRange(*concLiq, *rewardLiq)
+			for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
+				time.Sleep(RETRY_QUERY_DURATION)
+				concLiq, err = r.query.QueryAmbientSeeds(posRefresher.location)
+				rewardLiq, err2 = r.query.QueryRangeRewardsLiq(posRefresher.location)
 			}
+			if err != nil || err2 != nil {
+				log.Fatal("Unable to sync liquidity on range order")
+			}
+
+			defer posRefresher.lock.Unlock()
+			posRefresher.lock.Lock()
+			posRefresher.pos.UpdateRange(*concLiq, *rewardLiq)
 		}
 
 		if posType == "knockout" {
