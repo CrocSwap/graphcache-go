@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -40,6 +41,7 @@ func wrapDataErrResp(c *gin.Context, result any, err error) {
 	}
 }
 
-func wrapMissingParams(c *gin.Context) {
-	c.String(http.StatusUnprocessableEntity, "Missing parameter")
+func wrapMissingParams(c *gin.Context, paramName string) {
+	msg := fmt.Sprintf("Missing parameter=%s", paramName)
+	c.String(http.StatusUnprocessableEntity, msg)
 }

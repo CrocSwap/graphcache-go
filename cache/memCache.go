@@ -40,8 +40,8 @@ type chainAndAddr struct {
 }
 
 type chainUserAndPool struct {
-	types.PoolLocation
 	user types.EthAddress
+	types.PoolLocation
 }
 
 type chainAndUserTokenAddr struct {

@@ -69,6 +69,16 @@ func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.Po
 	}
 }
 
+func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
+	loc := chainUserAndPool{user, pool}
+	pos, okay := m.userAndPoolPositions.lookupSet(loc)
+	if okay {
+		return pos
+	} else {
+		return make(map[types.PositionLocation]*model.PositionTracker)
+	}
+}
+
 func (m *MemoryCache) AddUserBalance(chainId types.ChainId, user types.EthAddress, token types.EthAddress) {
 	key := chainAndAddr{chainId, user}
 	m.userBalTokens.insert(key, token)
@@ -82,7 +92,7 @@ func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.Pos
 		m.userPositions.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
 		m.poolPositions.insert(loc.PoolLocation, loc, val)
 		m.userAndPoolPositions.insert(
-			chainUserAndPool{loc.PoolLocation, loc.User}, loc, val)
+			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
 	}
 	return val
 }

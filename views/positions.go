@@ -1,7 +1,7 @@
 package views
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -64,8 +64,47 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	}
 }
 
+func (v *Views) QueryUserAndPosition(chainId types.ChainId, user types.EthAddress,
+	base types.EthAddress, quote types.EthAddress, poolIdx int) ([]UserPosition, error) {
+
+	loc := types.PoolLocation{
+		ChainId: chainId,
+		PoolIdx: poolIdx,
+		Base:    base,
+		Quote:   quote,
+	}
+	positions := v.Cache.RetrieveUserPoolPositions(user, loc)
+
+	results := make([]UserPosition, 0)
+	for key, val := range positions {
+		element := UserPosition{key, *val, formPositionId(key)}
+		results = append(results, element)
+	}
+
+	sort.Sort(byTime(results))
+
+	return results, nil
+}
+
+func (v *Views) QuerySinglePosition(chainId types.ChainId, user types.EthAddress,
+	base types.EthAddress, quote types.EthAddress, poolIdx int, bidTick int, askTick int) (*UserPosition, error) {
+
+	entries, err := v.QueryUserAndPosition(chainId, user, base, quote, poolIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pos := range entries {
+		if pos.BidTick == bidTick && pos.AskTick == askTick {
+			return &pos, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func formPositionId(loc types.PositionLocation) string {
-	hash := md5.Sum(structhash.Dump(loc, 1))
+	hash := sha256.Sum256(structhash.Dump(loc, 1))
 	return fmt.Sprintf("pos_%s", hex.EncodeToString(hash[:]))
 }
 

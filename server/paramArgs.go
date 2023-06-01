@@ -34,17 +34,17 @@ func parseChainParam(c *gin.Context, paramName string) (types.ChainId, error) {
 	return parsed, nil
 }
 
-func parseIntParam(c *gin.Context, paramName string) (int, error) {
+func parseIntParam(c *gin.Context, paramName string) (*int, error) {
 	arg := c.Query(paramName)
 	if arg == "" {
-		return -1, nil
+		return nil, nil
 	}
 
 	parsed, err := strconv.Atoi(arg)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	return parsed, nil
+	return &parsed, nil
 }
 
 func readBlockQueryArg(c *gin.Context) int {
