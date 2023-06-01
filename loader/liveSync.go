@@ -3,18 +3,20 @@ package loader
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
 type SyncChannel[R any, S any] struct {
-	LastObserved int
-	RowsIngested int
-	idsObserved  map[string]bool
-	consumeFn    func(R)
-	config       SyncChannelConfig
-	tbl          tables.ITable[R, S]
+	LastObserved     int
+	EarliestObserved int
+	RowsIngested     int
+	idsObserved      map[string]bool
+	consumeFn        func(R)
+	config           SyncChannelConfig
+	tbl              tables.ITable[R, S]
 }
 
 type SyncChannelConfig struct {
@@ -26,11 +28,12 @@ type SyncChannelConfig struct {
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
 	consumeFn func(R)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
-		LastObserved: 0,
-		idsObserved:  make(map[string]bool),
-		consumeFn:    consumeFn,
-		config:       config,
-		tbl:          tbl,
+		LastObserved:     0,
+		EarliestObserved: 1000 * 1000 * 1000 * 1000,
+		idsObserved:      make(map[string]bool),
+		consumeFn:        consumeFn,
+		config:           config,
+		tbl:              tbl,
 	}
 }
 
@@ -57,17 +60,21 @@ func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
 	}
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraph() (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool) (int, error) {
 	query := readQueryPath(s.config.Query)
 
+	startTime := 0
+	if !isAsc {
+		startTime = int(time.Now().Unix())
+	}
+
 	hasMore := true
-	prevObs := 0
+	prevObs := startTime
 	nIngested := 0
 
+	log.Printf("Starting subgraph query %s", s.config.Query)
 	for hasMore {
-		log.Printf("Loading from subgraph query %s starting at %d", s.config.Query, s.LastObserved)
-
-		resp, err := queryFromSubgraph(s.config.Chain, query, s.LastObserved)
+		resp, err := queryFromSubgraph(s.config.Chain, query, prevObs, isAsc)
 		if err != nil {
 			return nIngested, err
 		}
@@ -84,8 +91,16 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph() (int, error) {
 			nIngested += 1
 		}
 
-		hasMore = s.LastObserved > prevObs
-		prevObs = s.LastObserved
+		if isAsc {
+			hasMore = s.LastObserved > prevObs
+			prevObs = s.LastObserved
+		} else {
+			hasMore = s.EarliestObserved < prevObs
+			prevObs = s.EarliestObserved
+		}
+
+		log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
+			nIngested, s.config.Query, prevObs)
 	}
 	return nIngested, nil
 }
@@ -93,6 +108,9 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph() (int, error) {
 func (s *SyncChannel[R, S]) ingestEntry(r R) {
 	if s.tbl.GetTime(r) > s.LastObserved {
 		s.LastObserved = s.tbl.GetTime(r)
+	}
+	if s.tbl.GetTime(r) < s.EarliestObserved {
+		s.EarliestObserved = s.tbl.GetTime(r)
 	}
 
 	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]

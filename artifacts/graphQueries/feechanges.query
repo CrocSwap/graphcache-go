@@ -1,0 +1,17 @@
+query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
+  feeChanges(first: 1000, where:  { time_gte: $minTime, time_lte: $maxTime }, 
+    orderBy: time, orderDirection: $orderDir) {
+    id
+    transactionHash
+    callIndex
+    block
+    time
+    pool {
+      id
+      base
+      quote
+      poolIdx
+    }
+    feeRate
+  }
+}

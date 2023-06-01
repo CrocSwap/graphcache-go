@@ -19,7 +19,7 @@ func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
 	return &Controller{
 		netCfg:  netCfg,
 		cache:   cache,
-		workers: initWorkers(),
+		workers: initWorkers(netCfg),
 	}
 }
 
@@ -61,7 +61,7 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 	}
 
 	pos := c.ctrl.cache.MaterializePosition(loc)
-	c.ctrl.workers.posUpdates <- posUpdateMsg{liq: l, pos: pos}
+	c.ctrl.workers.posUpdates <- posUpdateMsg{liq: l, pos: pos, loc: loc}
 }
 
 func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
@@ -77,7 +77,7 @@ func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
 	if l.PositionType == "ambient" {
 		return types.AmbientLiquidityLocation()
 	} else if l.PositionType == "concentrated" {
-		return types.ConcLiquidityLocation(l.BidTick, l.AskTick)
+		return types.RangeLiquidityLocation(l.BidTick, l.AskTick)
 	} else {
 		pivotTime := 0
 		if l.PivotTime != nil {

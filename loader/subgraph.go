@@ -15,19 +15,33 @@ type GraphRequest struct {
 }
 
 type GraphReqVars struct {
-	MinTime int `json:"minTime"`
-	MaxTime int `json:"maxTime"`
+	Order   string `json:"orderDir"`
+	MinTime int    `json:"minTime"`
+	MaxTime int    `json:"maxTime"`
 }
 
 type SubgraphQuery string
 
-func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, minTime int) ([]byte, error) {
-	request := GraphRequest{
-		Query: query,
-		Variables: GraphReqVars{
-			MinTime: minTime,
+func makeSubgraphVars(isAsc bool, endTime int) GraphReqVars {
+	if isAsc {
+		return GraphReqVars{
+			Order:   "asc",
+			MinTime: endTime,
 			MaxTime: int(time.Now().Unix()),
-		},
+		}
+	} else {
+		return GraphReqVars{
+			Order:   "desc",
+			MinTime: 0,
+			MaxTime: endTime,
+		}
+	}
+}
+
+func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, endTime int, isAsc bool) ([]byte, error) {
+	request := GraphRequest{
+		Query:     query,
+		Variables: makeSubgraphVars(isAsc, endTime),
 	}
 
 	jsonBody, err := json.Marshal(request)

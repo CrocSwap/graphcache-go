@@ -3,14 +3,21 @@ module github.com/CrocSwap/graphcache-go
 go 1.20
 
 require (
+	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08
+	github.com/ethereum/go-ethereum v1.11.6
+	github.com/gin-gonic/gin v1.9.0
+	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/miguelmota/go-solidity-sha3 v0.1.1
+)
+
+require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
-	github.com/ethereum/go-ethereum v1.11.6 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.9.0 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -23,8 +30,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/mattn/go-sqlite3 v1.14.16 // indirect
-	github.com/miguelmota/go-solidity-sha3 v0.1.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect

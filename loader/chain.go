@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/CrocSwap/graphcache-go/types"
 	"github.com/ethereum/go-ethereum"
@@ -17,21 +16,12 @@ type OnChainLoader struct {
 	Cfg NetworkConfig
 }
 
-func (c *OnChainLoader) FetchTokenMetadata(chain types.ChainId, token types.EthAddress) (types.TokenMetadata, error) {
-	// Special case handling for Native ETH
-	if token == "0x0000000000000000000000000000000000000000" {
-		return types.TokenMetadata{
-			Symbol:   "ETH",
-			Decimals: 18,
-		}, nil
-	}
-
-	cfg, okay := c.Cfg.ChainConfig(chain)
-	var metadata types.TokenMetadata
+func (c *OnChainLoader) ethClientForChain(chainId types.ChainId) (*ethclient.Client, error) {
+	cfg, okay := c.Cfg.ChainConfig(chainId)
 
 	if !okay {
-		log.Println("Warning no chain configuration for " + chain)
-		return metadata, fmt.Errorf("Chain configuration missing")
+		log.Println("Warning no chain configuration for " + chainId)
+		return nil, fmt.Errorf("Chain configuration missing")
 	}
 
 	rpcUrl := cfg.RPCEndpoint()
@@ -39,43 +29,26 @@ func (c *OnChainLoader) FetchTokenMetadata(chain types.ChainId, token types.EthA
 
 	if err != nil {
 		log.Println("Warning RPC connection error: " + err.Error())
-		return metadata, err
 	}
 
-	metadata.Symbol, err = tokenSymbolQuery(client, token)
-	if err != nil {
-		return metadata, err
-	}
-
-	metadata.Decimals, err = tokenDecimalQuery(client, token)
-	return metadata, err
+	return client, err
 }
 
-func tokenSymbolQuery(client *ethclient.Client, token types.EthAddress) (string, error) {
-	result, err := callContractFn("symbol", token, client, tokenABI())
-	if err != nil {
-		return "", nil
-	}
-	return result.(string), nil
-}
-
-func tokenDecimalQuery(client *ethclient.Client, token types.EthAddress) (int, error) {
-	result, err := callContractFn("decimals", token, client, tokenABI())
-	if err != nil {
-		return 0, nil
-	}
-	return int(result.(uint64)), nil
-}
-
-func callContractFn(methodName string, token types.EthAddress, client *ethclient.Client, abi abi.ABI) (interface{}, error) {
+func callContractKey(methodName string, token types.EthAddress, client *ethclient.Client, abi abi.ABI) (interface{}, error) {
 	callData, err := abi.Pack(methodName)
 	if err != nil {
 		log.Fatalf("Failed to parse method %s on ABI", methodName)
 	}
+	result, err := callContractFn(callData, methodName, token, client, abi)
+	return result[0], err
+}
 
-	result, err := contractDataCall(client, token, callData)
+func callContractFn(callData []byte, methodName string,
+	contract types.EthAddress, client *ethclient.Client, abi abi.ABI) ([]interface{}, error) {
+
+	result, err := contractDataCall(client, contract, callData)
 	if err != nil {
-		log.Printf("Warning calling %s() on token contract "+err.Error(), methodName)
+		log.Printf("Warning calling %s() on contract "+err.Error(), methodName)
 		return nil, err
 	}
 
@@ -84,20 +57,7 @@ func callContractFn(methodName string, token types.EthAddress, client *ethclient
 		log.Fatalf("Failed to parse %s result on ABI", methodName)
 	}
 
-	return unparsed[0], nil
-}
-
-const erc20ABI = `[
-	{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
-	{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint64"}],"payable":false,"stateMutability":"view","type":"function"}
-]`
-
-func tokenABI() abi.ABI {
-	parsedABI, err := abi.JSON(strings.NewReader(erc20ABI))
-	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
-	}
-	return parsedABI
+	return unparsed, nil
 }
 
 func contractDataCall(client *ethclient.Client, contract types.EthAddress, data []byte) ([]byte, error) {

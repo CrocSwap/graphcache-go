@@ -24,7 +24,7 @@ func AmbientLiquidityLocation() LiquidityLocation {
 	return LiquidityLocation{BidTick: 0, AskTick: 0, PivotTime: 0, IsBid: false}
 }
 
-func ConcLiquidityLocation(bidTick int, askTick int) LiquidityLocation {
+func RangeLiquidityLocation(bidTick int, askTick int) LiquidityLocation {
 	return LiquidityLocation{BidTick: bidTick, AskTick: askTick, PivotTime: 0, IsBid: false}
 }
 
@@ -37,7 +37,7 @@ func PositionTypeForLiq(loc LiquidityLocation) string {
 	if loc.BidTick == 0 && loc.AskTick == 0 {
 		return "ambient"
 	} else if loc.PivotTime == 0 {
-		return "concentrated"
+		return "range"
 	} else {
 		return "knockout"
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	netCfgPath := "../graphcache/webserver/config/networks.json"
+	netCfgPath := "./config/networks.json"
 	netCfg := loader.LoadNetworkConfig(netCfgPath)
 	cache := cache.New()
 	onChain := loader.OnChainLoader{Cfg: netCfg}

@@ -1,0 +1,11 @@
+query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
+  userBalances(first: 1000, where: { time_gte: $minTime, time_lte: $maxTime }, 
+    orderBy: time, orderDirection: $orderDir) {
+    id
+    transactionHash
+    block
+    time
+    user
+    token
+  }
+}
