@@ -25,13 +25,9 @@ func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress)
 	for key, val := range positions {
 		element := UserPosition{key, *val, formPositionId(key)}
 		results = append(results, element)
-		if element.LatestUpdateTime > 1684910712 {
-			fmt.Println(element.TimeFirstMint, element.LatestUpdateTime)
-		}
 	}
 
 	sort.Sort(byTime(results))
-	fmt.Println(results[0].LatestUpdateTime)
 
 	return results, nil
 }
