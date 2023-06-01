@@ -16,15 +16,19 @@ type PositionTracker struct {
 }
 
 func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
-	if p.LatestUpdateTime == 0 {
+	if p.LatestUpdateTime == 0 || l.Time < p.LatestUpdateTime {
 		p.TimeFirstMint = l.Time
-		p.FirstMintTx = l.TX
+		if l.ChangeType == "mint" {
+			p.FirstMintTx = l.TX
+		}
 	}
-	if l.ChangeType == "mint" {
-		p.LastMintTx = l.TX
+	if l.Time > p.LatestUpdateTime {
+		p.LatestUpdateTime = l.Time
+		if l.ChangeType == "mint" {
+			p.LastMintTx = l.TX
+		}
 	}
 	p.PositionType = l.PositionType
-	p.LatestUpdateTime = l.Time
 }
 
 func (p *PositionTracker) UpdateAmbient(seeds big.Int) {
