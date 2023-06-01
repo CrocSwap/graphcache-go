@@ -9,60 +9,66 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-func (c *Controller) SyncSubgraph(chainConfig loader.ChainConfig, network types.NetworkName) {
+type SubgraphSyncer struct {
+	cntr *ControllerOverNetwork
+	cfg  loader.SyncChannelConfig
+}
+
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
 	cfg := loader.SyncChannelConfig{
 		Chain:   chainConfig,
 		Network: network,
 	}
-	netCntr := c.OnNetwork(network)
+	netCntr := controller.OnNetwork(network)
 
-	cfg.Query = "./artifacts/graphQueries/balances.query"
+	return SubgraphSyncer{
+		cntr: netCntr,
+		cfg:  cfg,
+	}
+}
+
+func (s *SubgraphSyncer) SyncStartup(chainConfig loader.ChainConfig, network types.NetworkName) {
+	s.cfg.Query = "./artifacts/graphQueries/balances.query"
 	tblBal := tables.BalanceTable{}
 	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-		tblBal, cfg, netCntr.IngestBalance)
+		tblBal, s.cfg, s.cntr.IngestBalance)
 	nRows, _ := syncBal.SyncTableToSubgraph(false)
 	log.Println("Sync UserBalance subgraph with rows=", nRows)
 
-	cfg.Query = "./artifacts/graphQueries/liqchanges.query"
+	s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
-		tblLiq, cfg, netCntr.IngestLiqChange)
+		tblLiq, s.cfg, s.cntr.IngestLiqChange)
 	nRows, _ = syncLiq.SyncTableToSubgraph(false)
 	log.Println("Sync LiqChanges subgraph with rows=", nRows)
 
-	cfg.Query = "./artifacts/graphQueries/swaps.query"
+	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
 	tblSwap := tables.SwapsTable{}
 	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tblSwap, cfg, netCntr.IngestSwap)
+		tblSwap, s.cfg, s.cntr.IngestSwap)
 	nRows, _ = syncSwap.SyncTableToSubgraph(false)
 	log.Println("Sync Swaps subgraph with rows=", nRows)
 
-	cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
+	s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
 	tblKo := tables.KnockoutTable{}
 	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
-		tblKo, cfg, netCntr.IngestKnockout)
+		tblKo, s.cfg, s.cntr.IngestKnockout)
 	nRows, _ = syncKo.SyncTableToSubgraph(false)
 	log.Println("Sync Knockout subgraph with rows=", nRows)
 
-	cfg.Query = "./artifacts/graphQueries/feechanges.query"
+	s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
 	tblFee := tables.FeeTable{}
 	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
-		tblFee, cfg, netCntr.IngestFee)
+		tblFee, s.cfg, s.cntr.IngestFee)
 	nRows, _ = syncFee.SyncTableToSubgraph(false)
 	log.Println("Sync FeeChanges subgraph with rows=", nRows)
 }
 
-func (c *Controller) SyncPricingSwaps(chainConfig loader.ChainConfig, network types.NetworkName) {
-	cfg := loader.SyncChannelConfig{
-		Chain:   chainConfig,
-		Network: network,
-	}
-	netCntr := c.OnNetwork(network)
-
-	cfg.Query = "./artifacts/graphQueries/swaps.query"
+func (s *SubgraphSyncer) SyncPricingSwaps() {
+	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
 	tbl := tables.SwapsTable{}
 	sync := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tbl, cfg, netCntr.IngestSwap)
+		tbl, s.cfg, s.cntr.IngestSwap)
 
 	LOOKBACK_WINDOW := 3600 * 1
 	sync.LastObserved = int(time.Now().Unix()) - LOOKBACK_WINDOW
