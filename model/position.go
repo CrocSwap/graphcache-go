@@ -7,19 +7,23 @@ import (
 )
 
 type PositionTracker struct {
-	TimeFirstMint    int `json:"timeFirstMint"`
-	Time             int `json:"time"`
-	Block            int `json:"block"`
-	LatestUpdateTime int `json:"latestUpdateTime"`
+	TimeFirstMint    int    `json:"timeFirstMint"`
+	LatestUpdateTime int    `json:"latestUpdateTime"`
+	LastMintTx       string `json:"lastMintTx"`
+	FirstMintTx      string `json:"firstMintTx"`
+	PositionType     string `json:"positionType"`
 	PositionLiquidity
 }
 
 func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
-	if p.Time == 0 {
+	if p.LatestUpdateTime == 0 {
 		p.TimeFirstMint = l.Time
+		p.FirstMintTx = l.TX
 	}
-	p.Time = l.Time
-	p.Block = l.Block
+	if l.ChangeType == "mint" {
+		p.LastMintTx = l.TX
+	}
+	p.PositionType = l.PositionType
 	p.LatestUpdateTime = l.Time
 }
 
@@ -32,14 +36,8 @@ func (p *PositionTracker) UpdateRange(liq big.Int, rewardsLiq big.Int) {
 	p.RewardLiq = rewardsLiq
 }
 
-func (p *PositionTracker) UpdateKnockout(liq big.Int, knockedOut bool) {
-	p.ConcLiq = liq
-	p.HasKnockedOut = knockedOut
-}
-
 type PositionLiquidity struct {
-	AmbientSeeds  big.Int `json:"ambientSeeds"`
-	ConcLiq       big.Int `json:"rangeLiquidity"`
-	RewardLiq     big.Int `json:"rangeRewardSeeds"`
-	HasKnockedOut bool    `json:"hasKnockedOut"`
+	AmbientSeeds big.Int `json:"ambientSeeds"`
+	ConcLiq      big.Int `json:"concLiq"`
+	RewardLiq    big.Int `json:"rewardLiq"`
 }

@@ -26,136 +26,97 @@ func NewCrocQuery(chain *OnChainLoader) *CrocQuery {
 }
 
 func (q *CrocQuery) QueryAmbientSeeds(pos types.PositionLocation) (*big.Int, error) {
-	client, err := q.chain.ethClientForChain(pos.ChainId)
-
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	contractAddr, err := q.getQueryContractAddr(pos.ChainId)
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	poolInt := big.NewInt(int64(pos.PoolIdx))
-
 	callData, err := q.queryAbi.Pack("queryAmbientTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
-		common.HexToAddress(string(pos.Quote)), &poolInt)
+		common.HexToAddress(string(pos.Quote)), big.NewInt(int64(pos.PoolIdx)))
 	if err != nil {
 		log.Fatalf("Failed to parse queryPrice on ABI: %s", err.Error())
 	}
 
-	result, err := callContractFn(callData, "queryAmbientTokens", contractAddr, client, q.queryAbi)
-
-	if err != nil {
-		return big.NewInt(0), nil
-	}
-
-	return result[0].(*big.Int), nil
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryAmbientTokens")
 }
 
 func (q *CrocQuery) QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error) {
-	client, err := q.chain.ethClientForChain(pos.ChainId)
-
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	contractAddr, err := q.getQueryContractAddr(pos.ChainId)
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	poolInt := big.NewInt(int64(pos.PoolIdx))
-	bidTick := big.NewInt(int64(pos.BidTick))
-	askTick := big.NewInt(int64(pos.AskTick))
 	callData, err := q.queryAbi.Pack("queryRangeTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
-		common.HexToAddress(string(pos.Quote)), &poolInt,
-		&bidTick, &askTick)
+		common.HexToAddress(string(pos.Quote)),
+		big.NewInt(int64(pos.PoolIdx)),
+		big.NewInt(int64(pos.BidTick)),
+		big.NewInt(int64(pos.AskTick)))
 
 	if err != nil {
 		log.Fatalf("Failed to parse queryRangeTokens on ABI: %s", err.Error())
 	}
 
-	result, err := callContractFn(callData, "queryRangeTokens", contractAddr, client, q.queryAbi)
-
-	if err != nil {
-		return big.NewInt(0), nil
-	}
-
-	return result[0].(*big.Int), nil
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryRangeTokens")
 }
 
 func (q *CrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error) {
-	client, err := q.chain.ethClientForChain(pos.ChainId)
-
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	contractAddr, err := q.getQueryContractAddr(pos.ChainId)
-	if err != nil {
-		return big.NewInt(0), err
-	}
-
-	poolInt := big.NewInt(int64(pos.PoolIdx))
-	bidTick := big.NewInt(int64(pos.BidTick))
-	askTick := big.NewInt(int64(pos.AskTick))
 	callData, err := q.queryAbi.Pack("queryConcRewards",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
-		common.HexToAddress(string(pos.Quote)), &poolInt,
-		&bidTick, &askTick)
+		common.HexToAddress(string(pos.Quote)),
+		big.NewInt(int64(pos.PoolIdx)),
+		big.NewInt(int64(pos.BidTick)), big.NewInt(int64(pos.AskTick)))
 
 	if err != nil {
 		log.Fatalf("Failed to parse queryConcRewards on ABI: %s", err.Error())
 	}
 
-	result, err := callContractFn(callData, "queryConcRewards", contractAddr, client, q.queryAbi)
-
-	if err != nil {
-		return big.NewInt(0), nil
-	}
-
-	return result[0].(*big.Int), nil
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryConcRewards")
 }
 
-func (q *CrocQuery) QueryKnockoutLiq(pos types.PositionLocation) (*big.Int, bool, error) {
-	client, err := q.chain.ethClientForChain(pos.ChainId)
-
-	if err != nil {
-		return big.NewInt(0), false, err
-	}
-
-	contractAddr, err := q.getQueryContractAddr(pos.ChainId)
-	if err != nil {
-		return big.NewInt(0), false, err
-	}
-
-	poolInt := big.NewInt(int64(pos.PoolIdx))
-	bidTick := big.NewInt(int64(pos.BidTick))
-	askTick := big.NewInt(int64(pos.AskTick))
+func (q *CrocQuery) QueryKnockoutLiq(pos types.PositionLocation, pivotTime int, isBid bool) (*big.Int, bool, error) {
 	callData, err := q.queryAbi.Pack("queryKnockoutTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
-		common.HexToAddress(string(pos.Quote)), &poolInt,
-		uint32(pos.PivotTime), pos.IsBid, &bidTick, &askTick)
+		common.HexToAddress(string(pos.Quote)),
+		big.NewInt(int64(pos.PoolIdx)),
+		uint32(pivotTime), isBid,
+		big.NewInt(int64(pos.BidTick)),
+		big.NewInt(int64(pos.AskTick)))
 
 	if err != nil {
 		log.Fatalf("Failed to parse queryKnockoutTokens on ABI: %s", err.Error())
 	}
 
-	result, err := callContractFn(callData, "queryKnockoutTokens", contractAddr, client, q.queryAbi)
+	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens")
 
 	if err != nil {
 		return big.NewInt(0), false, nil
 	}
 
 	return result[0].(*big.Int), result[3].(bool), nil
+}
+
+func (q *CrocQuery) callQueryResults(chainId types.ChainId,
+	callData []byte, methodName string) ([]interface{}, error) {
+
+	client, err := q.chain.ethClientForChain(chainId)
+
+	if err != nil {
+		return make([]interface{}, 0), err
+	}
+
+	contractAddr, err := q.getQueryContractAddr(chainId)
+	if err != nil {
+		return make([]interface{}, 0), err
+	}
+
+	return callContractFn(callData, methodName, contractAddr, client, q.queryAbi)
+}
+
+func (q *CrocQuery) callQueryFirstReturn(chainId types.ChainId,
+	callData []byte, methodName string) (*big.Int, error) {
+	result, err := q.callQueryResults(chainId, callData, methodName)
+
+	if err != nil {
+		return big.NewInt(0), nil
+	}
+	return result[0].(*big.Int), nil
+
 }
 
 func (q *CrocQuery) getQueryContractAddr(chain types.ChainId) (types.EthAddress, error) {

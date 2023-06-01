@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -19,13 +19,14 @@ type PositionRefresher struct {
 }
 
 type LiquidityRefresher struct {
-	posQueries chan *PositionRefresher
-	query      *loader.CrocQuery
-	workers    []chan *PositionRefresher
-	nextWorker int
+	posQueries  chan *PositionRefresher
+	postProcess chan *PositionRefresher
+	query       *loader.CrocQuery
+	workers     []chan *PositionRefresher
+	nextWorker  int
 }
 
-const NUM_PARALLEL_QUERIES = 200
+const NUM_PARALLEL_QUERIES = 250
 const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
@@ -38,15 +39,17 @@ func NewLiquidityRefresher(query *loader.CrocQuery) *LiquidityRefresher {
 	}
 
 	refresher := LiquidityRefresher{
-		posQueries: make(chan *PositionRefresher, QUERY_CHANNEL_WINDOW),
-		query:      query,
-		workers:    workers,
-		nextWorker: 0,
+		posQueries:  make(chan *PositionRefresher, QUERY_CHANNEL_WINDOW),
+		query:       query,
+		workers:     workers,
+		postProcess: make(chan *PositionRefresher, QUERY_CHANNEL_WINDOW),
+		nextWorker:  0,
 	}
 
 	go refresher.watchPending()
+	go refresher.watchPostProcess()
 	for _, worker := range refresher.workers {
-		refresher.watchWorker(worker)
+		go refresher.watchWorker(worker, refresher.postProcess)
 	}
 
 	return &refresher
@@ -96,12 +99,11 @@ func (r *LiquidityRefresher) watchPending() {
 	}
 }
 
-func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher) {
+func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, postProcess chan *PositionRefresher) {
 	for true {
 		posRefresher := <-workQueue
 		posType := types.PositionTypeForLiq(posRefresher.location.LiquidityLocation)
 
-		fmt.Println("Update position liquidity", posRefresher.location)
 		if posType == "ambient" {
 			ambientSeeds, err := r.query.QueryAmbientSeeds(posRefresher.location)
 			if err == nil {
@@ -123,12 +125,25 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher) {
 		}
 
 		if posType == "knockout" {
-			concLiq, isKnockedOut, err := r.query.QueryKnockoutLiq(posRefresher.location)
+			/* concLiq, isKnockedOut, err := r.query.QueryKnockoutLiq(posRefresher.location)
 			if err == nil {
 				defer posRefresher.lock.Unlock()
 				posRefresher.lock.Lock()
 				posRefresher.pos.UpdateKnockout(*concLiq, isKnockedOut)
-			}
+			}*/
+		}
+
+		postProcess <- posRefresher
+	}
+}
+
+func (r *LiquidityRefresher) watchPostProcess() {
+	pendingCount := 0
+	for true {
+		<-r.postProcess
+		pendingCount += 1
+		if pendingCount%100 == 0 {
+			log.Printf("Processed %d liquidity refreshes since startup", pendingCount)
 		}
 	}
 }

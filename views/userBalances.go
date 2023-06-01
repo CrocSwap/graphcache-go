@@ -20,6 +20,7 @@ func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) (U
 	}
 
 	balances := v.Cache.RetrieveUserBalances(chainId, user)
+
 	for _, bal := range balances {
 		resp.Tokens = append(resp.Tokens, bal)
 	}

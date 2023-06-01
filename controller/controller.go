@@ -47,6 +47,14 @@ func (c *ControllerOverNetwork) IngestBalance(b tables.Balance) {
 }
 
 func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
+	if l.PositionType == "knockout" {
+		return
+	} else {
+		c.ingestPassiveLiq(l)
+	}
+}
+
+func (c *ControllerOverNetwork) ingestPassiveLiq(l tables.LiqChange) {
 	liq := formLiqLoc(l)
 	pool := types.PoolLocation{
 		ChainId: c.chainId,
@@ -76,13 +84,7 @@ func (c *ControllerOverNetwork) IngestKnockout(l tables.KnockoutCross) {
 func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
 	if l.PositionType == "ambient" {
 		return types.AmbientLiquidityLocation()
-	} else if l.PositionType == "concentrated" {
-		return types.RangeLiquidityLocation(l.BidTick, l.AskTick)
 	} else {
-		pivotTime := 0
-		if l.PivotTime != nil {
-			pivotTime = *l.PivotTime
-		}
-		return types.KnockoutLiquidityLocation(l.BidTick, l.AskTick, pivotTime, l.IsBid > 0)
+		return types.RangeLiquidityLocation(l.BidTick, l.AskTick)
 	}
 }

@@ -8,10 +8,8 @@ type PoolLocation struct {
 }
 
 type LiquidityLocation struct {
-	BidTick   int  `json:"bidTick"`
-	AskTick   int  `json:"askTick"`
-	PivotTime int  `json:"pivotTime"`
-	IsBid     bool `json:"isBid"`
+	BidTick int `json:"bidTick"`
+	AskTick int `json:"askTick"`
 }
 
 type PositionLocation struct {
@@ -21,24 +19,17 @@ type PositionLocation struct {
 }
 
 func AmbientLiquidityLocation() LiquidityLocation {
-	return LiquidityLocation{BidTick: 0, AskTick: 0, PivotTime: 0, IsBid: false}
+	return LiquidityLocation{BidTick: 0, AskTick: 0}
 }
 
 func RangeLiquidityLocation(bidTick int, askTick int) LiquidityLocation {
-	return LiquidityLocation{BidTick: bidTick, AskTick: askTick, PivotTime: 0, IsBid: false}
-}
-
-func KnockoutLiquidityLocation(bidTick int, askTick int, pivotTime int, isBid bool) LiquidityLocation {
-	return LiquidityLocation{BidTick: bidTick, AskTick: askTick,
-		PivotTime: pivotTime, IsBid: isBid}
+	return LiquidityLocation{BidTick: bidTick, AskTick: askTick}
 }
 
 func PositionTypeForLiq(loc LiquidityLocation) string {
 	if loc.BidTick == 0 && loc.AskTick == 0 {
 		return "ambient"
-	} else if loc.PivotTime == 0 {
-		return "range"
 	} else {
-		return "knockout"
+		return "range"
 	}
 }

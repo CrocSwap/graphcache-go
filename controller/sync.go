@@ -67,6 +67,6 @@ func (c *Controller) SyncPricingSwaps(chainConfig loader.ChainConfig, network ty
 	LOOKBACK_WINDOW := 3600 * 1
 	sync.LastObserved = int(time.Now().Unix()) - LOOKBACK_WINDOW
 
-	nRows, _ := sync.SyncTableToSubgraph(false)
+	nRows, _ := sync.SyncTableToSubgraph(true)
 	log.Println("Sync Pricing swaps subgraph with rows=", nRows)
 }
