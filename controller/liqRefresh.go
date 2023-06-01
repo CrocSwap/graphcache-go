@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -26,7 +27,7 @@ type LiquidityRefresher struct {
 	nextWorker  int
 }
 
-const NUM_PARALLEL_QUERIES = 250
+const NUM_PARALLEL_QUERIES = 100
 const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
@@ -87,20 +88,48 @@ func (r *PositionRefresher) watchPending() {
 	}
 }
 
-func (r *LiquidityRefresher) watchPending() {
-	for true {
-		posRefresher := <-r.posQueries
-		r.workers[r.nextWorker] <- posRefresher
+const MAX_REQS_PER_SEC = 200
 
-		r.nextWorker = r.nextWorker + 1
-		if r.nextWorker == len(r.workers) {
-			r.nextWorker = 0
+func (r *LiquidityRefresher) watchPending() {
+	lastSec := time.Now().Unix()
+	callCnt := 0
+
+	for true {
+		nowSec := time.Now().Unix()
+		if nowSec == lastSec {
+			callCnt += 1
+		} else {
+			callCnt = 0
+			nowSec = lastSec
+		}
+
+		if callCnt > MAX_REQS_PER_SEC {
+			log.Println("Throttling liquidity refreshes per second")
+			time.Sleep(time.Second)
+
+		} else {
+			posRefresher := <-r.posQueries
+			r.workers[r.nextWorker] <- posRefresher
+
+			r.nextWorker = r.nextWorker + 1
+			if r.nextWorker == len(r.workers) {
+				r.nextWorker = 0
+			}
 		}
 	}
 }
 
-const RETRY_QUERY_DURATION = 10 * time.Second
+const RETRY_QUERY_MIN_WAIT = 5
+const RETRY_QUERY_MAX_WAIT = 15
 const N_MAX_RETRIES = 3
+
+// Do this so that in case the problem is overloading the RPC, calls don't all spam again
+// at same deterministic time
+func retryWaitRandom() {
+	waitTime := rand.Intn(RETRY_QUERY_MAX_WAIT-RETRY_QUERY_MIN_WAIT) + RETRY_QUERY_MIN_WAIT
+	log.Printf("Query attempt failed. Retrying again in %d seconds", waitTime)
+	time.Sleep(time.Duration(waitTime) * time.Second)
+}
 
 func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, postProcess chan *PositionRefresher) {
 	for true {
@@ -111,7 +140,7 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, post
 			ambientSeeds, err := r.query.QueryAmbientSeeds(posRefresher.location)
 
 			for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
-				time.Sleep(RETRY_QUERY_DURATION)
+				retryWaitRandom()
 				ambientSeeds, err = r.query.QueryAmbientSeeds(posRefresher.location)
 			}
 			if err != nil {
@@ -127,8 +156,8 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, post
 			concLiq, err := r.query.QueryRangeLiquidity(posRefresher.location)
 			rewardLiq, err2 := r.query.QueryRangeRewardsLiq(posRefresher.location)
 
-			for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
-				time.Sleep(RETRY_QUERY_DURATION)
+			for retryCount := 0; (err != nil || err2 != nil) && retryCount < N_MAX_RETRIES; retryCount += 1 {
+				retryWaitRandom()
 				concLiq, err = r.query.QueryAmbientSeeds(posRefresher.location)
 				rewardLiq, err2 = r.query.QueryRangeRewardsLiq(posRefresher.location)
 			}

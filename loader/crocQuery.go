@@ -85,7 +85,7 @@ func (q *CrocQuery) QueryKnockoutLiq(pos types.PositionLocation, pivotTime int, 
 	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens")
 
 	if err != nil {
-		return big.NewInt(0), false, nil
+		return big.NewInt(0), false, err
 	}
 
 	return result[0].(*big.Int), result[3].(bool), nil
@@ -113,7 +113,7 @@ func (q *CrocQuery) callQueryFirstReturn(chainId types.ChainId,
 	result, err := q.callQueryResults(chainId, callData, methodName)
 
 	if err != nil {
-		return big.NewInt(0), nil
+		return big.NewInt(0), err
 	}
 	return result[0].(*big.Int), nil
 
