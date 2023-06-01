@@ -15,25 +15,19 @@ import (
 type UserPosition struct {
 	types.PositionLocation
 	model.PositionTracker
-	types.TokenPairMetadata
 	PositionId string `json:"positionId"`
 }
 
 func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error) {
 	positions := v.Cache.RetrieveUserPositions(chainId, user)
 
-	for key := range positions {
-		v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Base)
-		v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Quote)
-	}
-
 	results := make([]UserPosition, 0)
 	for key, val := range positions {
-		baseMetadata := v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Base).Poll()
-		quoteMetadata := v.Cache.MaterializeTokenMetata(v.OnChain, chainId, key.Quote).Poll()
-		metadata := types.PairTokenMetadata(baseMetadata, quoteMetadata)
-		element := UserPosition{key, *val, metadata, formPositionId(key)}
+		element := UserPosition{key, *val, formPositionId(key)}
 		results = append(results, element)
+		if element.LatestUpdateTime > 1684910712 {
+			fmt.Println(element.TimeFirstMint, element.LatestUpdateTime)
+		}
 	}
 
 	sort.Sort(byTime(results))
