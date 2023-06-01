@@ -15,7 +15,7 @@ type MemoryCache struct {
 
 	liqPosition          RWLockMap[types.PositionLocation, *model.PositionTracker]
 	userPositions        RWLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker]
-	poolPositions        RWLockMapMap[chainAndPool, types.PositionLocation, *model.PositionTracker]
+	poolPositions        RWLockMapMap[types.PoolLocation, types.PositionLocation, *model.PositionTracker]
 	userAndPoolPositions RWLockMapMap[chainUserAndPool, types.PositionLocation, *model.PositionTracker]
 }
 
@@ -29,7 +29,7 @@ func New() *MemoryCache {
 		userBalTokens:        newRwLockMapArray[chainAndAddr, types.EthAddress](),
 		liqPosition:          newRwLockMap[types.PositionLocation, *model.PositionTracker](),
 		userPositions:        newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker](),
-		poolPositions:        newRwLockMapMap[chainAndPool, types.PositionLocation, *model.PositionTracker](),
+		poolPositions:        newRwLockMapMap[types.PoolLocation, types.PositionLocation, *model.PositionTracker](),
 		userAndPoolPositions: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.PositionTracker](),
 	}
 }
@@ -39,15 +39,9 @@ type chainAndAddr struct {
 	types.EthAddress
 }
 
-type chainAndPool struct {
-	types.ChainId
-	types.PoolLocation
-}
-
 type chainUserAndPool struct {
-	types.ChainId
-	types.EthAddress
 	types.PoolLocation
+	user types.EthAddress
 }
 
 type chainAndUserTokenAddr struct {

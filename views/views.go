@@ -9,6 +9,7 @@ import (
 type IViews interface {
 	QueryUserTokens(chainId types.ChainId, user types.EthAddress) (UserTokensResponse, error)
 	QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error)
+	QueryPoolPositions(chainId types.ChainId, base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) ([]UserPosition, error)
 }
 
 type Views struct {
