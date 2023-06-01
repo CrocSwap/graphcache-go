@@ -17,12 +17,10 @@ func main() {
 
 	goerlChainConfig, _ := netCfg["goerli"]
 	cntrl := controller.New(netCfg, cache)
-	syncer := controller.NewSubgraphSyncer(cntrl, goerlChainConfig, "goerli")
-	syncer.SyncStartup(goerlChainConfig, "goerli")
+	controller.NewSubgraphSyncer(cntrl, goerlChainConfig, "goerli")
 
 	mainnetChainConfig, _ := netCfg["mainnet"]
-	pricingSyncer := controller.NewSubgraphSyncer(cntrl, mainnetChainConfig, "mainnet")
-	pricingSyncer.SyncPricingSwaps()
+	controller.NewSubgraphPriceSyncer(cntrl, mainnetChainConfig, "mainnet")
 
 	views := views.Views{Cache: cache, OnChain: &onChain}
 	apiServer := server.APIWebServer{Views: &views}

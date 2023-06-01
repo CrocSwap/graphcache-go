@@ -1,9 +1,9 @@
 package loader
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -60,21 +60,69 @@ func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
 	}
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool) (int, error) {
+func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
+	cfg.Query = "./artifacts/graphQueries/meta.query"
+	metaQuery := readQueryPath(cfg.Query)
+
+	resp, err := queryFromSubgraph(cfg.Chain, metaQuery, 0, 0, false)
+	if err != nil {
+		return 0, err
+	}
+
+	result, err := parseSubGraphMeta(resp)
+	if err != nil {
+		return 0, err
+	}
+	return result.Block.Time, nil
+}
+
+type metaEntry struct {
+	Block struct {
+		Time   int    `json:"timestamp"`
+		Number int    `json:"number"`
+		Hash   string `json:"hash"`
+	} `json:"block"`
+}
+
+type metaWrapper struct {
+	Entry metaEntry `json:"_meta"`
+}
+
+type metaData struct {
+	Data metaWrapper `json:"data"`
+}
+
+func parseSubGraphMeta(body []byte) (*metaEntry, error) {
+	var parsed metaData
+
+	err := json.Unmarshal(body, &parsed)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed.Data.Entry, nil
+}
+
+func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTime int) (int, error) {
 	query := readQueryPath(s.config.Query)
 
-	startTime := 0
+	prevObs := startTime
 	if !isAsc {
-		startTime = int(time.Now().Unix())
+		prevObs = endTime
 	}
 
 	hasMore := true
-	prevObs := startTime
 	nIngested := 0
 
-	log.Printf("Starting subgraph query %s", s.config.Query)
 	for hasMore {
-		resp, err := queryFromSubgraph(s.config.Chain, query, prevObs, isAsc)
+		var resp []byte
+		var err error
+
+		if isAsc {
+			resp, err = queryFromSubgraph(s.config.Chain, query, prevObs, endTime, isAsc)
+		} else {
+			resp, err = queryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
+		}
+
 		if err != nil {
 			return nIngested, err
 		}
@@ -99,8 +147,10 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool) (int, error) {
 			prevObs = s.EarliestObserved
 		}
 
-		log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
-			nIngested, s.config.Query, prevObs)
+		if nIngested > 0 {
+			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
+				nIngested, s.config.Query, prevObs)
+		}
 	}
 	return nIngested, nil
 }

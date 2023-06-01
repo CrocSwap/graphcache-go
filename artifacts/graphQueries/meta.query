@@ -3,6 +3,7 @@
     block {
       hash
       number
+      timestamp
     }
   }
 }

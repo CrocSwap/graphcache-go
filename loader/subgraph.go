@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
 )
 
 type GraphRequest struct {
@@ -22,26 +21,26 @@ type GraphReqVars struct {
 
 type SubgraphQuery string
 
-func makeSubgraphVars(isAsc bool, endTime int) GraphReqVars {
+func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	if isAsc {
 		return GraphReqVars{
 			Order:   "asc",
-			MinTime: endTime,
-			MaxTime: int(time.Now().Unix()),
+			MinTime: startTime,
+			MaxTime: endTime,
 		}
 	} else {
 		return GraphReqVars{
 			Order:   "desc",
-			MinTime: 0,
+			MinTime: startTime,
 			MaxTime: endTime,
 		}
 	}
 }
 
-func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, endTime int, isAsc bool) ([]byte, error) {
+func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	request := GraphRequest{
 		Query:     query,
-		Variables: makeSubgraphVars(isAsc, endTime),
+		Variables: makeSubgraphVars(isAsc, startTime, endTime),
 	}
 
 	jsonBody, err := json.Marshal(request)
