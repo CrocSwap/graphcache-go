@@ -3,7 +3,6 @@ package controller
 import (
 	"log"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
@@ -15,7 +14,6 @@ type PositionRefresher struct {
 	location types.PositionLocation
 	requests chan int64
 	queries  chan *PositionRefresher
-	lock     sync.RWMutex
 	pos      *model.PositionTracker
 }
 
@@ -70,10 +68,36 @@ func NewPositionRefresher(loc types.PositionLocation, liq *LiquidityRefresher,
 
 const REFRESH_WINDOW = 15
 
-func (r *PositionRefresher) PushRefresh() {
+func (r *PositionRefresher) PushRefresh(eventTime int) {
+	r.requestRefresh()
+	if isRecentEvent(eventTime) {
+		go r.pushFollowup()
+	}
+}
+
+func (r *PositionRefresher) requestRefresh() {
 	latestTime := time.Now().Unix()
 	windowTag := latestTime / REFRESH_WINDOW
 	r.requests <- windowTag
+}
+
+/* Historical events won't require followup, because an RPC call should
+ * be sync'd */
+const RECENT_EVENT_WINDOW = 60
+
+func isRecentEvent(eventTime int) bool {
+	currentTime := time.Now().Unix()
+	return int(currentTime)-eventTime < RECENT_EVENT_WINDOW
+}
+
+/* Followup after refresh, in case RPC node hasn't synced to last
+ * block at first call. */
+func (r *PositionRefresher) pushFollowup() {
+	REFRESH_FOLLOWUP_SECS := []time.Duration{2, 10, 30, 60}
+	for _, interval := range REFRESH_FOLLOWUP_SECS {
+		time.Sleep(interval * time.Second)
+		r.requestRefresh()
+	}
 }
 
 func (r *PositionRefresher) watchPending() {
@@ -147,8 +171,6 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, post
 				log.Fatal("Unable to sync liquidity on ambient order")
 			}
 
-			defer posRefresher.lock.Unlock()
-			posRefresher.lock.Lock()
 			posRefresher.pos.UpdateAmbient(*ambientSeeds)
 		}
 
@@ -158,25 +180,14 @@ func (r *LiquidityRefresher) watchWorker(workQueue chan *PositionRefresher, post
 
 			for retryCount := 0; (err != nil || err2 != nil) && retryCount < N_MAX_RETRIES; retryCount += 1 {
 				retryWaitRandom()
-				concLiq, err = r.query.QueryAmbientSeeds(posRefresher.location)
+				concLiq, err = r.query.QueryRangeLiquidity(posRefresher.location)
 				rewardLiq, err2 = r.query.QueryRangeRewardsLiq(posRefresher.location)
 			}
 			if err != nil || err2 != nil {
 				log.Fatal("Unable to sync liquidity on range order")
 			}
 
-			defer posRefresher.lock.Unlock()
-			posRefresher.lock.Lock()
 			posRefresher.pos.UpdateRange(*concLiq, *rewardLiq)
-		}
-
-		if posType == "knockout" {
-			/* concLiq, isKnockedOut, err := r.query.QueryKnockoutLiq(posRefresher.location)
-			if err == nil {
-				defer posRefresher.lock.Unlock()
-				posRefresher.lock.Lock()
-				posRefresher.pos.UpdateKnockout(*concLiq, isKnockedOut)
-			}*/
 		}
 
 		postProcess <- posRefresher

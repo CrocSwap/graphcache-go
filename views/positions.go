@@ -52,8 +52,6 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 		element := UserPosition{key, *val, formPositionId(key)}
 		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
 			results = append(results, element)
-		} else {
-			fmt.Println("Omit empty")
 		}
 	}
 

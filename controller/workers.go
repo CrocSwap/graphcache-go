@@ -41,7 +41,7 @@ func watchPositionUpdates(liq *LiquidityRefresher) chan posUpdateMsg {
 				refreshers[msg.loc] = refresher
 			}
 
-			refresher.PushRefresh()
+			refresher.PushRefresh(msg.liq.Time)
 		}
 	}()
 	return sink
