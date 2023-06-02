@@ -20,7 +20,7 @@ type ChainConfig struct {
 	Ignore              bool                `json:"ignore,omitempty"`
 	EnableRPCCache      bool                `json:"enable_rpc_cache"`
 	EnableSubgraphCache bool                `json:"enable_subgraph_cache"`
-	KnockoutTickWidth   int                 `json:"knockout_ticks_width"`
+	KnockoutTickWidth   int                 `json:"knockout_tick_width"`
 }
 
 type NetworkConfig map[types.NetworkName]ChainConfig

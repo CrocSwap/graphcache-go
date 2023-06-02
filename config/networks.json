@@ -13,7 +13,8 @@
     "poa_middleware": true,
     "block_time": 12.5,
     "enable_rpc_cache": true,
-    "enable_subgraph_cache": true
+    "enable_subgraph_cache": true,
+    "knockout_tick_width": 64
   },
 
   "mainnet": {
@@ -31,7 +32,8 @@
     "block_time": 15,
     "ignore": false,
     "enable_rpc_cache": true,
-    "enable_subgraph_cache": true
+    "enable_subgraph_cache": true,
+    "knockout_tick_width": 16
   }
 
 }
