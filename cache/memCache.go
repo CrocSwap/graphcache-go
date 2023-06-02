@@ -17,6 +17,13 @@ type MemoryCache struct {
 	userPositions        RWLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker]
 	poolPositions        RWLockMapMap[types.PoolLocation, types.PositionLocation, *model.PositionTracker]
 	userAndPoolPositions RWLockMapMap[chainUserAndPool, types.PositionLocation, *model.PositionTracker]
+
+	liqKnockouts         RWLockMap[types.PositionLocation, *model.KnockoutSubplot]
+	userKnockouts        RWLockMapMap[chainAndAddr, types.PositionLocation, *model.KnockoutSubplot]
+	poolKnockouts        RWLockMapMap[types.PoolLocation, types.PositionLocation, *model.KnockoutSubplot]
+	userAndPoolKnockouts RWLockMapMap[chainUserAndPool, types.PositionLocation, *model.KnockoutSubplot]
+
+	knockoutSagas RWLockMap[types.BookLocation, *model.KnockoutSaga]
 }
 
 func New() *MemoryCache {
@@ -26,11 +33,19 @@ func New() *MemoryCache {
 		tokenMetadata: newRwLockMap[chainAndAddr, *model.ExpiryHandle[types.TokenMetadata]](),
 		poolPrices:    newRwLockMap[types.PoolLocation, *model.ExpiryHandle[types.PoolPriceLiq]](),
 
-		userBalTokens:        newRwLockMapArray[chainAndAddr, types.EthAddress](),
+		userBalTokens: newRwLockMapArray[chainAndAddr, types.EthAddress](),
+
 		liqPosition:          newRwLockMap[types.PositionLocation, *model.PositionTracker](),
 		userPositions:        newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker](),
 		poolPositions:        newRwLockMapMap[types.PoolLocation, types.PositionLocation, *model.PositionTracker](),
 		userAndPoolPositions: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.PositionTracker](),
+
+		liqKnockouts:         newRwLockMap[types.PositionLocation, *model.KnockoutSubplot](),
+		userKnockouts:        newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.KnockoutSubplot](),
+		poolKnockouts:        newRwLockMapMap[types.PoolLocation, types.PositionLocation, *model.KnockoutSubplot](),
+		userAndPoolKnockouts: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.KnockoutSubplot](),
+
+		knockoutSagas: newRwLockMap[types.BookLocation, *model.KnockoutSaga](),
 	}
 }
 

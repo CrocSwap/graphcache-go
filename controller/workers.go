@@ -8,9 +8,11 @@ import (
 )
 
 type workers struct {
-	posUpdates    chan posUpdateMsg
-	liqRefresher  *LiquidityRefresher
-	posRefreshers map[types.PositionLocation]PositionRefresher
+	posUpdates     chan posUpdateMsg
+	koPosUpdates   chan koPosUpdateMsg
+	koCrossUpdates chan koCrossUpdateMsg
+	liqRefresher   *LiquidityRefresher
+	posRefreshers  map[types.PositionLocation]PositionRefresher
 }
 
 func initWorkers(netCfg loader.NetworkConfig) *workers {
@@ -19,8 +21,10 @@ func initWorkers(netCfg loader.NetworkConfig) *workers {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{
-		posUpdates:   watchPositionUpdates(liqRefresher),
-		liqRefresher: NewLiquidityRefresher(query),
+		posUpdates:     watchPositionUpdates(liqRefresher),
+		koPosUpdates:   watchKoPositionUpdates(liqRefresher),
+		koCrossUpdates: watchKoCrossUpdates(liqRefresher),
+		liqRefresher:   NewLiquidityRefresher(query),
 	}
 }
 
@@ -47,8 +51,44 @@ func watchPositionUpdates(liq *LiquidityRefresher) chan posUpdateMsg {
 	return sink
 }
 
+func watchKoPositionUpdates(liq *LiquidityRefresher) chan koPosUpdateMsg {
+	sink := make(chan koPosUpdateMsg, UPDATE_CHANNEL_SIZE)
+
+	go func() {
+		for true {
+			msg := <-sink
+			(*msg.pos).UpdateLiqChange(msg.liq)
+		}
+	}()
+	return sink
+}
+
+func watchKoCrossUpdates(liq *LiquidityRefresher) chan koCrossUpdateMsg {
+	sink := make(chan koCrossUpdateMsg, UPDATE_CHANNEL_SIZE)
+
+	go func() {
+		for true {
+			msg := <-sink
+			(*msg.pos).UpdateCross(msg.cross)
+		}
+	}()
+	return sink
+}
+
 type posUpdateMsg struct {
 	loc types.PositionLocation
 	pos *model.PositionTracker
 	liq tables.LiqChange
+}
+
+type koPosUpdateMsg struct {
+	loc types.PositionLocation
+	pos *model.KnockoutSubplot
+	liq tables.LiqChange
+}
+
+type koCrossUpdateMsg struct {
+	loc   types.BookLocation
+	pos   *model.KnockoutSaga
+	cross tables.KnockoutCross
 }

@@ -29,7 +29,7 @@ type KnockoutCross struct {
 	PoolHash   string  `json:"poolHash" db:"poolHash"`
 	Tick       int     `json:"tick" db:"tick"`
 	IsBid      int     `json:"isBid" db:"isBid"`
-	PivotTime  float64 `json:"pivotTime" db:"pivotTime"`
+	PivotTime  int     `json:"pivotTime" db:"pivotTime"`
 	FeeMileage float64 `json:"feeMileage" db:"feeMileage"`
 }
 
@@ -78,7 +78,7 @@ func (tbl KnockoutTable) ConvertSubGraphRow(r KnockoutCrossSubGraph, network str
 		PoolHash:   hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
 		Tick:       r.Tick,
 		IsBid:      boolToInt(r.IsBid),
-		PivotTime:  *parseNullableFloat64(r.PivotTime),
+		PivotTime:  parseInt(r.PivotTime),
 		FeeMileage: *parseNullableFloat64(r.FeeMileage),
 	}
 }

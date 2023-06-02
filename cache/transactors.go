@@ -96,3 +96,26 @@ func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.Pos
 	}
 	return val
 }
+
+func (m *MemoryCache) MaterializeKnockoutBook(loc types.BookLocation) *model.KnockoutSaga {
+	val, ok := m.knockoutSagas.lookup(loc)
+	if !ok {
+		val = model.NewKnockoutSaga()
+		m.knockoutSagas.insert(loc, val)
+	}
+	return val
+}
+
+func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.KnockoutSubplot {
+	val, ok := m.liqKnockouts.lookup(loc)
+	if !ok {
+		saga := m.MaterializeKnockoutBook(loc.ToBookLoc())
+		val := saga.ForUser(loc.User)
+		m.liqKnockouts.insert(loc, val)
+		m.userKnockouts.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
+		m.poolKnockouts.insert(loc.PoolLocation, loc, val)
+		m.userAndPoolKnockouts.insert(
+			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
+	}
+	return val
+}
