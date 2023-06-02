@@ -31,13 +31,15 @@ type ControllerOverNetwork struct {
 
 func (c *Controller) OnNetwork(network types.NetworkName) *ControllerOverNetwork {
 	chainId, okay := c.netCfg.ChainIDForNetwork(network)
-	if !okay {
+	chainCfg, okay2 := c.netCfg.ChainConfig(chainId)
+	if !okay || !okay2 {
 		log.Fatal("No network config for " + network)
 	}
 
 	return &ControllerOverNetwork{
-		ctrl:    c,
-		chainId: chainId,
+		ctrl:     c,
+		chainId:  chainId,
+		chainCfg: chainCfg,
 	}
 }
 
@@ -98,6 +100,13 @@ func (c *ControllerOverNetwork) IngestKnockout(r tables.KnockoutCross) {
 	}
 	pos := c.ctrl.cache.MaterializeKnockoutBook(loc)
 	c.ctrl.workers.koCrossUpdates <- koCrossUpdateMsg{loc: loc, pos: pos, cross: r}
+}
+
+/* Currently this uses a preset value from the network config. Long-term we should be querying
+ * the knockout position from CrocQuery::queryKnockoutPivot() to confirm tick widthm, as it
+ * can change over time, and different tick widths could even co-exist in the same pool. */
+func (c *ControllerOverNetwork) knockoutTickWidth() int {
+	return c.chainCfg.KnockoutTickWidth
 }
 
 func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
