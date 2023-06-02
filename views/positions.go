@@ -35,7 +35,8 @@ func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress)
 const MAX_POOL_POSITIONS = 100
 
 func (v *Views) QueryPoolPositions(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) ([]UserPosition, error) {
+	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int,
+	omitEmpty bool) ([]UserPosition, error) {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -46,9 +47,14 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	positions := v.Cache.RetrievePoolPositions(loc)
 
 	results := make([]UserPosition, 0)
+
 	for key, val := range positions {
 		element := UserPosition{key, *val, formPositionId(key)}
-		results = append(results, element)
+		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
+			results = append(results, element)
+		} else {
+			fmt.Println("Omit empty")
+		}
 	}
 
 	sort.Sort(byTime(results))
@@ -64,7 +70,7 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	}
 }
 
-func (v *Views) QueryUserAndPosition(chainId types.ChainId, user types.EthAddress,
+func (v *Views) QueryUserPoolPositions(chainId types.ChainId, user types.EthAddress,
 	base types.EthAddress, quote types.EthAddress, poolIdx int) ([]UserPosition, error) {
 
 	loc := types.PoolLocation{
@@ -89,7 +95,7 @@ func (v *Views) QueryUserAndPosition(chainId types.ChainId, user types.EthAddres
 func (v *Views) QuerySinglePosition(chainId types.ChainId, user types.EthAddress,
 	base types.EthAddress, quote types.EthAddress, poolIdx int, bidTick int, askTick int) (*UserPosition, error) {
 
-	entries, err := v.QueryUserAndPosition(chainId, user, base, quote, poolIdx)
+	entries, err := v.QueryUserPoolPositions(chainId, user, base, quote, poolIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +116,14 @@ func formPositionId(loc types.PositionLocation) string {
 
 type byTime []UserPosition
 
-func (a byTime) Len() int           { return len(a) }
-func (a byTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byTime) Less(i, j int) bool { return a[i].LatestUpdateTime > a[j].LatestUpdateTime }
+func (a byTime) Len() int      { return len(a) }
+func (a byTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func (a byTime) Less(i, j int) bool {
+	// Break ties by unique hash
+	if a[i].LatestUpdateTime == a[j].LatestUpdateTime {
+		return a[i].FirstMintTx > a[j].FirstMintTx
+	}
+
+	return a[i].LatestUpdateTime > a[j].LatestUpdateTime
+}

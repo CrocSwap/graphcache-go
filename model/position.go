@@ -40,6 +40,12 @@ func (p *PositionTracker) UpdateRange(liq big.Int, rewardsLiq big.Int) {
 	p.RewardLiq = rewardsLiq
 }
 
+func (p *PositionLiquidity) IsEmpty() bool {
+	zero := big.NewInt(0)
+	return p.AmbientSeeds.Cmp(zero) == 0 &&
+		p.ConcLiq.Cmp(zero) == 0
+}
+
 type PositionLiquidity struct {
 	AmbientSeeds big.Int `json:"ambientSeeds"`
 	ConcLiq      big.Int `json:"concLiq"`

@@ -17,8 +17,9 @@ func (s *APIWebServer) Serve() {
 	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET("/user_balance_tokens", s.queryUserTokens)
 	r.GET("/user_positions", s.queryUserPositions)
-	r.GET("/pool_positions", s.QueryPoolPositions)
-	r.GET("/position_stats", s.QuerySinglePosition)
+	r.GET("/pool_positions", s.queryPoolPositions)
+	r.GET("/user_pool_positions", s.queryUserPoolPositions)
+	r.GET("/position_stats", s.querySinglePosition)
 	r.Run()
 }
 
@@ -56,7 +57,7 @@ func (s *APIWebServer) queryUserPositions(c *gin.Context) {
 	wrapDataErrResp(c, resp, err)
 }
 
-func (s *APIWebServer) QueryPoolPositions(c *gin.Context) {
+func (s *APIWebServer) queryPoolPositions(c *gin.Context) {
 	chainId, _ := parseChainParam(c, "chainId")
 	base, _ := parseAddrParam(c, "base")
 	quote, _ := parseAddrParam(c, "quote")
@@ -84,11 +85,43 @@ func (s *APIWebServer) QueryPoolPositions(c *gin.Context) {
 		return
 	}
 
-	resp, err := s.Views.QueryPoolPositions(chainId, base, quote, *poolIdx, *n)
+	resp, err := s.Views.QueryPoolPositions(chainId, base, quote, *poolIdx, *n, true)
 	wrapDataErrResp(c, resp, err)
 }
 
-func (s *APIWebServer) QuerySinglePosition(c *gin.Context) {
+func (s *APIWebServer) queryUserPoolPositions(c *gin.Context) {
+	chainId, _ := parseChainParam(c, "chainId")
+	user, _ := parseAddrParam(c, "user")
+	base, _ := parseAddrParam(c, "base")
+	quote, _ := parseAddrParam(c, "quote")
+	poolIdx, _ := parseIntParam(c, "poolIdx")
+
+	if chainId == "" {
+		wrapMissingParams(c, "chainId")
+		return
+	}
+	if user == "" {
+		wrapMissingParams(c, "user")
+		return
+	}
+	if base == "" {
+		wrapMissingParams(c, "base")
+		return
+	}
+	if quote == "" {
+		wrapMissingParams(c, "quote")
+		return
+	}
+	if poolIdx == nil {
+		wrapMissingParams(c, "poolIdx")
+		return
+	}
+
+	resp, err := s.Views.QueryUserPoolPositions(chainId, user, base, quote, *poolIdx)
+	wrapDataErrResp(c, resp, err)
+}
+
+func (s *APIWebServer) querySinglePosition(c *gin.Context) {
 	chainId, _ := parseChainParam(c, "chainId")
 	user, _ := parseAddrParam(c, "user")
 	base, _ := parseAddrParam(c, "base")
