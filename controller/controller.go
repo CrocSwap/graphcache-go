@@ -71,13 +71,16 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 }
 
 func (c *ControllerOverNetwork) ingestKnockoutLiq(l tables.LiqChange, loc types.PositionLocation) {
+	if l.ChangeType == "cross" {
+		return // Cross events are handled KnockoutCross table
+	}
 	pos := c.ctrl.cache.MaterializeKnockoutPos(loc)
-	c.ctrl.workers.koPosUpdates <- koPosUpdateMsg{liq: l, pos: pos, loc: loc}
+	c.ctrl.workers.omniUpdates <- &koPosUpdateMsg{liq: l, pos: pos, loc: loc}
 }
 
 func (c *ControllerOverNetwork) ingestPassiveLiq(l tables.LiqChange, loc types.PositionLocation) {
 	pos := c.ctrl.cache.MaterializePosition(loc)
-	c.ctrl.workers.posUpdates <- posUpdateMsg{liq: l, pos: pos, loc: loc}
+	c.ctrl.workers.omniUpdates <- &posUpdateMsg{liq: l, pos: pos, loc: loc}
 }
 
 func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
@@ -99,7 +102,7 @@ func (c *ControllerOverNetwork) IngestKnockout(r tables.KnockoutCross) {
 		LiquidityLocation: liq,
 	}
 	pos := c.ctrl.cache.MaterializeKnockoutBook(loc)
-	c.ctrl.workers.koCrossUpdates <- koCrossUpdateMsg{loc: loc, pos: pos, cross: r}
+	c.ctrl.workers.omniUpdates <- &koCrossUpdateMsg{loc: loc, pos: pos, cross: r}
 }
 
 /* Currently this uses a preset value from the network config. Long-term we should be querying

@@ -68,13 +68,13 @@ func (q *CrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, 
 	return q.callQueryFirstReturn(pos.ChainId, callData, "queryConcRewards")
 }
 
-func (q *CrocQuery) QueryKnockoutLiq(pos types.PositionLocation, pivotTime int, isBid bool) (*big.Int, bool, error) {
+func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error) {
 	callData, err := q.queryAbi.Pack("queryKnockoutTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
 		common.HexToAddress(string(pos.Quote)),
 		big.NewInt(int64(pos.PoolIdx)),
-		uint32(pivotTime), isBid,
+		uint32(pos.PivotTime), pos.IsBid,
 		big.NewInt(int64(pos.BidTick)),
 		big.NewInt(int64(pos.AskTick)))
 
@@ -85,10 +85,31 @@ func (q *CrocQuery) QueryKnockoutLiq(pos types.PositionLocation, pivotTime int, 
 	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens")
 
 	if err != nil {
-		return big.NewInt(0), false, err
+		return big.NewInt(0), err
 	}
 
-	return result[0].(*big.Int), result[3].(bool), nil
+	return result[0].(*big.Int), nil
+}
+
+func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (int, error) {
+	tick := pos.LiquidityLocation.PivotTick()
+	callData, err := q.queryAbi.Pack("queryKnockoutPivot",
+		common.HexToAddress(string(pos.Base)),
+		common.HexToAddress(string(pos.Quote)),
+		big.NewInt(int64(pos.PoolIdx)),
+		pos.IsBid, big.NewInt(int64(tick)))
+
+	if err != nil {
+		log.Fatalf("Failed to parse queryKnockoutPivot on ABI: %s", err.Error())
+	}
+
+	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutPivot")
+
+	if err != nil {
+		return -1, err
+	}
+
+	return result[1].(int), nil
 }
 
 func (q *CrocQuery) callQueryResults(chainId types.ChainId,

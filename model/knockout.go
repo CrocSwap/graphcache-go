@@ -12,11 +12,12 @@ type KnockoutSubplot struct {
 	mints []KnockoutSagaTx
 	burns []KnockoutSagaTx
 	saga  *KnockoutSaga
+	Liq   KnockoutLiquiditySeries
 }
 
 type KnockoutLiquiditySeries struct {
 	active     PositionLiquidity
-	knockedOut map[int]KnockedOutPostLiq
+	knockedOut map[int]*KnockedOutPostLiq
 }
 
 type KnockedOutPostLiq struct {
@@ -54,10 +55,14 @@ func NewKnockoutSaga() *KnockoutSaga {
 func (k *KnockoutSaga) ForUser(user types.EthAddress) *KnockoutSubplot {
 	subplot, ok := k.users[user]
 	if !ok {
+		liq := KnockoutLiquiditySeries{
+			knockedOut: make(map[int]*KnockedOutPostLiq, 0),
+		}
 		subplot = &KnockoutSubplot{
 			mints: make([]KnockoutSagaTx, 0),
 			burns: make([]KnockoutSagaTx, 0),
 			saga:  k,
+			Liq:   liq,
 		}
 		k.users[user] = subplot
 	}
@@ -138,13 +143,20 @@ func (k *KnockoutLiquiditySeries) UpdateActiveLiq(liqQty big.Int) {
 	k.active.ConcLiq = liqQty
 }
 
-func (k *KnockoutLiquiditySeries) UpdatePostKOLiq(pivotTime int, crossTime int, liqQty big.Int) {
+func (k *KnockoutLiquiditySeries) UpdatePostKOLiq(pivotTime int, liqQty big.Int) {
 	posLiq, ok := k.knockedOut[pivotTime]
 	if !ok {
-		posLiq = KnockedOutPostLiq{}
-		k.knockedOut[pivotTime] = KnockedOutPostLiq{
-			CrossTime: crossTime,
-		}
+		posLiq = &KnockedOutPostLiq{}
+		k.knockedOut[pivotTime] = &KnockedOutPostLiq{}
 	}
 	posLiq.ConcLiq = liqQty
+}
+
+func (k *KnockoutLiquiditySeries) UpdateKOCrossLiq(pivotTime int, crossTime int) {
+	posLiq, ok := k.knockedOut[pivotTime]
+	if !ok {
+		posLiq = &KnockedOutPostLiq{}
+		k.knockedOut[pivotTime] = &KnockedOutPostLiq{}
+	}
+	posLiq.CrossTime = crossTime
 }

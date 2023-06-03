@@ -8,11 +8,8 @@ import (
 )
 
 type workers struct {
-	posUpdates     chan posUpdateMsg
-	koPosUpdates   chan koPosUpdateMsg
-	koCrossUpdates chan koCrossUpdateMsg
-	liqRefresher   *LiquidityRefresher
-	posRefreshers  map[types.PositionLocation]PositionRefresher
+	omniUpdates  chan IMsgType
+	liqRefresher *LiquidityRefresher
 }
 
 func initWorkers(netCfg loader.NetworkConfig) *workers {
@@ -21,58 +18,91 @@ func initWorkers(netCfg loader.NetworkConfig) *workers {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{
-		posUpdates:     watchPositionUpdates(liqRefresher),
-		koPosUpdates:   watchKoPositionUpdates(liqRefresher),
-		koCrossUpdates: watchKoCrossUpdates(liqRefresher),
-		liqRefresher:   NewLiquidityRefresher(query),
+		omniUpdates:  watchUpdateSeq(liqRefresher),
+		liqRefresher: NewLiquidityRefresher(query),
 	}
+}
+
+type RefreshAccumulator struct {
+	posRefreshers    map[types.PositionLocation]*HandleRefresher
+	koLiveRefreshers map[types.PositionLocation]*HandleRefresher
+	koPostRefreshers map[types.KOClaimLocation]*HandleRefresher
+}
+
+func watchUpdateSeq(liq *LiquidityRefresher) chan IMsgType {
+	sink := make(chan IMsgType, UPDATE_CHANNEL_SIZE)
+
+	accum := &RefreshAccumulator{
+		posRefreshers:    make(map[types.PositionLocation]*HandleRefresher),
+		koLiveRefreshers: make(map[types.PositionLocation]*HandleRefresher),
+		koPostRefreshers: make(map[types.KOClaimLocation]*HandleRefresher),
+	}
+
+	go func() {
+		for true {
+			msg := <-sink
+			msg.processUpdate(accum, liq)
+		}
+	}()
+	return sink
 }
 
 const UPDATE_CHANNEL_SIZE = 16000
 
-func watchPositionUpdates(liq *LiquidityRefresher) chan posUpdateMsg {
-	sink := make(chan posUpdateMsg, UPDATE_CHANNEL_SIZE)
-	refreshers := make(map[types.PositionLocation]*PositionRefresher)
-
-	go func() {
-		for true {
-			msg := <-sink
-			(*msg.pos).UpdatePosition(msg.liq)
-
-			refresher, ok := refreshers[msg.loc]
-			if !ok {
-				refresher = NewPositionRefresher(msg.loc, liq, msg.pos)
-				refreshers[msg.loc] = refresher
-			}
-
-			refresher.PushRefresh(msg.liq.Time)
-		}
-	}()
-	return sink
+type IMsgType interface {
+	processUpdate(*RefreshAccumulator, *LiquidityRefresher)
 }
 
-func watchKoPositionUpdates(liq *LiquidityRefresher) chan koPosUpdateMsg {
-	sink := make(chan koPosUpdateMsg, UPDATE_CHANNEL_SIZE)
+func (msg *posUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
+	(msg.pos).UpdatePosition(msg.liq)
 
-	go func() {
-		for true {
-			msg := <-sink
-			(*msg.pos).UpdateLiqChange(msg.liq)
-		}
-	}()
-	return sink
+	refresher, ok := accum.posRefreshers[msg.loc]
+	if !ok {
+		handle := PositionRefreshHandle{location: msg.loc, pos: msg.pos}
+		refresher = NewHandleRefresher(&handle, liq.pending)
+		accum.posRefreshers[msg.loc] = refresher
+	}
+	refresher.PushRefresh(msg.liq.Time)
 }
 
-func watchKoCrossUpdates(liq *LiquidityRefresher) chan koCrossUpdateMsg {
-	sink := make(chan koCrossUpdateMsg, UPDATE_CHANNEL_SIZE)
+func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
+	cands := (msg.pos).UpdateLiqChange(msg.liq)
 
-	go func() {
-		for true {
-			msg := <-sink
-			(*msg.pos).UpdateCross(msg.cross)
+	refresher, ok := accum.koLiveRefreshers[msg.loc]
+	if !ok {
+		handle := KnockoutAliveHandle{location: msg.loc, pos: msg.pos}
+		refresher = NewHandleRefresher(&handle, liq.pending)
+		accum.koLiveRefreshers[msg.loc] = refresher
+	}
+	refresher.PushRefresh(msg.liq.Time)
+
+	for _, cand := range cands {
+		claimLoc := types.KOClaimLocation{PositionLocation: msg.loc, PivotTime: cand.PivotTime}
+		refresher, ok := accum.koPostRefreshers[claimLoc]
+		if !ok {
+			handle := KnockoutPostHandle{location: claimLoc, pos: msg.pos}
+			refresher = NewHandleRefresher(&handle, liq.pending)
+			accum.koPostRefreshers[claimLoc] = refresher
 		}
-	}()
-	return sink
+		refresher.PushRefresh(msg.liq.Time)
+	}
+}
+
+func (msg *koCrossUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
+	cands := (msg.pos).UpdateCross(msg.cross)
+
+	for _, cand := range cands {
+		claimLoc := msg.loc.ToClaimLoc(cand.User, cand.PivotTime)
+		refresher, ok := accum.koPostRefreshers[claimLoc]
+
+		if !ok {
+			subPos := msg.pos.ForUser(cand.User)
+			handle := KnockoutPostHandle{location: claimLoc, pos: subPos}
+			refresher = NewHandleRefresher(&handle, liq.pending)
+			accum.koPostRefreshers[claimLoc] = refresher
+		}
+		refresher.PushRefresh(msg.cross.Time)
+	}
 }
 
 type posUpdateMsg struct {

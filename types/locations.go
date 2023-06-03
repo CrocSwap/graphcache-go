@@ -19,6 +19,11 @@ type PositionLocation struct {
 	User EthAddress `json:"user"`
 }
 
+type KOClaimLocation struct {
+	PositionLocation
+	PivotTime int `json:"pivotTime"`
+}
+
 type BookLocation struct {
 	PoolLocation
 	LiquidityLocation
@@ -45,8 +50,8 @@ func KnockoutTickLocation(tick int, isBid bool, tickWidth int) LiquidityLocation
 		}
 	} else {
 		return LiquidityLocation{
-			BidTick: tick,
-			AskTick: tick - tickWidth,
+			BidTick: tick - tickWidth,
+			AskTick: tick,
 			IsBid:   isBid,
 		}
 	}
@@ -64,5 +69,35 @@ func (l PositionLocation) ToBookLoc() BookLocation {
 	return BookLocation{
 		l.PoolLocation,
 		l.LiquidityLocation,
+	}
+}
+
+func (l BookLocation) ToPositionLocation(user EthAddress) PositionLocation {
+	return PositionLocation{
+		l.PoolLocation,
+		l.LiquidityLocation,
+		user,
+	}
+}
+
+func (l PositionLocation) ToClaimLoc(pivot int) KOClaimLocation {
+	return KOClaimLocation{
+		PositionLocation: l,
+		PivotTime:        pivot,
+	}
+}
+
+func (l BookLocation) ToClaimLoc(user EthAddress, pivotTime int) KOClaimLocation {
+	return KOClaimLocation{
+		l.ToPositionLocation(user),
+		pivotTime,
+	}
+}
+
+func (l LiquidityLocation) PivotTick() int {
+	if l.IsBid {
+		return l.BidTick
+	} else {
+		return l.AskTick
 	}
 }

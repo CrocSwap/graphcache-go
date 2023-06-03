@@ -110,7 +110,7 @@ func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.
 	val, ok := m.liqKnockouts.lookup(loc)
 	if !ok {
 		saga := m.MaterializeKnockoutBook(loc.ToBookLoc())
-		val := saga.ForUser(loc.User)
+		val = saga.ForUser(loc.User)
 		m.liqKnockouts.insert(loc, val)
 		m.userKnockouts.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
 		m.poolKnockouts.insert(loc.PoolLocation, loc, val)
