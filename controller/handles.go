@@ -49,8 +49,8 @@ func (p *PositionRefreshHandle) RefreshQuery(query *loader.CrocQuery) {
 }
 
 func (p *KnockoutAliveHandle) RefreshQuery(query *loader.CrocQuery) {
-	pivotTimeFn := func() (int, error) { return query.QueryKnockoutPivot(p.location) }
-	pivotTime := tryQueryAttempt(pivotTimeFn, "pivotTimeLatest")
+	pivotTimeFn := func() (uint32, error) { return query.QueryKnockoutPivot(p.location) }
+	pivotTime := int(tryQueryAttempt(pivotTimeFn, "pivotTimeLatest"))
 
 	if pivotTime == 0 {
 		p.pos.Liq.UpdateActiveLiq(*big.NewInt(0))

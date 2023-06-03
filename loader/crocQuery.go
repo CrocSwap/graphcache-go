@@ -91,7 +91,7 @@ func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error
 	return result[0].(*big.Int), nil
 }
 
-func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (int, error) {
+func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
 	tick := pos.LiquidityLocation.PivotTick()
 	callData, err := q.queryAbi.Pack("queryKnockoutPivot",
 		common.HexToAddress(string(pos.Base)),
@@ -106,10 +106,10 @@ func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (int, error) 
 	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutPivot")
 
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
-	return result[1].(int), nil
+	return result[1].(uint32), nil
 }
 
 func (q *CrocQuery) callQueryResults(chainId types.ChainId,

@@ -22,7 +22,7 @@ type LiquidityRefresher struct {
 	nextWorker  int
 }
 
-const NUM_PARALLEL_QUERIES = 100
+const NUM_PARALLEL_QUERIES = 50
 const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
