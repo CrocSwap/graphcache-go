@@ -66,7 +66,7 @@ func (msg *posUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidity
 }
 
 func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
-	cands := (msg.pos).UpdateLiqChange(msg.liq)
+	cands, isPossiblyLive := (msg.pos).UpdateLiqChange(msg.liq)
 
 	refresher, ok := accum.koLiveRefreshers[msg.loc]
 	if !ok {
@@ -74,7 +74,10 @@ func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidi
 		refresher = NewHandleRefresher(&handle, liq.pending)
 		accum.koLiveRefreshers[msg.loc] = refresher
 	}
-	refresher.PushRefresh(msg.liq.Time)
+
+	if isPossiblyLive {
+		refresher.PushRefresh(msg.liq.Time)
+	}
 
 	for _, cand := range cands {
 		claimLoc := types.KOClaimLocation{PositionLocation: msg.loc, PivotTime: cand.PivotTime}

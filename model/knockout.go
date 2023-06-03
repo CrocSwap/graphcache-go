@@ -69,7 +69,7 @@ func (k *KnockoutSaga) ForUser(user types.EthAddress) *KnockoutSubplot {
 	return subplot
 }
 
-func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) []KnockoutPivotCands {
+func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) ([]KnockoutPivotCands, bool) {
 	event := KnockoutSagaTx{
 		TxTime: l.Time,
 		TxHash: l.TX,
@@ -77,22 +77,22 @@ func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) []KnockoutPivotCan
 
 	if l.ChangeType == "mint" {
 		k.mints = append(k.mints, event)
-		return k.scrapePivotsCandsOnMint(l.Time, types.RequireEthAddr(l.User))
+		return k.scrapePivotsCandsOnMint(l.Time, types.RequireEthAddr(l.User)), true
 
 	} else if l.ChangeType == "burn" {
 		k.burns = append(k.burns, event)
-		return make([]KnockoutPivotCands, 0)
+		return make([]KnockoutPivotCands, 0), true
 
 	} else if l.PivotTime != nil && *l.PivotTime > 0 {
 		cand := KnockoutPivotCands{
 			PivotTime: *l.PivotTime,
 			User:      types.EthAddress(l.User),
 		}
-		return []KnockoutPivotCands{cand}
+		return []KnockoutPivotCands{cand}, false
 
 	} else {
 		log.Println("Warning: Missing pivot time on knockout liq change that's not a mint or burn")
-		return make([]KnockoutPivotCands, 0)
+		return make([]KnockoutPivotCands, 0), false
 	}
 }
 
