@@ -9,20 +9,17 @@ import (
 )
 
 type KnockoutSubplot struct {
-	mints []KnockoutSagaTx
-	burns []KnockoutSagaTx
-	saga  *KnockoutSaga
-	Liq   KnockoutLiquiditySeries
+	mints      []KnockoutSagaTx
+	burns      []KnockoutSagaTx
+	saga       *KnockoutSaga
+	Liq        KnockoutLiquiditySeries
+	LatestTime int
 }
 
 type KnockoutLiquiditySeries struct {
-	active     PositionLiquidity
-	knockedOut map[int]*KnockedOutPostLiq
-}
-
-type KnockedOutPostLiq struct {
-	PositionLiquidity
-	CrossTime int `json:"crossTime"`
+	Active        PositionLiquidity
+	KnockedOut    map[int]*PositionLiquidity
+	TimeFirstMint int
 }
 
 type KnockoutSaga struct {
@@ -52,11 +49,20 @@ func NewKnockoutSaga() *KnockoutSaga {
 	}
 }
 
+func (k *KnockoutSubplot) GetCrossForPivotTime(pivotTime int) (int, bool) {
+	for _, cross := range k.saga.crosses {
+		if cross.PivotTime == pivotTime {
+			return cross.CrossTime, true
+		}
+	}
+	return -1, false
+}
+
 func (k *KnockoutSaga) ForUser(user types.EthAddress) *KnockoutSubplot {
 	subplot, ok := k.users[user]
 	if !ok {
 		liq := KnockoutLiquiditySeries{
-			knockedOut: make(map[int]*KnockedOutPostLiq, 0),
+			KnockedOut: make(map[int]*PositionLiquidity, 0),
 		}
 		subplot = &KnockoutSubplot{
 			mints: make([]KnockoutSagaTx, 0),
@@ -73,6 +79,15 @@ func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) ([]KnockoutPivotCa
 	event := KnockoutSagaTx{
 		TxTime: l.Time,
 		TxHash: l.TX,
+	}
+
+	if l.Time > k.LatestTime {
+		k.LatestTime = l.Time
+	}
+
+	// By definition, only mint can occur first, so no need to check to see if chnage is a mint
+	if k.Liq.TimeFirstMint == 0 || l.Time < k.Liq.TimeFirstMint {
+		k.Liq.TimeFirstMint = l.Time
 	}
 
 	if l.ChangeType == "mint" {
@@ -140,23 +155,14 @@ func isMintMaybeInPiovt(mintTime int, pivotTime int, knockoutTime int) bool {
 }
 
 func (k *KnockoutLiquiditySeries) UpdateActiveLiq(liqQty big.Int) {
-	k.active.ConcLiq = liqQty
+	k.Active.ConcLiq = liqQty
 }
 
 func (k *KnockoutLiquiditySeries) UpdatePostKOLiq(pivotTime int, liqQty big.Int) {
-	posLiq, ok := k.knockedOut[pivotTime]
+	posLiq, ok := k.KnockedOut[pivotTime]
 	if !ok {
-		posLiq = &KnockedOutPostLiq{}
-		k.knockedOut[pivotTime] = &KnockedOutPostLiq{}
+		posLiq = &PositionLiquidity{}
+		k.KnockedOut[pivotTime] = posLiq
 	}
 	posLiq.ConcLiq = liqQty
-}
-
-func (k *KnockoutLiquiditySeries) UpdateKOCrossLiq(pivotTime int, crossTime int) {
-	posLiq, ok := k.knockedOut[pivotTime]
-	if !ok {
-		posLiq = &KnockedOutPostLiq{}
-		k.knockedOut[pivotTime] = &KnockedOutPostLiq{}
-	}
-	posLiq.CrossTime = crossTime
 }

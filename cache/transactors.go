@@ -60,6 +60,27 @@ func (m *MemoryCache) RetrieveUserPositions(
 	}
 }
 
+func (m *MemoryCache) RetrieveUserLimits(
+	chainId types.ChainId,
+	user types.EthAddress) map[types.PositionLocation]*model.KnockoutSubplot {
+	key := chainAndAddr{chainId, user}
+	pos, okay := m.userKnockouts.lookupSet(key)
+	if okay {
+		return pos
+	} else {
+		return make(map[types.PositionLocation]*model.KnockoutSubplot)
+	}
+}
+
+func (m *MemoryCache) RetrievePoolLimits(loc types.PoolLocation) map[types.PositionLocation]*model.KnockoutSubplot {
+	pos, okay := m.poolKnockouts.lookupSet(loc)
+	if okay {
+		return pos
+	} else {
+		return make(map[types.PositionLocation]*model.KnockoutSubplot)
+	}
+}
+
 func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
 	pos, okay := m.poolPositions.lookupSet(loc)
 	if okay {
@@ -76,6 +97,16 @@ func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool type
 		return pos
 	} else {
 		return make(map[types.PositionLocation]*model.PositionTracker)
+	}
+}
+
+func (m *MemoryCache) RetrieveUserPoolLimits(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.KnockoutSubplot {
+	loc := chainUserAndPool{user, pool}
+	pos, okay := m.userAndPoolKnockouts.lookupSet(loc)
+	if okay {
+		return pos
+	} else {
+		return make(map[types.PositionLocation]*model.KnockoutSubplot)
 	}
 }
 

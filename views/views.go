@@ -8,6 +8,7 @@ import (
 
 type IViews interface {
 	QueryUserTokens(chainId types.ChainId, user types.EthAddress) (UserTokensResponse, error)
+
 	QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error)
 	QueryPoolPositions(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int, nResults int, omitEmpty bool) ([]UserPosition, error)
@@ -17,6 +18,16 @@ type IViews interface {
 	QuerySinglePosition(chainId types.ChainId, user types.EthAddress,
 		base types.EthAddress, quote types.EthAddress,
 		poolIdx int, bidTick int, askTick int) (*UserPosition, error)
+
+	QueryUserLimits(chainId types.ChainId, user types.EthAddress) ([]UserLimitOrder, error)
+	QueryPoolLimits(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int, nResults int) ([]UserLimitOrder, error)
+	QueryUserPoolLimits(chainId types.ChainId, user types.EthAddress,
+		base types.EthAddress, quote types.EthAddress,
+		poolIdx int) ([]UserLimitOrder, error)
+	QuerySingleLimit(chainId types.ChainId, user types.EthAddress,
+		base types.EthAddress, quote types.EthAddress,
+		poolIdx int, bidTick int, askTick int, isBid bool, pivotTime int) (*UserLimitOrder, error)
 }
 
 type Views struct {

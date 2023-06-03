@@ -47,6 +47,19 @@ func parseIntParam(c *gin.Context, paramName string) (*int, error) {
 	return &parsed, nil
 }
 
+func parseBoolParam(c *gin.Context, paramName string) (*bool, error) {
+	arg := c.Query(paramName)
+	if arg == "" {
+		return nil, nil
+	}
+
+	result := false
+	if arg == "true" {
+		result = true
+	}
+	return &result, nil
+}
+
 func readBlockQueryArg(c *gin.Context) int {
 	block, _ := parseBlockOptional(c.Query("block"))
 	return block
