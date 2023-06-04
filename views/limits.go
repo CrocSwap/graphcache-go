@@ -28,7 +28,7 @@ type userLimitExtras struct {
 	TimeFirstMint    int     `json:"timeFirstMint"`
 }
 
-func (v *Views) QueryUserLimits(chainId types.ChainId, user types.EthAddress) ([]UserLimitOrder, error) {
+func (v *Views) QueryUserLimits(chainId types.ChainId, user types.EthAddress) []UserLimitOrder {
 	results := make([]UserLimitOrder, 0)
 
 	subplots := v.Cache.RetrieveUserLimits(chainId, user)
@@ -37,11 +37,11 @@ func (v *Views) QueryUserLimits(chainId types.ChainId, user types.EthAddress) ([
 	}
 
 	sort.Sort(byTimeLO(results))
-	return results, nil
+	return results
 }
 
 func (v *Views) QueryPoolLimits(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) ([]UserLimitOrder, error) {
+	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) []UserLimitOrder {
 	results := make([]UserLimitOrder, 0)
 
 	loc := types.PoolLocation{
@@ -57,19 +57,15 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 
 	sort.Sort(byTimeLO(results))
 
-	if nResults > MAX_POOL_POSITIONS {
-		return make([]UserLimitOrder, 0), fmt.Errorf("n must be below %d", MAX_POOL_POSITIONS)
+	if len(results) < nResults {
+		return results
 	} else {
-		if len(results) < nResults {
-			return results, nil
-		} else {
-			return results[0:nResults], nil
-		}
+		return results[0:nResults]
 	}
 }
 
 func (v *Views) QueryUserPoolLimits(chainId types.ChainId, user types.EthAddress,
-	base types.EthAddress, quote types.EthAddress, poolIdx int) ([]UserLimitOrder, error) {
+	base types.EthAddress, quote types.EthAddress, poolIdx int) []UserLimitOrder {
 	results := make([]UserLimitOrder, 0)
 
 	loc := types.PoolLocation{
@@ -85,25 +81,20 @@ func (v *Views) QueryUserPoolLimits(chainId types.ChainId, user types.EthAddress
 	}
 
 	sort.Sort(byTimeLO(results))
-	return results, nil
+	return results
 }
 
 func (v *Views) QuerySingleLimit(chainId types.ChainId, user types.EthAddress,
 	base types.EthAddress, quote types.EthAddress, poolIdx int,
-	bidTick int, askTick int, isBid bool, pivotTime int) (*UserLimitOrder, error) {
-
-	entries, err := v.QueryUserPoolLimits(chainId, user, base, quote, poolIdx)
-	if err != nil {
-		return nil, err
-	}
+	bidTick int, askTick int, isBid bool, pivotTime int) *UserLimitOrder {
+	entries := v.QueryUserPoolLimits(chainId, user, base, quote, poolIdx)
 
 	for _, pos := range entries {
 		if pos.BidTick == bidTick && pos.AskTick == askTick && pos.IsBid == isBid && pos.PivotTime == pivotTime {
-			return &pos, nil
+			return &pos
 		}
 	}
-
-	return nil, nil
+	return nil
 }
 
 func unrollSubplot(pos types.PositionLocation, subplot *model.KnockoutSubplot) []UserLimitOrder {

@@ -24,6 +24,9 @@ type MemoryCache struct {
 	userAndPoolKnockouts RWLockMapMap[chainUserAndPool, types.PositionLocation, *model.KnockoutSubplot]
 
 	knockoutSagas RWLockMap[types.BookLocation, *model.KnockoutSaga]
+
+	userTxs RWLockMapArray[chainAndAddr, types.PoolTxEvent]
+	poolTxs RWLockMapArray[types.PoolLocation, types.PoolTxEvent]
 }
 
 func New() *MemoryCache {
@@ -46,6 +49,9 @@ func New() *MemoryCache {
 		userAndPoolKnockouts: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.KnockoutSubplot](),
 
 		knockoutSagas: newRwLockMap[types.BookLocation, *model.KnockoutSaga](),
+
+		userTxs: newRwLockMapArray[chainAndAddr, types.PoolTxEvent](),
+		poolTxs: newRwLockMapArray[types.PoolLocation, types.PoolTxEvent](),
 	}
 }
 

@@ -40,7 +40,7 @@ func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, 
 	}
 }
 
-const SUBGRAPH_POLL_SECS = 5
+const SUBGRAPH_POLL_SECS = 1
 
 func (s *SubgraphSyncer) pollSubgraphUpdates() {
 	for true {

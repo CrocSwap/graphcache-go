@@ -41,7 +41,19 @@ func wrapDataErrResp(c *gin.Context, result any, err error) {
 	}
 }
 
+func wrapErrResp(c *gin.Context, err error) {
+	c.String(http.StatusInternalServerError, err.Error())
+	c.Error(err)
+}
+
+func wrapErrMsg(c *gin.Context, err string) {
+	wrapErrResp(c, fmt.Errorf(err))
+}
+
+func wrapErrMsgFmt(c *gin.Context, err string, a ...any) {
+	wrapErrResp(c, fmt.Errorf(err, a...))
+}
+
 func wrapMissingParams(c *gin.Context, paramName string) {
-	msg := fmt.Sprintf("Missing parameter=%s", paramName)
-	c.String(http.StatusUnprocessableEntity, msg)
+	wrapErrMsgFmt(c, "Missing parameter=%s", paramName)
 }

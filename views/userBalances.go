@@ -11,7 +11,7 @@ type UserTokensResponse struct {
 	Tokens  []types.EthAddress `json:"tokens"`
 }
 
-func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) (UserTokensResponse, error) {
+func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) UserTokensResponse {
 	resp := UserTokensResponse{
 		ChainId: chainId,
 		User:    user,
@@ -25,5 +25,5 @@ func (v *Views) QueryUserTokens(chainId types.ChainId, user types.EthAddress) (U
 		resp.Tokens = append(resp.Tokens, bal)
 	}
 
-	return resp, nil
+	return resp
 }

@@ -25,6 +25,27 @@ func (m *MemoryCache) RetrieveUserBalances(chainId types.ChainId, user types.Eth
 	}
 }
 
+func (m *MemoryCache) RetrieveUserTxs(chainId types.ChainId, user types.EthAddress) []types.PoolTxEvent {
+	key := chainAndAddr{chainId, user}
+	txs, okay := m.userTxs.lookup(key)
+
+	var retVal []types.PoolTxEvent
+	if okay {
+		retVal = append(retVal, txs...)
+	}
+	return retVal
+}
+
+func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
+	txs, okay := m.poolTxs.lookup(pool)
+
+	var retVal []types.PoolTxEvent
+	if okay {
+		retVal = append(retVal, txs...)
+	}
+	return retVal
+}
+
 func (m *MemoryCache) MaterializeTokenMetata(onChain *loader.OnChainLoader,
 	chainId types.ChainId, token types.EthAddress) *model.ExpiryHandle[types.TokenMetadata] {
 
@@ -113,6 +134,12 @@ func (m *MemoryCache) RetrieveUserPoolLimits(user types.EthAddress, pool types.P
 func (m *MemoryCache) AddUserBalance(chainId types.ChainId, user types.EthAddress, token types.EthAddress) {
 	key := chainAndAddr{chainId, user}
 	m.userBalTokens.insert(key, token)
+}
+
+func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
+	userKey := chainAndAddr{tx.ChainId, tx.User}
+	m.userTxs.insert(userKey, tx)
+	m.poolTxs.insert(tx.PoolLocation, tx)
 }
 
 func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.PositionTracker {

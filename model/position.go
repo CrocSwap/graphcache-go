@@ -13,6 +13,7 @@ type PositionTracker struct {
 	FirstMintTx      string `json:"firstMintTx"`
 	PositionType     string `json:"positionType"`
 	PositionLiquidity
+	liqHist LiquidityDeltaHist
 }
 
 func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
@@ -29,6 +30,8 @@ func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
 		}
 	}
 	p.PositionType = l.PositionType
+
+	p.liqHist.appendChange(l)
 }
 
 func (p *PositionTracker) UpdateAmbient(seeds big.Int) {

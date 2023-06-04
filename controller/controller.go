@@ -5,6 +5,7 @@ import (
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/loader"
+	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -12,14 +13,18 @@ import (
 type Controller struct {
 	netCfg  loader.NetworkConfig
 	cache   *cache.MemoryCache
+	history *model.HistoryWriter
 	workers *workers
 }
 
 func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
+	history := model.NewHistoryWriter(netCfg, cache.AddPoolEvent)
+
 	return &Controller{
 		netCfg:  netCfg,
 		cache:   cache,
 		workers: initWorkers(netCfg),
+		history: history,
 	}
 }
 
@@ -63,6 +68,8 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 		User:              types.RequireEthAddr(l.User),
 	}
 
+	c.ctrl.history.CommitLiqChange(l)
+
 	if l.PositionType == "knockout" {
 		c.ingestKnockoutLiq(l, loc)
 	} else {
@@ -84,6 +91,7 @@ func (c *ControllerOverNetwork) ingestPassiveLiq(l tables.LiqChange, loc types.P
 }
 
 func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
+	c.ctrl.history.CommitSwap(l)
 }
 
 func (c *ControllerOverNetwork) IngestFee(l tables.FeeChange) {

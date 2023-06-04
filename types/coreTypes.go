@@ -21,6 +21,15 @@ func ValidateEthAddr(arg string) EthAddress {
 	return ""
 }
 
+func ValidateEthHash(arg string) EthTxHash {
+	if strings.HasPrefix(arg, "0x") && len(arg) == 66 {
+		return EthTxHash(strings.ToLower(arg))
+	} else if len(arg) == 64 {
+		return EthTxHash("0x" + strings.ToLower((arg)))
+	}
+	return ""
+}
+
 func RequireEthAddr(arg string) EthAddress {
 	result := ValidateEthAddr(arg)
 	if result == "" {

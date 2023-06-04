@@ -78,3 +78,11 @@ func (c *NetworkConfig) ChainIDForNetwork(network types.NetworkName) (types.Chai
 		return "", false
 	}
 }
+
+func (c *NetworkConfig) RequireChainID(network types.NetworkName) types.ChainId {
+	lookup, ok := (*c)[network]
+	if !ok {
+		log.Fatalf("No chainID found for %s", network)
+	}
+	return types.IntToChainId(lookup.ChainID)
+}

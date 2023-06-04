@@ -18,7 +18,7 @@ type UserPosition struct {
 	PositionId string `json:"positionId"`
 }
 
-func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress) ([]UserPosition, error) {
+func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress) []UserPosition {
 	positions := v.Cache.RetrieveUserPositions(chainId, user)
 
 	results := make([]UserPosition, 0)
@@ -29,14 +29,12 @@ func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress)
 
 	sort.Sort(byTime(results))
 
-	return results, nil
+	return results
 }
-
-const MAX_POOL_POSITIONS = 100
 
 func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int,
-	omitEmpty bool) ([]UserPosition, error) {
+	omitEmpty bool) []UserPosition {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -57,19 +55,15 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 
 	sort.Sort(byTime(results))
 
-	if nResults > MAX_POOL_POSITIONS {
-		return make([]UserPosition, 0), fmt.Errorf("n must be below %d", MAX_POOL_POSITIONS)
+	if len(results) < nResults {
+		return results
 	} else {
-		if len(results) < nResults {
-			return results, nil
-		} else {
-			return results[0:nResults], nil
-		}
+		return results[0:nResults]
 	}
 }
 
 func (v *Views) QueryUserPoolPositions(chainId types.ChainId, user types.EthAddress,
-	base types.EthAddress, quote types.EthAddress, poolIdx int) ([]UserPosition, error) {
+	base types.EthAddress, quote types.EthAddress, poolIdx int) []UserPosition {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -87,24 +81,21 @@ func (v *Views) QueryUserPoolPositions(chainId types.ChainId, user types.EthAddr
 
 	sort.Sort(byTime(results))
 
-	return results, nil
+	return results
 }
 
 func (v *Views) QuerySinglePosition(chainId types.ChainId, user types.EthAddress,
-	base types.EthAddress, quote types.EthAddress, poolIdx int, bidTick int, askTick int) (*UserPosition, error) {
+	base types.EthAddress, quote types.EthAddress, poolIdx int, bidTick int, askTick int) *UserPosition {
 
-	entries, err := v.QueryUserPoolPositions(chainId, user, base, quote, poolIdx)
-	if err != nil {
-		return nil, err
-	}
+	entries := v.QueryUserPoolPositions(chainId, user, base, quote, poolIdx)
 
 	for _, pos := range entries {
 		if pos.BidTick == bidTick && pos.AskTick == askTick {
-			return &pos, nil
+			return &pos
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 func formPositionId(loc types.PositionLocation) string {

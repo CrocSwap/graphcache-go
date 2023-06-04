@@ -1,78 +1,93 @@
 package server
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/CrocSwap/graphcache-go/types"
 	"github.com/gin-gonic/gin"
 )
 
-func parseAddrParam(c *gin.Context, paramName string) (types.EthAddress, error) {
+func parseAddrParam(c *gin.Context, paramName string) types.EthAddress {
 	arg := c.Query(paramName)
 	if arg == "" {
-		return "", nil
+		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		return ""
 	}
 
 	parsed := types.ValidateEthAddr(arg)
 	if parsed == "" {
-		return "", errors.New("Invalid Ethereum address arg")
+		wrapErrMsgFmt(c, "Invalid Ethereum address arg=%s", arg)
+		return ""
 	}
-	return parsed, nil
+
+	return parsed
 }
 
-func parseChainParam(c *gin.Context, paramName string) (types.ChainId, error) {
+func parseChainParam(c *gin.Context, paramName string) types.ChainId {
 	arg := c.Query(paramName)
 	if arg == "" {
-		return "", nil
+		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		return ""
 	}
 
 	parsed := types.ValidateChainId(arg)
 	if parsed == "" {
-		return "", errors.New("Invalid chainId arg")
+		wrapErrMsgFmt(c, "Invalid ChainID arg=%s", paramName)
 	}
-	return parsed, nil
+	return parsed
 }
 
-func parseIntParam(c *gin.Context, paramName string) (*int, error) {
+func parseIntParam(c *gin.Context, paramName string) int {
 	arg := c.Query(paramName)
 	if arg == "" {
-		return nil, nil
+		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		return -1
 	}
 
 	parsed, err := strconv.Atoi(arg)
 	if err != nil {
-		return nil, err
+		wrapErrMsgFmt(c, "Invalid int arg=%s", arg)
+		return -1
 	}
-	return &parsed, nil
+
+	return parsed
 }
 
-func parseBoolParam(c *gin.Context, paramName string) (*bool, error) {
+func parseIntOptional(c *gin.Context, paramName string, dflt int) int {
 	arg := c.Query(paramName)
 	if arg == "" {
-		return nil, nil
+		return dflt
+	}
+
+	parsed, err := strconv.Atoi(arg)
+	if err != nil {
+		wrapErrMsgFmt(c, "Invalid int arg=%s", arg)
+		return -1
+	}
+
+	return parsed
+}
+
+func parseIntMaxParam(c *gin.Context, paramName string, maxSize int) int {
+	parsed := parseIntParam(c, paramName)
+
+	if parsed > maxSize {
+		wrapErrMsgFmt(c, "n Exceeds max size of %d", maxSize)
+	}
+
+	return parsed
+}
+
+func parseBoolParam(c *gin.Context, paramName string) bool {
+	arg := c.Query(paramName)
+	if arg == "" {
+		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		return false
 	}
 
 	result := false
 	if arg == "true" {
 		result = true
 	}
-	return &result, nil
-}
-
-func readBlockQueryArg(c *gin.Context) int {
-	block, _ := parseBlockOptional(c.Query("block"))
-	return block
-}
-
-func parseBlockOptional(blockArg string) (int, error) {
-	if blockArg == "" {
-		return 0, nil
-	}
-
-	block, err := strconv.Atoi(blockArg)
-	if err != nil {
-		return 0, err
-	}
-	return block, nil
+	return result
 }
