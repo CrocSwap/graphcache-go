@@ -34,9 +34,9 @@ func (p *PositionRefreshHandle) RefreshQuery(query *loader.CrocQuery) {
 	posType := types.PositionTypeForLiq(p.location.LiquidityLocation)
 
 	if posType == "ambient" {
-		seedFn := func() (*big.Int, error) { return query.QueryAmbientSeeds(p.location) }
-		ambientSeeds := tryQueryAttempt(seedFn, "ambientSeeds")
-		p.pos.UpdateAmbient(*ambientSeeds)
+		liqFn := func() (*big.Int, error) { return query.QueryAmbientLiq(p.location) }
+		ambientLiq := tryQueryAttempt(liqFn, "ambientLiq")
+		p.pos.UpdateAmbient(*ambientLiq)
 	}
 
 	if posType == "range" {

@@ -15,6 +15,7 @@ import (
 type UserPosition struct {
 	types.PositionLocation
 	model.PositionTracker
+	model.APRCalcResult
 	PositionId string `json:"positionId"`
 }
 
@@ -23,7 +24,7 @@ func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress)
 
 	results := make([]UserPosition, 0)
 	for key, val := range positions {
-		element := UserPosition{key, *val, formPositionId(key)}
+		element := UserPosition{key, *val, val.CalcAPR(key), formPositionId(key)}
 		results = append(results, element)
 	}
 
@@ -47,7 +48,7 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	results := make([]UserPosition, 0)
 
 	for key, val := range positions {
-		element := UserPosition{key, *val, formPositionId(key)}
+		element := UserPosition{key, *val, val.CalcAPR(key), formPositionId(key)}
 		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
 			results = append(results, element)
 		}
@@ -75,7 +76,7 @@ func (v *Views) QueryUserPoolPositions(chainId types.ChainId, user types.EthAddr
 
 	results := make([]UserPosition, 0)
 	for key, val := range positions {
-		element := UserPosition{key, *val, formPositionId(key)}
+		element := UserPosition{key, *val, val.CalcAPR(key), formPositionId(key)}
 		results = append(results, element)
 	}
 

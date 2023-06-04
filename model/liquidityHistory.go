@@ -2,6 +2,8 @@ package model
 
 import (
 	"log"
+	"math"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 )
@@ -16,6 +18,25 @@ type LiquidityDelta struct {
 	resetRewards bool
 }
 
+func (l *LiquidityDeltaHist) netCumulativeLiquidity() float64 {
+	totalLiq := 0.0
+
+	for _, delta := range l.hist {
+		totalLiq += delta.liqChange
+	}
+
+	if totalLiq < MIN_NUMERIC_STABLE_FLOW {
+		return 0
+	}
+	return totalLiq
+}
+
+func (l *LiquidityDeltaHist) weightedAverageDuration() float64 {
+	present := float64(time.Now().Unix())
+	past := float64(l.weightedAverageTime())
+	return present - past
+}
+
 func (l *LiquidityDeltaHist) weightedAverageTime() int {
 	openLiq := 0.0
 	openTime := 0.0
@@ -27,7 +48,7 @@ func (l *LiquidityDeltaHist) weightedAverageTime() int {
 
 		if delta.liqChange < 0 {
 			openLiq = openLiq + delta.liqChange
-			if openLiq < MIN_NUMERIC_STABLE_FLOW {
+			if openLiq < 0 || openLiq < MIN_NUMERIC_STABLE_FLOW {
 				openLiq = 0
 			}
 		}
@@ -35,6 +56,10 @@ func (l *LiquidityDeltaHist) weightedAverageTime() int {
 		if delta.liqChange > 0 {
 			weight := openLiq / (openLiq + delta.liqChange)
 			openTime = openTime*weight + float64(delta.time)*(1.0-weight)
+		}
+
+		if delta.liqChange == 0 && openLiq == 0 {
+			openTime = float64(delta.time)
 		}
 	}
 	return int(openTime)
@@ -56,7 +81,8 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 		if r.ChangeType == "mint" {
 			l.hist = append(l.hist, LiquidityDelta{
 				time:      r.Time,
-				liqChange: -liqMagn})
+				liqChange: liqMagn})
+
 		} else if r.ChangeType == "burn" {
 			l.hist = append(l.hist, LiquidityDelta{
 				time:      r.Time,
@@ -66,15 +92,21 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 }
 
 func (l *LiquidityDeltaHist) determineLiquidityMagn(r tables.LiqChange) float64 {
-	if !isFlowNumericallyStable(*r.BaseFlow, *r.QuoteFlow) {
+	baseFlow, quoteFlow := flowMagns(r)
+
+	if !isFlowNumericallyStable(baseFlow, quoteFlow) {
 		return 0
 	}
 
 	if r.PositionType == "ambient" {
-		return deriveLiquidityFromAmbientFlow(*r.BaseFlow, *r.QuoteFlow)
+		return deriveLiquidityFromAmbientFlow(baseFlow, quoteFlow)
 	} else {
-		return deriveLiquidityFromConcFlow(*r.BaseFlow, *r.QuoteFlow, r.BidTick, r.AskTick)
+		return deriveLiquidityFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
 	}
+}
+
+func flowMagns(r tables.LiqChange) (float64, float64) {
+	return math.Abs(*r.BaseFlow), math.Abs(*r.QuoteFlow)
 }
 
 func (l *LiquidityDeltaHist) initHist() {

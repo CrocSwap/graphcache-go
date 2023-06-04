@@ -79,12 +79,13 @@ func (s *SubgraphSyncer) syncStart() {
 
 func (s *SubgraphSyncer) syncStep(syncTime int) {
 	startTime := s.lastSyncTime + 1
+	doSyncFwd := true
 
 	s.cfg.Query = "./artifacts/graphQueries/balances.query"
 	tblBal := tables.BalanceTable{}
 	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
 		tblBal, s.cfg, s.cntr.IngestBalance)
-	nRows, _ := syncBal.SyncTableToSubgraph(false, startTime, syncTime)
+	nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	if nRows > 0 {
 		log.Println("Sync UserBalance subgraph with rows=", nRows)
 	}
@@ -93,7 +94,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
 		tblLiq, s.cfg, s.cntr.IngestLiqChange)
-	nRows, _ = syncLiq.SyncTableToSubgraph(false, startTime, syncTime)
+	nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	if nRows > 0 {
 		log.Println("Sync LiqChanges subgraph with rows=", nRows)
 	}
@@ -102,7 +103,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	tblSwap := tables.SwapsTable{}
 	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
 		tblSwap, s.cfg, s.cntr.IngestSwap)
-	nRows, _ = syncSwap.SyncTableToSubgraph(false, startTime, syncTime)
+	nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	if nRows > 0 {
 		log.Println("Sync Swaps subgraph with rows=", nRows)
 	}
@@ -111,7 +112,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	tblKo := tables.KnockoutTable{}
 	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
 		tblKo, s.cfg, s.cntr.IngestKnockout)
-	nRows, _ = syncKo.SyncTableToSubgraph(false, startTime, syncTime)
+	nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	if nRows > 0 {
 		log.Println("Sync Knockout subgraph with rows=", nRows)
 	}
@@ -120,7 +121,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	tblFee := tables.FeeTable{}
 	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
 		tblFee, s.cfg, s.cntr.IngestFee)
-	nRows, _ = syncFee.SyncTableToSubgraph(false, startTime, syncTime)
+	nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	if nRows > 0 {
 		log.Println("Sync FeeChanges subgraph with rows=", nRows)
 	}

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/CrocSwap/graphcache-go/views"
@@ -71,7 +70,6 @@ func (s *APIWebServer) queryUserTxHist(c *gin.Context) {
 	user := parseAddrParam(c, "user")
 	n := parseIntMaxParam(c, "n", 200)
 
-	fmt.Println(len(c.Errors))
 	if len(c.Errors) > 0 {
 		return
 	}

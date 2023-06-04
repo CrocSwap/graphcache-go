@@ -22,7 +22,7 @@ func deriveLiquidityFromConcFlow(baseFlow float64, quoteFlow float64,
 	if quoteFlow == 0 {
 		return baseFlow / (askPrice - bidPrice)
 	} else if baseFlow == 0 {
-		return quoteFlow / (1/askPrice - 1/bidPrice)
+		return quoteFlow / (1/bidPrice - 1/askPrice)
 	} else {
 		price := *derivePriceFromConcFlow(baseFlow, quoteFlow, bidTick, askTick)
 		return baseFlow / (price - bidPrice)
@@ -62,13 +62,20 @@ func derivePriceFromInRange(baseFlow float64, quoteFlow float64,
 	}
 }
 
+func estLiqAmplification(bidTick int, askTick int) float64 {
+	midTick := (bidTick + askTick) / 2
+	bidPrice := math.Sqrt(tickToPrice(bidTick))
+	midPrice := math.Sqrt(tickToPrice(midTick))
+	return midPrice / (midPrice - bidPrice)
+}
+
 func tickToPrice(tick int) float64 {
 	return math.Pow(1.0001, float64(tick))
 }
 
-const MIN_NUMERIC_STABLE_FLOW = 10000
+const MIN_NUMERIC_STABLE_FLOW = 1000
 
 func isFlowNumericallyStable(baseFlow float64, quoteFlow float64) bool {
-	return baseFlow > MIN_NUMERIC_STABLE_FLOW &&
-		quoteFlow > MIN_NUMERIC_STABLE_FLOW
+	return baseFlow >= MIN_NUMERIC_STABLE_FLOW ||
+		quoteFlow >= MIN_NUMERIC_STABLE_FLOW
 }

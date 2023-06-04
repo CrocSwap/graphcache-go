@@ -25,7 +25,7 @@ func NewCrocQuery(chain *OnChainLoader) *CrocQuery {
 	}
 }
 
-func (q *CrocQuery) QueryAmbientSeeds(pos types.PositionLocation) (*big.Int, error) {
+func (q *CrocQuery) QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error) {
 	callData, err := q.queryAbi.Pack("queryAmbientTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
