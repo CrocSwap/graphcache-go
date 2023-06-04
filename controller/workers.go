@@ -65,6 +65,16 @@ func (msg *posUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidity
 	refresher.PushRefresh(msg.liq.Time)
 }
 
+func (msg *posImpactMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
+	refresher, ok := accum.posRefreshers[msg.loc]
+	if !ok {
+		handle := PositionRefreshHandle{location: msg.loc, pos: msg.pos}
+		refresher = NewHandleRefresher(&handle, liq.pending)
+		accum.posRefreshers[msg.loc] = refresher
+	}
+	refresher.PushRefresh(msg.eventTime)
+}
+
 func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
 	cands, isPossiblyLive := (msg.pos).UpdateLiqChange(msg.liq)
 
@@ -112,6 +122,12 @@ type posUpdateMsg struct {
 	loc types.PositionLocation
 	pos *model.PositionTracker
 	liq tables.LiqChange
+}
+
+type posImpactMsg struct {
+	loc       types.PositionLocation
+	pos       *model.PositionTracker
+	eventTime int
 }
 
 type koPosUpdateMsg struct {

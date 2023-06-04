@@ -24,6 +24,16 @@ func (m *RWLockMap[Key, Val]) lookup(key Key) (Val, bool) {
 	return result, ok
 }
 
+func (m *RWLockMap[Key, Val]) clone() map[Key]Val {
+	cloned := make(map[Key]Val, 0)
+	m.lock.RLock()
+	for key, val := range m.entries {
+		cloned[key] = val
+	}
+	m.lock.RUnlock()
+	return cloned
+}
+
 func (m *RWLockMapArray[Key, Val]) lookup(key Key) ([]Val, bool) {
 	m.lock.RLock()
 	result, ok := m.entries[key]

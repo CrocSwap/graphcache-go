@@ -81,6 +81,10 @@ func (m *MemoryCache) RetrieveUserPositions(
 	}
 }
 
+func (m *MemoryCache) RetrieveAllPositions() map[types.PositionLocation]*model.PositionTracker {
+	return m.liqPosition.clone()
+}
+
 func (m *MemoryCache) RetrieveUserLimits(
 	chainId types.ChainId,
 	user types.EthAddress) map[types.PositionLocation]*model.KnockoutSubplot {

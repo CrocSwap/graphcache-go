@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/loader"
@@ -20,12 +21,15 @@ type Controller struct {
 func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
 	history := model.NewHistoryWriter(netCfg, cache.AddPoolEvent)
 
-	return &Controller{
+	ctrl := &Controller{
 		netCfg:  netCfg,
 		cache:   cache,
 		workers: initWorkers(netCfg),
 		history: history,
 	}
+	go ctrl.runPeriodicRefresh()
+
+	return ctrl
 }
 
 type ControllerOverNetwork struct {
@@ -55,6 +59,11 @@ func (c *ControllerOverNetwork) IngestBalance(b tables.Balance) {
 }
 
 func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
+	c.applyToPosition(l)
+	c.ctrl.history.CommitLiqChange(l)
+}
+
+func (c *ControllerOverNetwork) applyToPosition(l tables.LiqChange) {
 	liq := formLiqLoc(l)
 	pool := types.PoolLocation{
 		ChainId: c.chainId,
@@ -68,16 +77,14 @@ func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 		User:              types.RequireEthAddr(l.User),
 	}
 
-	c.ctrl.history.CommitLiqChange(l)
-
 	if l.PositionType == "knockout" {
-		c.ingestKnockoutLiq(l, loc)
+		c.applyToKnockout(l, loc)
 	} else {
-		c.ingestPassiveLiq(l, loc)
+		c.applyToPassiveLiq(l, loc)
 	}
 }
 
-func (c *ControllerOverNetwork) ingestKnockoutLiq(l tables.LiqChange, loc types.PositionLocation) {
+func (c *ControllerOverNetwork) applyToKnockout(l tables.LiqChange, loc types.PositionLocation) {
 	if l.ChangeType == "cross" {
 		return // Cross events are handled KnockoutCross table
 	}
@@ -85,13 +92,18 @@ func (c *ControllerOverNetwork) ingestKnockoutLiq(l tables.LiqChange, loc types.
 	c.ctrl.workers.omniUpdates <- &koPosUpdateMsg{liq: l, pos: pos, loc: loc}
 }
 
-func (c *ControllerOverNetwork) ingestPassiveLiq(l tables.LiqChange, loc types.PositionLocation) {
+func (c *ControllerOverNetwork) applyToPassiveLiq(l tables.LiqChange, loc types.PositionLocation) {
 	pos := c.ctrl.cache.MaterializePosition(loc)
 	c.ctrl.workers.omniUpdates <- &posUpdateMsg{liq: l, pos: pos, loc: loc}
 }
 
 func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
 	c.ctrl.history.CommitSwap(l)
+
+	updates := c.resyncPoolOnSwap(l)
+	for _, msg := range updates {
+		c.ctrl.workers.omniUpdates <- &msg
+	}
 }
 
 func (c *ControllerOverNetwork) IngestFee(l tables.FeeChange) {
@@ -127,5 +139,23 @@ func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
 		return types.KnockoutRangeLocation(l.BidTick, l.AskTick, l.IsBid > 0)
 	} else {
 		return types.RangeLiquidityLocation(l.BidTick, l.AskTick)
+	}
+}
+
+func (c *Controller) resyncFullCycle(time int) {
+	for poolLoc, poolPos := range c.cache.RetrieveAllPositions() {
+		if !poolPos.IsEmpty() {
+			c.workers.omniUpdates <- &posImpactMsg{poolLoc, poolPos, time}
+		}
+	}
+}
+
+const REFRESH_CYCLE_TIME = 10 * 60
+
+func (c *Controller) runPeriodicRefresh() {
+	for true {
+		time.Sleep(time.Second * REFRESH_CYCLE_TIME)
+		refreshTime := time.Now().Unix()
+		c.resyncFullCycle(int(refreshTime))
 	}
 }
