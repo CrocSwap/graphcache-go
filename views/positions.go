@@ -63,6 +63,20 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	}
 }
 
+func (v *Views) QueryPoolApyLeaders(chainId types.ChainId,
+	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int,
+	omitEmpty bool) []UserPosition {
+	results := v.QueryPoolPositions(chainId, base, quote, poolIdx, 1000000, true)
+
+	sort.Sort(byApr(results))
+
+	if len(results) < nResults {
+		return results
+	} else {
+		return results[0:nResults]
+	}
+}
+
 func (v *Views) QueryUserPoolPositions(chainId types.ChainId, user types.EthAddress,
 	base types.EthAddress, quote types.EthAddress, poolIdx int) []UserPosition {
 
@@ -116,4 +130,20 @@ func (a byTime) Less(i, j int) bool {
 	}
 
 	return a[i].LatestUpdateTime > a[j].LatestUpdateTime
+}
+
+type byApr []UserPosition
+
+func (a byApr) Len() int      { return len(a) }
+func (a byApr) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func (a byApr) Less(i, j int) bool {
+	// Break ties by time, the hash
+	if a[i].APRCalcResult.Apr != a[j].APRCalcResult.Apr {
+		return a[i].APRCalcResult.Apr > a[j].APRCalcResult.Apr
+	} else if a[i].LatestUpdateTime != a[j].LatestUpdateTime {
+		return a[i].LatestUpdateTime > a[j].LatestUpdateTime
+	} else {
+		return a[i].FirstMintTx > a[j].FirstMintTx
+	}
 }

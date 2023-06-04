@@ -18,6 +18,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("/user_balance_tokens", s.queryUserTokens)
 	r.GET("/user_positions", s.queryUserPositions)
 	r.GET("/pool_positions", s.queryPoolPositions)
+	r.GET("/pool_position_apy_leaders", s.queryPoolPositions)
 	r.GET("/user_pool_positions", s.queryUserPoolPositions)
 	r.GET("/position_stats", s.querySinglePosition)
 	r.GET("/user_limit_orders", s.queryUserLimits)
@@ -90,6 +91,21 @@ func (s *APIWebServer) queryPoolPositions(c *gin.Context) {
 	}
 
 	resp := s.Views.QueryPoolPositions(chainId, base, quote, poolIdx, n, true)
+	wrapDataErrResp(c, resp, nil)
+}
+
+func (s *APIWebServer) queryPoolPositionsApyLeaders(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	base := parseAddrParam(c, "base")
+	quote := parseAddrParam(c, "quote")
+	poolIdx := parseIntParam(c, "poolIdx")
+	n := parseIntMaxParam(c, "n", 200)
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryPoolApyLeaders(chainId, base, quote, poolIdx, n, true)
 	wrapDataErrResp(c, resp, nil)
 }
 

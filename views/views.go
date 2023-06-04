@@ -12,6 +12,8 @@ type IViews interface {
 	QueryUserPositions(chainId types.ChainId, user types.EthAddress) []UserPosition
 	QueryPoolPositions(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int, nResults int, omitEmpty bool) []UserPosition
+	QueryPoolApyLeaders(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int, nResults int, omitEmpty bool) []UserPosition
 	QueryUserPoolPositions(chainId types.ChainId, user types.EthAddress,
 		base types.EthAddress, quote types.EthAddress,
 		poolIdx int) []UserPosition
