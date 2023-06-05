@@ -20,7 +20,7 @@ func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 	positions := c.ctrl.cache.RetrievePoolPositions(loc)
 
 	hotPos := c.subsetRecent(positions)
-	msgs := make([]posImpactMsg, 0)
+	var msgs []posImpactMsg
 	for loc, pos := range hotPos {
 		msgs = append(msgs, posImpactMsg{loc, pos, l.Time})
 	}

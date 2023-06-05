@@ -2,6 +2,7 @@ package model
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 )
@@ -36,11 +37,13 @@ func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
 
 func (p *PositionTracker) UpdateAmbient(liq big.Int) {
 	p.AmbientLiq = liq
+	p.RefreshTime = time.Now().Unix()
 }
 
 func (p *PositionTracker) UpdateRange(liq big.Int, rewardsLiq big.Int) {
 	p.ConcLiq = liq
 	p.RewardLiq = rewardsLiq
+	p.RefreshTime = time.Now().Unix()
 }
 
 func (p *PositionLiquidity) IsEmpty() bool {
@@ -55,7 +58,8 @@ func (p *PositionLiquidity) IsConcentrated() bool {
 }
 
 type PositionLiquidity struct {
-	AmbientLiq big.Int `json:"ambientLiq"`
-	ConcLiq    big.Int `json:"concLiq"`
-	RewardLiq  big.Int `json:"rewardLiq"`
+	AmbientLiq  big.Int `json:"ambientLiq"`
+	ConcLiq     big.Int `json:"concLiq"`
+	RewardLiq   big.Int `json:"rewardLiq"`
+	RefreshTime int64   `json:"liqRefreshTime"`
 }
