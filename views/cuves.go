@@ -28,5 +28,5 @@ func (a byTick) Len() int      { return len(a) }
 func (a byTick) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 func (a byTick) Less(i, j int) bool {
-	return a[i].Tick > a[j].Tick
+	return a[i].Tick < a[j].Tick
 }
