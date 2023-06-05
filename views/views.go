@@ -3,6 +3,7 @@ package views
 import (
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/loader"
+	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
@@ -36,6 +37,9 @@ type IViews interface {
 		poolIdx int, nResults int) []UserTxHistory
 	QueryPoolTxHistFrom(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int, nResults int, time int, period int) []UserTxHistory
+
+	QueryPoolLiquidityCurve(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int) []*model.LiquidityBump
 }
 
 type Views struct {

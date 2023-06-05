@@ -60,6 +60,7 @@ func (c *ControllerOverNetwork) IngestBalance(b tables.Balance) {
 
 func (c *ControllerOverNetwork) IngestLiqChange(l tables.LiqChange) {
 	c.applyToPosition(l)
+	c.applyToLiqCurve(l)
 	c.ctrl.history.CommitLiqChange(l)
 }
 
@@ -82,6 +83,18 @@ func (c *ControllerOverNetwork) applyToPosition(l tables.LiqChange) {
 	} else {
 		c.applyToPassiveLiq(l, loc)
 	}
+
+}
+
+func (c *ControllerOverNetwork) applyToLiqCurve(l tables.LiqChange) {
+	pool := types.PoolLocation{
+		ChainId: c.chainId,
+		PoolIdx: l.PoolIdx,
+		Base:    types.RequireEthAddr(l.Base),
+		Quote:   types.RequireEthAddr(l.Quote),
+	}
+	curve := c.ctrl.cache.MaterializePoolLiqCurve(pool)
+	curve.UpdateLiqChange(l)
 }
 
 func (c *ControllerOverNetwork) applyToKnockout(l tables.LiqChange, loc types.PositionLocation) {

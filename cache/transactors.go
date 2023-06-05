@@ -17,33 +17,19 @@ func (m *MemoryCache) LatestBlock(chainId types.ChainId) int64 {
 
 func (m *MemoryCache) RetrieveUserBalances(chainId types.ChainId, user types.EthAddress) []types.EthAddress {
 	key := chainAndAddr{chainId, user}
-	tokens, okay := m.userBalTokens.lookup(key)
-	if okay {
-		return tokens
-	} else {
-		return make([]types.EthAddress, 0)
-	}
+	tokens, _ := m.userBalTokens.lookup(key)
+	return tokens
 }
 
 func (m *MemoryCache) RetrieveUserTxs(chainId types.ChainId, user types.EthAddress) []types.PoolTxEvent {
 	key := chainAndAddr{chainId, user}
-	txs, okay := m.userTxs.lookup(key)
-
-	var retVal []types.PoolTxEvent
-	if okay {
-		retVal = append(retVal, txs...)
-	}
-	return retVal
+	txs, _ := m.userTxs.lookupCopy(key)
+	return txs
 }
 
 func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
-	txs, okay := m.poolTxs.lookup(pool)
-
-	var retVal []types.PoolTxEvent
-	if okay {
-		retVal = append(retVal, txs...)
-	}
-	return retVal
+	txs, _ := m.poolTxs.lookupCopy(pool)
+	return txs
 }
 
 func (m *MemoryCache) MaterializeTokenMetata(onChain *loader.OnChainLoader,
@@ -115,6 +101,20 @@ func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.Po
 	}
 }
 
+func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) []*model.LiquidityBump {
+	var returnVal []*model.LiquidityBump
+	pos, okay := m.poolLiqCurve.lookup(loc)
+	if okay {
+		defer m.poolLiqCurve.lock.RUnlock()
+		m.poolLiqCurve.lock.RLock()
+		for _, bump := range pos.Bumps {
+			returnVal = append(returnVal, bump)
+		}
+	}
+	return returnVal
+
+}
+
 func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
 	loc := chainUserAndPool{user, pool}
 	pos, okay := m.userAndPoolPositions.lookupSet(loc)
@@ -144,6 +144,15 @@ func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
 	userKey := chainAndAddr{tx.ChainId, tx.User}
 	m.userTxs.insert(userKey, tx)
 	m.poolTxs.insert(tx.PoolLocation, tx)
+}
+
+func (m *MemoryCache) MaterializePoolLiqCurve(loc types.PoolLocation) *model.LiquidityCurve {
+	val, okay := m.poolLiqCurve.lookup(loc)
+	if !okay {
+		val = model.NewLiquidityCurve()
+		m.poolLiqCurve.insert(loc, val)
+	}
+	return val
 }
 
 func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.PositionTracker {

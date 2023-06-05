@@ -27,6 +27,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("/limit_stats", s.querySingleLimit)
 	r.GET("/user_txs", s.queryUserTxHist)
 	r.GET("/pool_txs", s.queryPoolTxHist)
+	r.GET("/pool_liq_curve", s.queryPoolLiqCurve)
 	r.Run()
 }
 
@@ -158,6 +159,20 @@ func (s *APIWebServer) queryUserPoolPositions(c *gin.Context) {
 	}
 
 	resp := s.Views.QueryUserPoolPositions(chainId, user, base, quote, poolIdx)
+	wrapDataErrResp(c, resp, nil)
+}
+
+func (s *APIWebServer) queryPoolLiqCurve(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	base := parseAddrParam(c, "base")
+	quote := parseAddrParam(c, "quote")
+	poolIdx := parseIntParam(c, "poolIdx")
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryPoolLiquidityCurve(chainId, base, quote, poolIdx)
 	wrapDataErrResp(c, resp, nil)
 }
 

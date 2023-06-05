@@ -27,6 +27,8 @@ type MemoryCache struct {
 
 	userTxs RWLockMapArray[chainAndAddr, types.PoolTxEvent]
 	poolTxs RWLockMapArray[types.PoolLocation, types.PoolTxEvent]
+
+	poolLiqCurve RWLockMap[types.PoolLocation, *model.LiquidityCurve]
 }
 
 func New() *MemoryCache {
@@ -52,6 +54,8 @@ func New() *MemoryCache {
 
 		userTxs: newRwLockMapArray[chainAndAddr, types.PoolTxEvent](),
 		poolTxs: newRwLockMapArray[types.PoolLocation, types.PoolTxEvent](),
+
+		poolLiqCurve: newRwLockMap[types.PoolLocation, *model.LiquidityCurve](),
 	}
 }
 

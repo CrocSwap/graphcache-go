@@ -41,6 +41,19 @@ func (m *RWLockMapArray[Key, Val]) lookup(key Key) ([]Val, bool) {
 	return result, ok
 }
 
+func (m *RWLockMapArray[Key, Val]) lookupCopy(key Key) ([]Val, bool) {
+	var retVal []Val
+	m.lock.RLock()
+	result, ok := m.entries[key]
+	if ok {
+		for _, r := range result {
+			retVal = append(retVal, r)
+		}
+	}
+	m.lock.RUnlock()
+	return retVal, ok
+}
+
 func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val, bool) {
 	m.lock.RLock()
 	result, ok := m.entries[key]
