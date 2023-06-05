@@ -116,6 +116,34 @@ func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidi
 	}
 }
 
+func (msg *koPosImpactMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
+	accum.lock.Lock()
+	refresher, ok := accum.koLiveRefreshers[msg.loc]
+	if !ok {
+		handle := KnockoutAliveHandle{location: msg.loc, pos: msg.pos}
+		refresher = NewHandleRefresher(&handle, liq.pending)
+		accum.koLiveRefreshers[msg.loc] = refresher
+	}
+	accum.lock.Unlock()
+
+	refresher.PushRefresh(msg.eventTime)
+
+	for _, cand := range cands {
+		accum.lock.Lock()
+		claimLoc := types.KOClaimLocation{PositionLocation: msg.loc, PivotTime: cand.PivotTime}
+		refresher, ok := accum.koPostRefreshers[claimLoc]
+
+		if !ok {
+			handle := KnockoutPostHandle{location: claimLoc, pos: msg.pos}
+			refresher = NewHandleRefresher(&handle, liq.pending)
+			accum.koPostRefreshers[claimLoc] = refresher
+		}
+		accum.lock.Unlock()
+
+		refresher.PushRefresh(msg.liq.Time)
+	}
+}
+
 func (msg *koCrossUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {
 	cands := (msg.pos).UpdateCross(msg.cross)
 
@@ -152,6 +180,12 @@ type koPosUpdateMsg struct {
 	loc types.PositionLocation
 	pos *model.KnockoutSubplot
 	liq tables.LiqChange
+}
+
+type koPosImpactMsg struct {
+	loc       types.PositionLocation
+	pos       *model.KnockoutSubplot
+	eventTime int
 }
 
 type koCrossUpdateMsg struct {

@@ -49,6 +49,11 @@ func NewKnockoutSaga() *KnockoutSaga {
 	}
 }
 
+func (k *KnockoutSubplot) IsActiveEmpty() bool {
+	zero := big.NewInt(0)
+	return k.Liq.Active.AmbientLiq.Cmp(zero) == 0
+}
+
 func (k *KnockoutSubplot) GetCrossForPivotTime(pivotTime int) (int, bool) {
 	for _, cross := range k.saga.crosses {
 		if cross.PivotTime == pivotTime {

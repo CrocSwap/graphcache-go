@@ -17,7 +17,9 @@ type SubgraphSyncer struct {
 
 func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
-	go sync.syncStart()
+	syncNotif := make(chan bool, 1)
+	go sync.syncStart(syncNotif)
+	<-syncNotif
 	return sync
 }
 
@@ -66,15 +68,24 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
-func (s *SubgraphSyncer) syncStart() {
+func (s *SubgraphSyncer) syncStart(notif chan bool) {
 	syncTime, err := loader.LatestSubgraphTime(s.cfg)
 
 	if err != nil {
-		log.Fatal("Subgraph not responding for initital sync time")
+		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.RPCs)
 	}
 
 	s.syncStep(syncTime)
+	log.Printf("Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
+	notif <- true
+
 	s.pollSubgraphUpdates()
+}
+
+func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
+	if nRows > 0 {
+		log.Printf("Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
+	}
 }
 
 func (s *SubgraphSyncer) syncStep(syncTime int) {
@@ -86,45 +97,35 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
 		tblBal, s.cfg, s.cntr.IngestBalance)
 	nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	if nRows > 0 {
-		log.Println("Sync UserBalance subgraph with rows=", nRows)
-	}
+	s.logSyncCycle("User Balances", nRows)
 
 	s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
 		tblLiq, s.cfg, s.cntr.IngestLiqChange)
 	nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	if nRows > 0 {
-		log.Println("Sync LiqChanges subgraph with rows=", nRows)
-	}
+	s.logSyncCycle("LiqChanges", nRows)
 
 	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
 	tblSwap := tables.SwapsTable{}
 	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
 		tblSwap, s.cfg, s.cntr.IngestSwap)
 	nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	if nRows > 0 {
-		log.Println("Sync Swaps subgraph with rows=", nRows)
-	}
+	s.logSyncCycle("Swaps", nRows)
 
 	s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
 	tblKo := tables.KnockoutTable{}
 	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
 		tblKo, s.cfg, s.cntr.IngestKnockout)
 	nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	if nRows > 0 {
-		log.Println("Sync Knockout subgraph with rows=", nRows)
-	}
+	s.logSyncCycle("Knockout crosses", nRows)
 
 	s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
 	tblFee := tables.FeeTable{}
 	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
 		tblFee, s.cfg, s.cntr.IngestFee)
 	nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	if nRows > 0 {
-		log.Println("Sync FeeChanges subgraph with rows=", nRows)
-	}
+	s.logSyncCycle("Fee Changes", nRows)
 
 	s.lastSyncTime = syncTime
 }

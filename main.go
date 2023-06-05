@@ -12,15 +12,16 @@ import (
 func main() {
 	netCfgPath := "./config/networks.json"
 	netCfg := loader.LoadNetworkConfig(netCfgPath)
-	cache := cache.New()
 	onChain := loader.OnChainLoader{Cfg: netCfg}
 
-	goerlChainConfig, _ := netCfg["goerli"]
+	cache := cache.New()
 	cntrl := controller.New(netCfg, cache)
+
+	goerlChainConfig, _ := netCfg["goerli"]
 	controller.NewSubgraphSyncer(cntrl, goerlChainConfig, "goerli")
 
 	mainnetChainConfig, _ := netCfg["mainnet"]
-	controller.NewSubgraphPriceSyncer(cntrl, mainnetChainConfig, "mainnet")
+	controller.NewSubgraphSyncer(cntrl, mainnetChainConfig, "mainnet")
 
 	views := views.Views{Cache: cache, OnChain: &onChain}
 	apiServer := server.APIWebServer{Views: &views}
