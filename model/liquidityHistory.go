@@ -76,7 +76,7 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 		})
 
 	} else {
-		liqMagn := l.determineLiquidityMagn(r)
+		liqMagn := determineLiquidityMagn(r)
 
 		if r.ChangeType == "mint" {
 			l.hist = append(l.hist, LiquidityDelta{
@@ -88,20 +88,6 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 				time:      r.Time,
 				liqChange: -liqMagn})
 		}
-	}
-}
-
-func (l *LiquidityDeltaHist) determineLiquidityMagn(r tables.LiqChange) float64 {
-	baseFlow, quoteFlow := flowMagns(r)
-
-	if !isFlowNumericallyStable(baseFlow, quoteFlow) {
-		return 0
-	}
-
-	if r.PositionType == "ambient" {
-		return deriveLiquidityFromAmbientFlow(baseFlow, quoteFlow)
-	} else {
-		return deriveLiquidityFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
 	}
 }
 
