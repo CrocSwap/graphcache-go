@@ -101,9 +101,9 @@ func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
 	c.ctrl.history.CommitSwap(l)
 
 	updates := c.resyncPoolOnSwap(l)
-	for i, _ := range updates {
-		// Use array entry, instead of element loop, because otherwise same pointer
-		// is passed multiple times to channel and may overwritten
+	// Use array entry, instead of element loop, because otherwise same pointer
+	// is passed multiple times to channel and may overwritten
+	for i := range updates {
 		c.ctrl.workers.omniUpdates <- &updates[i]
 	}
 }
