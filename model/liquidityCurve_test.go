@@ -77,13 +77,13 @@ func TestKnockoutBid(t *testing.T) {
 		IsBid:        1,
 	})
 
-	koCrossRow := tables.LiqChange{
+	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      -250,
 		ChangeType:   "cross",
 		PositionType: "knockout",
-	}
-	curve.UpdateLiqChange(koCrossRow)
+		IsBid:        1,
+	})
 
 	bidBump := curve.Bumps[-250]
 	if math.Abs(bidBump.LiquidityDelta-startBidLiq) > 0.0001 {
@@ -92,9 +92,64 @@ func TestKnockoutBid(t *testing.T) {
 	if bidBump.KnockoutBidLiq != 0 {
 		t.Fatalf(`Mismatched bid ko liq %f (expected %f)`, bidBump.KnockoutBidLiq, 0.0)
 	}
+	if bidBump.KnockoutBidWidth != 0 {
+		t.Fatalf("Knockout bid width not reset")
+	}
 
 	askBump := curve.Bumps[500]
 	if math.Abs(askBump.LiquidityDelta-startAskLiq) > 0.0001 {
 		t.Fatalf(`Mismatched ask liq %f (expected %f)`, askBump.LiquidityDelta, startAskLiq)
+	}
+}
+
+func TestKnockoutAsk(t *testing.T) {
+	curve := NewLiquidityCurve()
+
+	liqFlow := 30000.0
+	curve.UpdateLiqChange(tables.LiqChange{
+		BidTick:      -250,
+		AskTick:      500,
+		ChangeType:   "mint",
+		PositionType: "concentrated",
+		BaseFlow:     &liqFlow,
+		QuoteFlow:    &liqFlow,
+	})
+
+	startBidLiq := curve.Bumps[-250].LiquidityDelta
+	startAskLiq := curve.Bumps[500].LiquidityDelta
+
+	liqFlow = 250000.0
+	curve.UpdateLiqChange(tables.LiqChange{
+		BidTick:      -250,
+		AskTick:      500,
+		ChangeType:   "mint",
+		PositionType: "knockout",
+		BaseFlow:     &liqFlow,
+		QuoteFlow:    &liqFlow,
+		IsBid:        0,
+	})
+
+	curve.UpdateLiqChange(tables.LiqChange{
+		BidTick:      500,
+		AskTick:      500,
+		ChangeType:   "cross",
+		PositionType: "knockout",
+		IsBid:        0,
+	})
+
+	askBump := curve.Bumps[500]
+	if math.Abs(askBump.LiquidityDelta-startAskLiq) > 0.0001 {
+		t.Fatalf(`Mismatched ask liq %f (expected %f)`, askBump.LiquidityDelta, startAskLiq)
+	}
+	if askBump.KnockoutAskLiq != 0 {
+		t.Fatalf(`Mismatched ask ko liq %f (expected %f)`, askBump.KnockoutBidLiq, 0.0)
+	}
+	if askBump.KnockoutAskWidth != 0 {
+		t.Fatalf("Knockout ask width not reset")
+	}
+
+	bidBump := curve.Bumps[-250]
+	if math.Abs(askBump.LiquidityDelta-startAskLiq) > 0.0001 {
+		t.Fatalf(`Mismatched ask liq %f (expected %f)`, bidBump.LiquidityDelta, startBidLiq)
 	}
 }

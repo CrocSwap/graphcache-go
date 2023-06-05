@@ -56,7 +56,7 @@ func (c *LiquidityCurve) updateUserLiq(l tables.LiqChange) {
 		if l.IsBid > 0 {
 			bidBump.IncrKOBid(liqMagn, l.AskTick)
 		} else {
-			askBump.IncrKOAsk(liqMagn, l.BidTick)
+			askBump.IncrKOAsk(-liqMagn, l.BidTick)
 		}
 	}
 }
@@ -71,7 +71,7 @@ func (c *LiquidityCurve) updateKOCross(k tables.LiqChange) {
 
 	} else {
 		askBump := c.materializeBump(k.AskTick)
-		koLiq, joinTick := askBump.KnockoutBid(k.Time)
+		koLiq, joinTick := askBump.KnockoutAsk(k.Time)
 
 		bidBump := c.materializeBump(joinTick)
 		bidBump.IncrLiquidity(koLiq, k.Time)
@@ -99,6 +99,7 @@ func (b *LiquidityBump) KnockoutBid(time int) (float64, int) {
 	b.LiquidityDelta -= koLiq
 
 	joinTick := b.Tick + b.KnockoutBidWidth
+	b.KnockoutBidWidth = 0
 
 	b.KnockoutBidLiq = 0
 	return koLiq, joinTick
@@ -108,7 +109,9 @@ func (b *LiquidityBump) KnockoutAsk(time int) (float64, int) {
 	b.updateTime(time)
 	koLiq := b.KnockoutAskLiq
 	b.LiquidityDelta -= koLiq
+
 	joinTick := b.Tick - b.KnockoutAskWidth
+	b.KnockoutAskWidth = 0
 
 	b.KnockoutAskLiq = 0
 	return koLiq, joinTick
