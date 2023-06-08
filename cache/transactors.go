@@ -101,7 +101,7 @@ func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.Po
 	}
 }
 
-func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) []*model.LiquidityBump {
+func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*model.LiquidityBump) {
 	var returnVal []*model.LiquidityBump
 	pos, okay := m.poolLiqCurve.lookup(loc)
 	if okay {
@@ -111,7 +111,7 @@ func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) []*model.Liqu
 			returnVal = append(returnVal, bump)
 		}
 	}
-	return returnVal
+	return pos.AmbientLiq, returnVal
 
 }
 

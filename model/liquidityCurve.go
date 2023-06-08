@@ -7,7 +7,8 @@ import (
 )
 
 type LiquidityCurve struct {
-	Bumps map[int]*LiquidityBump
+	AmbientLiq float64
+	Bumps      map[int]*LiquidityBump
 }
 
 type LiquidityBump struct {
@@ -22,13 +23,14 @@ type LiquidityBump struct {
 
 func NewLiquidityCurve() *LiquidityCurve {
 	return &LiquidityCurve{
-		Bumps: make(map[int]*LiquidityBump, 0),
+		AmbientLiq: 0,
+		Bumps:      make(map[int]*LiquidityBump, 0),
 	}
 }
 
 func (c *LiquidityCurve) UpdateLiqChange(l tables.LiqChange) {
 	if l.PositionType == "ambient" {
-		return
+		c.AmbientLiq += determineLiquidityMagn(l)
 	}
 
 	if l.ChangeType == "mint" || l.ChangeType == "burn" {

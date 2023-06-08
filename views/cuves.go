@@ -7,8 +7,13 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
+type PoolLiqCurve struct {
+	AmbientLiq float64                `json:"ambientLiq"`
+	Bumps      []*model.LiquidityBump `json:"liquidityBumps"`
+}
+
 func (v *Views) QueryPoolLiquidityCurve(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int) []*model.LiquidityBump {
+	base types.EthAddress, quote types.EthAddress, poolIdx int) PoolLiqCurve {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -16,10 +21,13 @@ func (v *Views) QueryPoolLiquidityCurve(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	bumps := v.Cache.RetrievePoolLiqCurve(loc)
-
+	ambient, bumps := v.Cache.RetrievePoolLiqCurve(loc)
 	sort.Sort(byTick(bumps))
-	return bumps
+
+	return PoolLiqCurve{
+		AmbientLiq: ambient,
+		Bumps:      bumps,
+	}
 }
 
 type byTick []*model.LiquidityBump
