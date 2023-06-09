@@ -57,7 +57,7 @@ func (s *SubgraphSyncer) pollSubgraphUpdates() {
 func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	metaTime, err := loader.LatestSubgraphTime(s.cfg)
 	if err != nil {
-		log.Println("Warning unable to sync subgraph meta query" + err.Error())
+		log.Println("Warning unable to sync subgraph meta query " + err.Error())
 		return false, err
 	}
 
