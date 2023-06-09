@@ -2,7 +2,6 @@ package loader
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/CrocSwap/graphcache-go/tables"
@@ -34,29 +33,6 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 		consumeFn:        consumeFn,
 		config:           config,
 		tbl:              tbl,
-	}
-}
-
-func (s *SyncChannel[R, S]) SyncTableFromDb(dbPath string) {
-	db := openSqliteDb(dbPath)
-	query := fmt.Sprintf("SELECT * FROM %s WHERE network == '%s' ORDER BY time ASC",
-		s.tbl.SqlTableName(),
-		string(s.config.Network))
-
-	rows, err := db.Query(query)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		entry := s.tbl.ReadSqlRow(rows)
-		s.ingestEntry(entry)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 

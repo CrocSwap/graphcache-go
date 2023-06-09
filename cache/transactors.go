@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -30,29 +29,6 @@ func (m *MemoryCache) RetrieveUserTxs(chainId types.ChainId, user types.EthAddre
 func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupCopy(pool)
 	return txs
-}
-
-func (m *MemoryCache) MaterializeTokenMetata(onChain *loader.OnChainLoader,
-	chainId types.ChainId, token types.EthAddress) *model.ExpiryHandle[types.TokenMetadata] {
-
-	key := chainAndAddr{chainId, token}
-	hndl, okay := m.tokenMetadata.lookup(key)
-	if !okay {
-		hndl = model.InitTokenMetadata(onChain, chainId, token)
-		m.tokenMetadata.insert(key, hndl)
-	}
-	return hndl
-}
-
-func (m *MemoryCache) MaterializePoolPrice(onChain *loader.OnChainLoader,
-	loc types.PoolLocation) *model.ExpiryHandle[types.PoolPriceLiq] {
-
-	hndl, okay := m.poolPrices.lookup(loc)
-	if !okay {
-		hndl = model.InitPoolState(onChain, loc)
-		m.poolPrices.insert(loc, hndl)
-	}
-	return hndl
 }
 
 func (m *MemoryCache) RetrieveUserPositions(
