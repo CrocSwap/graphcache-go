@@ -6,7 +6,7 @@
         "https://goerli.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091"
       ]
     },
-    "subgraph": "https://api.thegraph.com/subgraphs/name/crocswap/croc-testnet",
+    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-test/v0.8.6",
     "dex_contract": "0xfafcd1f5530827e7398b6d3c509f450b1b24a209",
     "query_contract": "0x49281c10c66f217705b4aa108e59785c6b6bc39e",
     "query_contract_abi": "abis/CrocQuery.json",

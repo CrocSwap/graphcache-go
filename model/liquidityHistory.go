@@ -2,7 +2,6 @@ package model
 
 import (
 	"log"
-	"math"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
@@ -89,10 +88,6 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 				liqChange: -liqMagn})
 		}
 	}
-}
-
-func flowMagns(r tables.LiqChange) (float64, float64) {
-	return math.Abs(*r.BaseFlow), math.Abs(*r.QuoteFlow)
 }
 
 func (l *LiquidityDeltaHist) initHist() {

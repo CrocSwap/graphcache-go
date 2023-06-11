@@ -20,8 +20,8 @@ func main() {
 	goerlChainConfig, _ := netCfg["goerli"]
 	controller.NewSubgraphSyncer(cntrl, goerlChainConfig, "goerli")
 
-	mainnetChainConfig, _ := netCfg["mainnet"]
-	controller.NewSubgraphSyncer(cntrl, mainnetChainConfig, "mainnet")
+	/*mainnetChainConfig, _ := netCfg["mainnet"]
+	controller.NewSubgraphSyncer(cntrl, mainnetChainConfig, "mainnet")*/
 
 	views := views.Views{Cache: cache, OnChain: &onChain}
 	apiServer := server.APIWebServer{Views: &views}

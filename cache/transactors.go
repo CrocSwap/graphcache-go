@@ -88,7 +88,16 @@ func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*
 		}
 	}
 	return pos.AmbientLiq, returnVal
+}
 
+func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolStats {
+	pos, okay := m.poolTradingHistory.lookup(loc)
+	if !okay {
+		return model.AccumPoolStats{}
+	}
+	defer m.poolLiqCurve.lock.RUnlock()
+	m.poolLiqCurve.lock.RLock()
+	return pos.StatsCounter
 }
 
 func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
@@ -127,6 +136,15 @@ func (m *MemoryCache) MaterializePoolLiqCurve(loc types.PoolLocation) *model.Liq
 	if !okay {
 		val = model.NewLiquidityCurve()
 		m.poolLiqCurve.insert(loc, val)
+	}
+	return val
+}
+
+func (m *MemoryCache) MaterializePoolTradingHist(loc types.PoolLocation) *model.PoolTradingHistory {
+	val, okay := m.poolTradingHistory.lookup(loc)
+	if !okay {
+		val = model.NewPoolTradingHistory()
+		m.poolTradingHistory.insert(loc, val)
 	}
 	return val
 }

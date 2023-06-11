@@ -127,6 +127,14 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	s.logSyncCycle("Fee Changes", nRows)
 
+	s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
+	tblAgg := tables.AggEventsTable{}
+	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
+		tblAgg, s.cfg, s.cntr.IngestAggEvent)
+	nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("Poll Agg Events", nRows)
+
+	s.cntr.FlushSyncCycle(syncTime)
 	s.lastSyncTime = syncTime
 }
 

@@ -1,13 +1,17 @@
 package model
 
-import "math"
+import (
+	"math"
+
+	"github.com/CrocSwap/graphcache-go/tables"
+)
 
 func deriveLiquidityFromAmbientFlow(baseFlow float64, quoteFlow float64) float64 {
 	return math.Sqrt(baseFlow * quoteFlow)
 }
 
 func derivePriceFromAmbientFlow(baseFlow float64, quoteFlow float64) float64 {
-	return baseFlow / quoteFlow
+	return math.Abs(baseFlow / quoteFlow)
 }
 
 func derivePriceFromSwapFlow(baseFlow float64, quoteFlow float64) float64 {
@@ -78,4 +82,38 @@ const MIN_NUMERIC_STABLE_FLOW = 1000
 func isFlowNumericallyStable(baseFlow float64, quoteFlow float64) bool {
 	return baseFlow >= MIN_NUMERIC_STABLE_FLOW ||
 		quoteFlow >= MIN_NUMERIC_STABLE_FLOW
+}
+
+func isFlowDualStable(baseFlow float64, quoteFlow float64) bool {
+	return baseFlow >= MIN_NUMERIC_STABLE_FLOW &&
+		quoteFlow >= MIN_NUMERIC_STABLE_FLOW
+}
+
+func tryPriceFlowsAmbient(r *tables.LiqChange) (float64, bool) {
+	baseFlow, quoteFlow := flowMagns(r)
+	if !isFlowNumericallyStable(baseFlow, quoteFlow) {
+		return 0.0, false
+	}
+	if r.ChangeType == "harvest" || r.PositionType == "ambient" {
+		return derivePriceFromAmbientFlow(baseFlow, quoteFlow), true
+	}
+	return 0.0, false
+}
+
+func tryPriceFlowConc(r *tables.LiqChange) (float64, bool) {
+	baseFlow, quoteFlow := flowMagns(r)
+	if !isFlowDualStable(baseFlow, quoteFlow) {
+		return 0.0, false
+	}
+	if r.ChangeType == "mint" || r.ChangeType == "burn" && r.BidTick < r.AskTick {
+		price := derivePriceFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
+		if price != nil {
+			return *price, true
+		}
+	}
+	return 0.0, false
+}
+
+func flowMagns(r *tables.LiqChange) (float64, float64) {
+	return math.Abs(*r.BaseFlow), math.Abs(*r.QuoteFlow)
 }

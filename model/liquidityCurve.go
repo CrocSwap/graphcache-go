@@ -139,7 +139,7 @@ func (c *LiquidityCurve) materializeBump(tick int) *LiquidityBump {
 }
 
 func determineLiquidityMagn(r tables.LiqChange) float64 {
-	baseFlow, quoteFlow := flowMagns(r)
+	baseFlow, quoteFlow := flowMagns(&r)
 
 	if !isFlowNumericallyStable(baseFlow, quoteFlow) {
 		return 0

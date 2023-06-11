@@ -30,6 +30,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/user_txs", s.queryUserTxHist)
 	r.GET("gcgo/pool_txs", s.queryPoolTxHist)
 	r.GET("gcgo/pool_liq_curve", s.queryPoolLiqCurve)
+	r.GET("gcgo/pool_stats", s.queryPoolStats)
 	r.Run()
 }
 
@@ -175,6 +176,20 @@ func (s *APIWebServer) queryPoolLiqCurve(c *gin.Context) {
 	}
 
 	resp := s.Views.QueryPoolLiquidityCurve(chainId, base, quote, poolIdx)
+	wrapDataErrResp(c, resp, nil)
+}
+
+func (s *APIWebServer) queryPoolStats(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	base := parseAddrParam(c, "base")
+	quote := parseAddrParam(c, "quote")
+	poolIdx := parseIntParam(c, "poolIdx")
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryPoolStats(chainId, base, quote, poolIdx)
 	wrapDataErrResp(c, resp, nil)
 }
 

@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"database/sql"
 	"encoding/hex"
 	"strconv"
 
@@ -13,7 +12,6 @@ type ITable[Row any, SubGraphRow any] interface {
 	GetTime(r Row) int
 	ConvertSubGraphRow(SubGraphRow, string) Row
 	SqlTableName() string
-	ReadSqlRow(*sql.Rows) Row
 	ParseSubGraphResp(body []byte) ([]SubGraphRow, error)
 }
 
@@ -39,6 +37,18 @@ func parseNullableFloat64(s string) *float64 {
 		return nil
 	}
 	return &val
+}
+
+func parseFloat(s string) float64 {
+	if s == "" {
+		return 0.0
+	}
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		// Handle error
+		return 0
+	}
+	return val
 }
 
 func parseInt(s string) int {

@@ -1,0 +1,27 @@
+query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
+  aggEvents(first: 1000, where: { time_gte: $minTime, time_lte: $maxTime }, 
+    orderBy: time, orderDirection: $orderDir) {
+    id
+    transactionHash
+    eventIndex
+    pool {
+      id
+      base
+      quote
+      poolIdx
+    }
+    block
+    time
+    bidTick
+    askTick
+    swapPrice
+    inBaseQty
+    isSwap
+    isLiq
+    isFeeChange
+    baseFlow
+    quoteFlow
+    feeRate
+    isTickSkewed
+  }
+}

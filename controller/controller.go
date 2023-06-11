@@ -124,6 +124,17 @@ func (c *ControllerOverNetwork) IngestSwap(l tables.Swap) {
 func (c *ControllerOverNetwork) IngestFee(l tables.FeeChange) {
 }
 
+func (c *ControllerOverNetwork) IngestAggEvent(r tables.AggEvent) {
+	pool := types.PoolLocation{
+		ChainId: c.chainId,
+		PoolIdx: r.PoolIdx,
+		Base:    types.RequireEthAddr(r.Base),
+		Quote:   types.RequireEthAddr(r.Quote),
+	}
+	hist := c.ctrl.cache.MaterializePoolTradingHist(pool)
+	hist.NextEvent(r)
+}
+
 func (c *ControllerOverNetwork) IngestKnockout(r tables.KnockoutCross) {
 	liq := types.KnockoutTickLocation(r.Tick, r.IsBid > 0, c.chainCfg.KnockoutTickWidth)
 	pool := types.PoolLocation{
@@ -138,6 +149,12 @@ func (c *ControllerOverNetwork) IngestKnockout(r tables.KnockoutCross) {
 	}
 	pos := c.ctrl.cache.MaterializeKnockoutBook(loc)
 	c.ctrl.workers.omniUpdates <- &koCrossUpdateMsg{loc: loc, pos: pos, cross: r}
+}
+
+/* Called to indicate that all tables have completed the most recent sync cycle up
+ * to the checkpointed time. */
+func (c *ControllerOverNetwork) FlushSyncCycle(time int) {
+
 }
 
 /* Currently this uses a preset value from the network config. Long-term we should be querying

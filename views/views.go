@@ -3,6 +3,7 @@ package views
 import (
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/loader"
+	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
@@ -39,6 +40,9 @@ type IViews interface {
 
 	QueryPoolLiquidityCurve(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int) PoolLiqCurve
+
+	QueryPoolStats(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int) model.AccumPoolStats
 }
 
 type Views struct {
