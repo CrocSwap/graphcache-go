@@ -184,13 +184,19 @@ func (s *APIWebServer) queryPoolStats(c *gin.Context) {
 	base := parseAddrParam(c, "base")
 	quote := parseAddrParam(c, "quote")
 	poolIdx := parseIntParam(c, "poolIdx")
+	histTime := parseIntOptional(c, "histTime", 0)
 
 	if len(c.Errors) > 0 {
 		return
 	}
 
-	resp := s.Views.QueryPoolStats(chainId, base, quote, poolIdx)
-	wrapDataErrResp(c, resp, nil)
+	if histTime > 0 {
+		resp := s.Views.QueryPoolStatsFrom(chainId, base, quote, poolIdx, histTime)
+		wrapDataErrResp(c, resp, nil)
+	} else {
+		resp := s.Views.QueryPoolStats(chainId, base, quote, poolIdx)
+		wrapDataErrResp(c, resp, nil)
+	}
 }
 
 func (s *APIWebServer) queryUserPoolLimits(c *gin.Context) {

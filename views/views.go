@@ -43,6 +43,8 @@ type IViews interface {
 
 	QueryPoolStats(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int) model.AccumPoolStats
+	QueryPoolStatsFrom(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int, histTime int) model.AccumPoolStats
 }
 
 type Views struct {

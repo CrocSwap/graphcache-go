@@ -8,7 +8,7 @@ import (
 
 type PoolTradingHistory struct {
 	StatsCounter AccumPoolStats
-	timeSnaps    []AccumPoolStats
+	TimeSnaps    []AccumPoolStats
 }
 
 func NewPoolTradingHistory() *PoolTradingHistory {
@@ -25,13 +25,13 @@ func NewPoolTradingHistory() *PoolTradingHistory {
 			LastPriceLiq:   0.0,
 			FeeRate:        0.0,
 		},
-		timeSnaps: make([]AccumPoolStats, 0),
+		TimeSnaps: make([]AccumPoolStats, 0),
 	}
 }
 
 func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
 	if r.Time != h.StatsCounter.LatestTime {
-		h.timeSnaps = append(h.timeSnaps, h.StatsCounter)
+		h.TimeSnaps = append(h.TimeSnaps, h.StatsCounter)
 	}
 	h.StatsCounter.Accumulate(r)
 }

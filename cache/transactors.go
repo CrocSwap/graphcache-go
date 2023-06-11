@@ -95,9 +95,26 @@ func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolS
 	if !okay {
 		return model.AccumPoolStats{}
 	}
-	defer m.poolLiqCurve.lock.RUnlock()
-	m.poolLiqCurve.lock.RLock()
 	return pos.StatsCounter
+}
+
+func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime int) model.AccumPoolStats {
+	pos, okay := m.poolTradingHistory.lookup(loc)
+	if !okay {
+		return model.AccumPoolStats{}
+	}
+
+	defer m.poolTradingHistory.lock.RUnlock()
+	m.poolTradingHistory.lock.RLock()
+
+	lastAccum := model.AccumPoolStats{}
+	for _, accum := range pos.TimeSnaps {
+		if accum.LatestTime > histTime {
+			return lastAccum
+		}
+		lastAccum = accum
+	}
+	return lastAccum
 }
 
 func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
