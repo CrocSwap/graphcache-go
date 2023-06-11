@@ -79,6 +79,8 @@ func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.Po
 
 func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*model.LiquidityBump) {
 	var returnVal []*model.LiquidityBump
+	ambientLiq := 0.0
+
 	pos, okay := m.poolLiqCurve.lookup(loc)
 	if okay {
 		defer m.poolLiqCurve.lock.RUnlock()
@@ -86,8 +88,9 @@ func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*
 		for _, bump := range pos.Bumps {
 			returnVal = append(returnVal, bump)
 		}
+		ambientLiq = pos.AmbientLiq
 	}
-	return pos.AmbientLiq, returnVal
+	return ambientLiq, returnVal
 }
 
 func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolStats {
@@ -96,6 +99,22 @@ func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolS
 		return model.AccumPoolStats{}
 	}
 	return pos.StatsCounter
+}
+
+type AccumTagged struct {
+	model.AccumPoolStats
+	types.PoolLocation
+}
+
+func (m *MemoryCache) RetrieveChainAccums(chainId types.ChainId) []AccumTagged {
+	retVal := make([]AccumTagged, 0)
+	fullUniv := m.poolTradingHistory.clone()
+	for loc, hist := range fullUniv {
+		if loc.ChainId == chainId {
+			retVal = append(retVal, AccumTagged{hist.StatsCounter, loc})
+		}
+	}
+	return retVal
 }
 
 func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime int) model.AccumPoolStats {

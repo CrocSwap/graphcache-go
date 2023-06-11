@@ -31,6 +31,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/pool_txs", s.queryPoolTxHist)
 	r.GET("gcgo/pool_liq_curve", s.queryPoolLiqCurve)
 	r.GET("gcgo/pool_stats", s.queryPoolStats)
+	r.GET("gcgo/chain_stats", s.queryChainStats)
 	r.Run()
 }
 
@@ -197,6 +198,18 @@ func (s *APIWebServer) queryPoolStats(c *gin.Context) {
 		resp := s.Views.QueryPoolStats(chainId, base, quote, poolIdx)
 		wrapDataErrResp(c, resp, nil)
 	}
+}
+
+func (s *APIWebServer) queryChainStats(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	n := parseIntMaxParam(c, "n", 200)
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryChainStats(chainId, n)
+	wrapDataErrResp(c, resp, nil)
 }
 
 func (s *APIWebServer) queryUserPoolLimits(c *gin.Context) {

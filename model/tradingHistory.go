@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
@@ -105,8 +104,6 @@ func (a *AccumPoolStats) accumSwapType(e tables.AggEvent) {
 		a.LastPriceSwap = price
 		a.LastPriceIndic = price
 	}
-
-	fmt.Println(isStable, a.LastPriceSwap, a.FeeRate, e.InBaseQty)
 }
 
 func (a *AccumPoolStats) incrementFeeChange(r *tables.FeeChange) {
