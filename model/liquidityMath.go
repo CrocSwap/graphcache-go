@@ -28,24 +28,34 @@ func deriveLiquidityFromConcFlow(baseFlow float64, quoteFlow float64,
 	} else if baseFlow == 0 {
 		return quoteFlow / (1/bidPrice - 1/askPrice)
 	} else {
-		price := *derivePriceFromConcFlow(baseFlow, quoteFlow, bidTick, askTick)
+		price := *deriveRootPriceFromConcFlow(baseFlow, quoteFlow, bidTick, askTick)
 		return baseFlow / (price - bidPrice)
 	}
 }
 
 func derivePriceFromConcFlow(baseFlow float64, quoteFlow float64,
 	bidTick int, askTick int) *float64 {
+	root := deriveRootPriceFromConcFlow(baseFlow, quoteFlow, bidTick, askTick)
+	if root == nil {
+		return nil
+	}
+	price := *root * *root
+	return &price
+}
+
+func deriveRootPriceFromConcFlow(baseFlow float64, quoteFlow float64,
+	bidTick int, askTick int) *float64 {
 	if quoteFlow == 0 {
 		return nil
 	} else if baseFlow == 0 {
 		return nil
 	} else {
-		price := derivePriceFromInRange(baseFlow, quoteFlow, bidTick, askTick)
+		price := deriveRootFromInRange(baseFlow, quoteFlow, bidTick, askTick)
 		return &price
 	}
 }
 
-func derivePriceFromInRange(baseFlow float64, quoteFlow float64,
+func deriveRootFromInRange(baseFlow float64, quoteFlow float64,
 	bidTick int, askTick int) float64 {
 	bidPrice := math.Sqrt(tickToPrice(bidTick))
 	askPrice := math.Sqrt(tickToPrice(askTick))
@@ -80,38 +90,13 @@ func tickToPrice(tick int) float64 {
 const MIN_NUMERIC_STABLE_FLOW = 1000
 
 func isFlowNumericallyStable(baseFlow float64, quoteFlow float64) bool {
-	return baseFlow >= MIN_NUMERIC_STABLE_FLOW ||
-		quoteFlow >= MIN_NUMERIC_STABLE_FLOW
+	return math.Abs(baseFlow) >= MIN_NUMERIC_STABLE_FLOW ||
+		math.Abs(quoteFlow) >= MIN_NUMERIC_STABLE_FLOW
 }
 
 func isFlowDualStable(baseFlow float64, quoteFlow float64) bool {
-	return baseFlow >= MIN_NUMERIC_STABLE_FLOW &&
-		quoteFlow >= MIN_NUMERIC_STABLE_FLOW
-}
-
-func tryPriceFlowsAmbient(r *tables.LiqChange) (float64, bool) {
-	baseFlow, quoteFlow := flowMagns(r)
-	if !isFlowNumericallyStable(baseFlow, quoteFlow) {
-		return 0.0, false
-	}
-	if r.ChangeType == "harvest" || r.PositionType == "ambient" {
-		return derivePriceFromAmbientFlow(baseFlow, quoteFlow), true
-	}
-	return 0.0, false
-}
-
-func tryPriceFlowConc(r *tables.LiqChange) (float64, bool) {
-	baseFlow, quoteFlow := flowMagns(r)
-	if !isFlowDualStable(baseFlow, quoteFlow) {
-		return 0.0, false
-	}
-	if r.ChangeType == "mint" || r.ChangeType == "burn" && r.BidTick < r.AskTick {
-		price := derivePriceFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
-		if price != nil {
-			return *price, true
-		}
-	}
-	return 0.0, false
+	return math.Abs(baseFlow) >= MIN_NUMERIC_STABLE_FLOW &&
+		math.Abs(quoteFlow) >= MIN_NUMERIC_STABLE_FLOW
 }
 
 func flowMagns(r *tables.LiqChange) (float64, float64) {

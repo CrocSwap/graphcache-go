@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
@@ -71,7 +72,7 @@ func (a *AccumPoolStats) accumLiqType(r tables.AggEvent) {
 	a.accumulateFlows(r.BaseFlow, r.QuoteFlow)
 	isStable := isFlowDualStable(r.BaseFlow, r.QuoteFlow)
 
-	if isStable {
+	if isStable && r.FlowsAtMarket {
 		if r.IsTickSkewed {
 			price := derivePriceFromConcFlow(r.BaseFlow, r.QuoteFlow,
 				r.BidTick, r.AskTick)
@@ -94,16 +95,18 @@ func (a *AccumPoolStats) accumSwapType(e tables.AggEvent) {
 	a.QuoteVolume += math.Abs(e.QuoteFlow)
 
 	if e.InBaseQty {
-		a.accumulateQuoteFees(e.BaseFlow, a.FeeRate)
+		a.accumulateQuoteFees(e.QuoteFlow, a.FeeRate)
 	} else {
-		a.accumulateBaseFees(e.QuoteFlow, a.FeeRate)
+		a.accumulateBaseFees(e.BaseFlow, a.FeeRate)
 	}
 
 	if isStable {
-		price := derivePriceFromAmbientFlow(e.BaseFlow, e.QuoteFlow)
+		price := derivePriceFromAmbientFlow(math.Abs(e.BaseFlow), math.Abs(e.QuoteFlow))
 		a.LastPriceSwap = price
 		a.LastPriceIndic = price
 	}
+
+	fmt.Println(isStable, a.LastPriceSwap, a.FeeRate, e.InBaseQty)
 }
 
 func (a *AccumPoolStats) incrementFeeChange(r *tables.FeeChange) {
@@ -113,7 +116,6 @@ func (a *AccumPoolStats) incrementFeeChange(r *tables.FeeChange) {
 func (a *AccumPoolStats) accumulateFlows(baseFlow float64, quoteFlow float64) {
 	a.BaseTvl += baseFlow
 	a.QuoteTvl += quoteFlow
-
 }
 
 func (a *AccumPoolStats) accumulateBaseFees(baseFlow float64, feeRate float64) {

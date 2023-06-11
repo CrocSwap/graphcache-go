@@ -105,6 +105,7 @@ func (tbl AggEventsTable) ConvertSubGraphRow(r AggEventSubGraph, network string)
 		IsLiq:         r.IsLiq,
 		IsSwap:        r.IsSwap,
 		IsTickSkewed:  r.IsTickSkewed,
+		InBaseQty:     r.InBaseQty,
 		FlowsAtMarket: r.FlowsAtMarket,
 		FeeRate:       r.FeeRate,
 		BaseFlow:      parseFloat(r.BaseFlow),
