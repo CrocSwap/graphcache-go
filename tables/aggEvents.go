@@ -16,29 +16,30 @@ func (tbl AggEventsTable) GetTime(r AggEvent) int {
 }
 
 type AggEvent struct {
-	ID           string  `json:"id" db:"id"`
-	EventIndex   int     `json:"eventIndex" db:"eventIndex"`
-	Network      string  `json:"network" db:"network"`
-	TX           string  `json:"tx" db:"tx"`
-	Base         string  `json:"base" db:"base"`
-	Quote        string  `json:"quote" db:"quote"`
-	PoolIdx      int     `json:"poolIdx" db:"poolIdx"`
-	PoolHash     string  `json:"poolHash" db:"poolHash"`
-	User         string  `json:"user" db:"user"`
-	Block        int     `json:"block" db:"block"`
-	Time         int     `json:"time" db:"time"`
-	BidTick      int     `json:"bidTick" db:"bidTick"`
-	AskTick      int     `json:"askTick" db:"askTick"`
-	SwapPrice    string  `json:"swapPrice"`
-	IsFeeChange  bool    `json:"isFeeChange" db:"isFeeChange"`
-	IsSwap       bool    `json:"isSwap" db:"isSwap"`
-	IsLiq        bool    `json:"isLiq" db:"isLiq"`
-	IsTickSkewed bool    `json:"isTickSkewed" db:"isTickSkewed"`
-	InBaseQty    bool    `json:"inBaseQty" db:"inBaseQty"`
-	BaseFlow     float64 `json:"baseFlow" db:"baseFlow"`
-	QuoteFlow    float64 `json:"quoteFlow" db:"quoteFlow"`
-	FeeRate      int     `json:"feeRate" db:"feeRate"`
-	Source       string  `json:"source" db:"source"`
+	ID            string  `json:"id" db:"id"`
+	EventIndex    int     `json:"eventIndex" db:"eventIndex"`
+	Network       string  `json:"network" db:"network"`
+	TX            string  `json:"tx" db:"tx"`
+	Base          string  `json:"base" db:"base"`
+	Quote         string  `json:"quote" db:"quote"`
+	PoolIdx       int     `json:"poolIdx" db:"poolIdx"`
+	PoolHash      string  `json:"poolHash" db:"poolHash"`
+	User          string  `json:"user" db:"user"`
+	Block         int     `json:"block" db:"block"`
+	Time          int     `json:"time" db:"time"`
+	BidTick       int     `json:"bidTick" db:"bidTick"`
+	AskTick       int     `json:"askTick" db:"askTick"`
+	SwapPrice     string  `json:"swapPrice"`
+	IsFeeChange   bool    `json:"isFeeChange" db:"isFeeChange"`
+	IsSwap        bool    `json:"isSwap" db:"isSwap"`
+	IsLiq         bool    `json:"isLiq" db:"isLiq"`
+	IsTickSkewed  bool    `json:"isTickSkewed" db:"isTickSkewed"`
+	FlowsAtMarket bool    `json:"flowsAtMarket" db:"flowsAtMarket"`
+	InBaseQty     bool    `json:"inBaseQty" db:"inBaseQty"`
+	BaseFlow      float64 `json:"baseFlow" db:"baseFlow"`
+	QuoteFlow     float64 `json:"quoteFlow" db:"quoteFlow"`
+	FeeRate       int     `json:"feeRate" db:"feeRate"`
+	Source        string  `json:"source" db:"source"`
 }
 
 type AggEventSubGraph struct {
@@ -51,19 +52,20 @@ type AggEventSubGraph struct {
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`
 	} `json:"pool"`
-	Block        string `json:"block"`
-	Time         string `json:"time"`
-	BidTick      int    `json:"bidTick"`
-	AskTick      int    `json:"askTick"`
-	SwapPrice    string `json:"swapPrice"`
-	InBaseQty    bool   `json:"inBaseQty"`
-	IsSwap       bool   `json:"isSwap"`
-	IsLiq        bool   `json:"isLiq"`
-	IsFeeChange  bool   `json:"isFeeChange"`
-	IsTickSkewed bool   `json:"isTickSkewed" db:"isTickSkewed"`
-	BaseFlow     string `json:"baseFlow"`
-	QuoteFlow    string `json:"quoteFlow"`
-	FeeRate      int    `json:"feeRate"`
+	Block         string `json:"block"`
+	Time          string `json:"time"`
+	BidTick       int    `json:"bidTick"`
+	AskTick       int    `json:"askTick"`
+	SwapPrice     string `json:"swapPrice"`
+	InBaseQty     bool   `json:"inBaseQty"`
+	IsSwap        bool   `json:"isSwap"`
+	IsLiq         bool   `json:"isLiq"`
+	IsFeeChange   bool   `json:"isFeeChange"`
+	IsTickSkewed  bool   `json:"isTickSkewed"`
+	FlowsAtMarket bool   `json:"flowsAtMarket"`
+	BaseFlow      string `json:"baseFlow"`
+	QuoteFlow     string `json:"quoteFlow"`
+	FeeRate       int    `json:"feeRate"`
 }
 
 type AggEventSubGraphData struct {
@@ -86,26 +88,28 @@ func (tbl AggEventsTable) ConvertSubGraphRow(r AggEventSubGraph, network string)
 	}
 
 	return AggEvent{
-		ID:          network + r.ID,
-		EventIndex:  r.EventIndex,
-		Network:     network,
-		TX:          r.TransactionHash,
-		Base:        base,
-		Quote:       quote,
-		PoolIdx:     parseInt(r.Pool.PoolIdx),
-		PoolHash:    hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
-		Block:       parseInt(r.Block),
-		Time:        parseInt(r.Time),
-		BidTick:     r.BidTick,
-		AskTick:     r.AskTick,
-		SwapPrice:   r.SwapPrice,
-		IsFeeChange: r.IsFeeChange,
-		IsLiq:       r.IsLiq,
-		IsSwap:      r.IsSwap,
-		FeeRate:     r.FeeRate,
-		BaseFlow:    parseFloat(r.BaseFlow),
-		QuoteFlow:   parseFloat(r.QuoteFlow),
-		Source:      "graph",
+		ID:            network + r.ID,
+		EventIndex:    r.EventIndex,
+		Network:       network,
+		TX:            r.TransactionHash,
+		Base:          base,
+		Quote:         quote,
+		PoolIdx:       parseInt(r.Pool.PoolIdx),
+		PoolHash:      hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
+		Block:         parseInt(r.Block),
+		Time:          parseInt(r.Time),
+		BidTick:       r.BidTick,
+		AskTick:       r.AskTick,
+		SwapPrice:     r.SwapPrice,
+		IsFeeChange:   r.IsFeeChange,
+		IsLiq:         r.IsLiq,
+		IsSwap:        r.IsSwap,
+		IsTickSkewed:  r.IsTickSkewed,
+		FlowsAtMarket: r.FlowsAtMarket,
+		FeeRate:       r.FeeRate,
+		BaseFlow:      parseFloat(r.BaseFlow),
+		QuoteFlow:     parseFloat(r.QuoteFlow),
+		Source:        "graph",
 	}
 }
 

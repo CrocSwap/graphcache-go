@@ -23,5 +23,6 @@ query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
     quoteFlow
     feeRate
     isTickSkewed
+    flowsAtMarket
   }
 }
