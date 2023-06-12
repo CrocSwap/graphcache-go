@@ -26,7 +26,7 @@ type Candle struct {
 	FeeRateOpen  float64 `json:"feeRateOpen"`
 	FeeRateClose float64 `json:"feeRateClose"`
 	Period       int     `json:"period"`
-	Time         int     `json:"Time"`
+	Time         int     `json:"time"`
 }
 
 func NewCandleBuilder(startTime int, period int, open *AccumPoolStats) *CandleBuilder {
@@ -42,10 +42,10 @@ func NewCandleBuilder(startTime int, period int, open *AccumPoolStats) *CandleBu
 
 func (c *CandleBuilder) openCandle(accum *AccumPoolStats, startTime int) {
 	c.running.candle = Candle{
-		PriceOpen:    accum.LastPriceIndic,
-		PriceClose:   accum.LastPriceIndic,
-		MinPrice:     accum.LastPriceIndic,
-		MaxPrice:     accum.LastPriceIndic,
+		PriceOpen:    accum.LastPriceSwap,
+		PriceClose:   accum.LastPriceSwap,
+		MinPrice:     accum.LastPriceSwap,
+		MaxPrice:     accum.LastPriceSwap,
 		VolumeBase:   0.0,
 		VolumeQuote:  0.0,
 		TvlBase:      accum.BaseTvl,
@@ -62,7 +62,7 @@ func (c *CandleBuilder) openCandle(accum *AccumPoolStats, startTime int) {
 }
 
 func (c *CandleBuilder) Close() []Candle {
-	c.Close()
+	c.closeCandle()
 	return c.series
 }
 
@@ -85,12 +85,12 @@ func (c *CandleBuilder) Increment(accum *AccumPoolStats) {
 		c.closeCandle()
 	}
 
-	c.running.candle.PriceClose = accum.LastPriceIndic
-	if accum.LastPriceIndic < c.running.candle.MinPrice {
-		c.running.candle.MinPrice = accum.LastPriceIndic
+	c.running.candle.PriceClose = accum.LastPriceSwap
+	if accum.LastPriceSwap < c.running.candle.MinPrice {
+		c.running.candle.MinPrice = accum.LastPriceSwap
 	}
-	if accum.LastPriceIndic > c.running.candle.MaxPrice {
-		c.running.candle.MaxPrice = accum.LastPriceIndic
+	if accum.LastPriceSwap > c.running.candle.MaxPrice {
+		c.running.candle.MaxPrice = accum.LastPriceSwap
 	}
 
 	c.running.candle.VolumeBase = accum.BaseVolume - c.running.openCumBaseVol
