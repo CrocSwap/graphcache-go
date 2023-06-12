@@ -46,6 +46,9 @@ type IViews interface {
 	QueryPoolStatsFrom(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
 		poolIdx int, histTime int) model.AccumPoolStats
 	QueryChainStats(chainId types.ChainId, nResults int) []TokenDexAgg
+
+	QueryPoolCandles(chainId types.ChainId, base types.EthAddress, quote types.EthAddress, poolIdx int,
+		timeRange CandleRangeArgs) []model.Candle
 }
 
 type Views struct {

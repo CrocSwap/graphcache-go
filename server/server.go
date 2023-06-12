@@ -31,6 +31,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/pool_txs", s.queryPoolTxHist)
 	r.GET("gcgo/pool_liq_curve", s.queryPoolLiqCurve)
 	r.GET("gcgo/pool_stats", s.queryPoolStats)
+	r.GET("gcgo/pool_candles", s.queryPoolCandles)
 	r.GET("gcgo/chain_stats", s.queryChainStats)
 	r.Run()
 }
@@ -198,6 +199,32 @@ func (s *APIWebServer) queryPoolStats(c *gin.Context) {
 		resp := s.Views.QueryPoolStats(chainId, base, quote, poolIdx)
 		wrapDataErrResp(c, resp, nil)
 	}
+}
+
+func (s *APIWebServer) queryPoolCandles(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	base := parseAddrParam(c, "base")
+	quote := parseAddrParam(c, "quote")
+	poolIdx := parseIntParam(c, "poolIdx")
+	period := parseIntParam(c, "period")
+	time := parseIntOptional(c, "time", 0)
+	n := parseIntMaxParam(c, "n", 3000)
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	timeRange := views.CandleRangeArgs{
+		N:         n,
+		Period:    period,
+		StartTime: nil,
+	}
+	if time > 0 {
+		timeRange.StartTime = &time
+	}
+
+	resp := s.Views.QueryPoolCandles(chainId, base, quote, poolIdx, timeRange)
+	wrapDataErrResp(c, resp, nil)
 }
 
 func (s *APIWebServer) queryChainStats(c *gin.Context) {
