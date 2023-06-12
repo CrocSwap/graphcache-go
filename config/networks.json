@@ -24,7 +24,7 @@
         "https://mainnet.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091"
       ]
     },
-    "subgraph": "https://api.thegraph.com/subgraphs/name/crocswap/croc-mainnet",
+    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-mainnet/version/latest",
     "dex_contract": "0xAaAaAAAaA24eEeb8d57D431224f73832bC34f688",
     "query_contract": "0xc2e1f740E11294C64adE66f69a1271C5B32004c8",
     "query_contract_abi": "abis/CrocQuery.json",
