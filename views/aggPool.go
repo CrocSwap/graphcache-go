@@ -60,5 +60,5 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	for _, accum := range series {
 		builder.Increment(accum)
 	}
-	return builder.Close()
+	return builder.Close(endTime)
 }

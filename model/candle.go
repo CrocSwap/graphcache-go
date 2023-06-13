@@ -61,8 +61,10 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 	c.running.openCumQuoteVol = accum.QuoteVolume
 }
 
-func (c *CandleBuilder) Close() []Candle {
-	c.closeCandle()
+func (c *CandleBuilder) Close(endTime int) []Candle {
+	for c.running.candle.Time+c.period < endTime {
+		c.closeCandle()
+	}
 	return c.series
 }
 
