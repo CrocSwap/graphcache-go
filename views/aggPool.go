@@ -56,9 +56,9 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
 
-	builder := model.NewCandleBuilder(startTime, timeRange.Period, &open)
+	builder := model.NewCandleBuilder(startTime, timeRange.Period, open)
 	for _, accum := range series {
-		builder.Increment(&accum)
+		builder.Increment(accum)
 	}
 	return builder.Close()
 }

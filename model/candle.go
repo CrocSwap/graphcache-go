@@ -9,7 +9,7 @@ type CandleBuilder struct {
 
 type RunningCandle struct {
 	candle          Candle
-	lastAccum       *AccumPoolStats
+	lastAccum       AccumPoolStats
 	openCumBaseVol  float64
 	openCumQuoteVol float64
 }
@@ -29,7 +29,7 @@ type Candle struct {
 	Time         int     `json:"time"`
 }
 
-func NewCandleBuilder(startTime int, period int, open *AccumPoolStats) *CandleBuilder {
+func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
 		series:      make([]Candle, 0),
 		running:     RunningCandle{},
@@ -40,7 +40,7 @@ func NewCandleBuilder(startTime int, period int, open *AccumPoolStats) *CandleBu
 	return builder
 }
 
-func (c *CandleBuilder) openCandle(accum *AccumPoolStats, startTime int) {
+func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 	c.running.candle = Candle{
 		PriceOpen:    accum.LastPriceSwap,
 		PriceClose:   accum.LastPriceSwap,
@@ -80,7 +80,7 @@ func (c *CandleBuilder) closeCandle() {
 	c.openCandle(c.running.lastAccum, c.running.candle.Time+c.period)
 }
 
-func (c *CandleBuilder) Increment(accum *AccumPoolStats) {
+func (c *CandleBuilder) Increment(accum AccumPoolStats) {
 	for accum.LatestTime >= c.running.candle.Time+c.period {
 		c.closeCandle()
 	}
