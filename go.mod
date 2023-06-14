@@ -6,7 +6,6 @@ require (
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/gin-gonic/gin v1.9.0
-	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/miguelmota/go-solidity-sha3 v0.1.1
 )
 

@@ -6,7 +6,6 @@ import (
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/server"
 	"github.com/CrocSwap/graphcache-go/views"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
