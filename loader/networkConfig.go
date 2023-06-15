@@ -9,13 +9,12 @@ import (
 )
 
 type ChainConfig struct {
-	ChainID           int                 `json:"chain_id"`
-	RPCs              map[string][]string `json:"rpcs"`
-	Subgraph          string              `json:"subgraph"`
-	DexContract       string              `json:"dex_contract"`
-	QueryContract     string              `json:"query_contract"`
-	QueryContractABI  string              `json:"query_contract_abi"`
-	KnockoutTickWidth int                 `json:"knockout_tick_width"`
+	ChainID           int    `json:"chain_id"`
+	RPCEndpoint       string `json:"rpc"`
+	Subgraph          string `json:"subgraph"`
+	QueryContract     string `json:"query_contract"`
+	QueryContractABI  string `json:"query_contract_abi"`
+	KnockoutTickWidth int    `json:"knockout_tick_width"`
 }
 
 type NetworkConfig map[types.NetworkName]ChainConfig
@@ -44,16 +43,6 @@ func (c *NetworkConfig) ChainConfig(chainId types.ChainId) (ChainConfig, bool) {
 		}
 	}
 	return ChainConfig{}, false
-}
-
-func (c *ChainConfig) RPCEndpoint() string {
-	for _, rpcs := range c.RPCs {
-		for _, rpc := range rpcs {
-			return rpc
-		}
-	}
-	log.Fatal("No configured RPC endpoint for " + types.IntToChainId(c.ChainID))
-	return ""
 }
 
 func (c *NetworkConfig) NetworkForChainID(chainId types.ChainId) (types.NetworkName, bool) {

@@ -24,7 +24,7 @@ func (c *OnChainLoader) ethClientForChain(chainId types.ChainId) (*ethclient.Cli
 		return nil, fmt.Errorf("Chain configuration missing")
 	}
 
-	rpcUrl := cfg.RPCEndpoint()
+	rpcUrl := cfg.RPCEndpoint
 	client, err := ethclient.DialContext(context.Background(), rpcUrl)
 
 	if err != nil {

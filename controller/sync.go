@@ -72,7 +72,7 @@ func (s *SubgraphSyncer) syncStart(notif chan bool) {
 	syncTime, err := loader.LatestSubgraphTime(s.cfg)
 
 	if err != nil {
-		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.RPCs)
+		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
 	}
 
 	s.syncStep(syncTime)
