@@ -31,6 +31,6 @@ The following exposed endpoints and their URL and paramters are listed in `serve
 * `gcgo/pool_limit_orders` - List N most recent knockout liquidity position in a pool
 * `gcgo/user_pool_limit_orders` - List knockout positions of a user in a single pool
 * `gcgo/limit_stats` - Describe a single knockout position
-	* `gcgo/user_txs` - List all dex trading transactions of a user
-	* `gcgo/pool_txs` - List N most recent trading transactions in a pool
-	* `gcgo/pool_liq_curve` - Return the most recent description of the liquidity curve in a pool
+* `gcgo/user_txs` - List all dex trading transactions of a user
+* `gcgo/pool_txs` - List N most recent trading transactions in a pool
+* `gcgo/pool_liq_curve` - Return the most recent description of the liquidity curve in a pool
