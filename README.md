@@ -16,7 +16,8 @@ By default the instance uses the network config at `./config/networks.json`. To 
 
 The RPC endpoint can be overriden in the environment by setting the `RPC_MAINNET` env variable before running:
 
-`export RPC_MAINNET=[RPC_URL]; ./graphcache-go`
+    export RPC_MAINNET=[RPC_URL] 
+    ./graphcache-go
 
 ## Endpoints
 
