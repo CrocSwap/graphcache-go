@@ -49,6 +49,8 @@ type IViews interface {
 
 	QueryPoolCandles(chainId types.ChainId, base types.EthAddress, quote types.EthAddress, poolIdx int,
 		timeRange CandleRangeArgs) []model.Candle
+
+	QueryPoolSet(chainId types.ChainId) []types.PoolLocation
 }
 
 type Views struct {

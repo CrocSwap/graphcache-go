@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
 type ChainConfig struct {
+	NetworkName       string
 	ChainID           int    `json:"chain_id"`
 	RPCEndpoint       string `json:"rpc"`
 	Subgraph          string `json:"subgraph"`
@@ -39,10 +42,20 @@ func (c *NetworkConfig) ChainConfig(chainId types.ChainId) (ChainConfig, bool) {
 	if isValid {
 		cfg, hasCfg := (*c)[netName]
 		if hasCfg {
+			cfg.NetworkName = string(netName)
+			cfg.envVarOverride(netName)
 			return cfg, true
 		}
 	}
 	return ChainConfig{}, false
+}
+
+func (c *ChainConfig) envVarOverride(netName types.NetworkName) {
+	envVar := "RPC_" + strings.ToUpper(string(netName))
+	envVal := os.Getenv(string(envVar))
+	if envVal != "" {
+		c.RPCEndpoint = envVal
+	}
 }
 
 func (c *NetworkConfig) NetworkForChainID(chainId types.ChainId) (types.NetworkName, bool) {

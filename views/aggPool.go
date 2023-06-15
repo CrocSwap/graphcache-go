@@ -62,3 +62,16 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	}
 	return builder.Close(endTime)
 }
+
+func (v *Views) QueryPoolSet(chainId types.ChainId) []types.PoolLocation {
+	fullSet := v.Cache.RetrievePoolSet()
+
+	poolSet := make([]types.PoolLocation, 0)
+	for _, pool := range fullSet {
+		if pool.ChainId == chainId {
+			poolSet = append(fullSet, pool)
+		}
+	}
+
+	return poolSet
+}

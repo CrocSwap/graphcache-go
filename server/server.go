@@ -32,6 +32,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/pool_liq_curve", s.queryPoolLiqCurve)
 	r.GET("gcgo/pool_stats", s.queryPoolStats)
 	r.GET("gcgo/pool_candles", s.queryPoolCandles)
+	r.GET("gcgo/pool_list", s.queryPoolList)
 	r.GET("gcgo/chain_stats", s.queryChainStats)
 	r.Run()
 }
@@ -224,6 +225,17 @@ func (s *APIWebServer) queryPoolCandles(c *gin.Context) {
 	}
 
 	resp := s.Views.QueryPoolCandles(chainId, base, quote, poolIdx, timeRange)
+	wrapDataErrResp(c, resp, nil)
+}
+
+func (s *APIWebServer) queryPoolList(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryPoolSet(chainId)
 	wrapDataErrResp(c, resp, nil)
 }
 

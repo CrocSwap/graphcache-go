@@ -26,6 +26,10 @@ func (m *MemoryCache) RetrieveUserTxs(chainId types.ChainId, user types.EthAddre
 	return txs
 }
 
+func (m *MemoryCache) RetrievePoolSet() []types.PoolLocation {
+	return m.poolTradingHistory.keySet()
+}
+
 func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupCopy(pool)
 	return txs
