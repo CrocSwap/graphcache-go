@@ -11,7 +11,8 @@ After building to run, from the project root directory call
 ## Network options
 
 By default the instance uses the network config at `./config/networks.json`. To use a different configuration file run with
-`./graphcache-go --netCfg [NETWORK_CONFIG_PATH]
+
+`./graphcache-go -netCfg [NETWORK_CONFIG_PATH]
 
 The RPC endpoint can be overriden in the environment by setting the `RPC_MAINNET` env variable before running:
 
