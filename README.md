@@ -1,5 +1,9 @@
 # graphcache-go
 
+Provides simple and fast endpoints to index the CrocSwap protocol on Ethereum based networks.
+
+## Quickstart
+
 To compile, from the project root directory call
 
 `go build`
