@@ -19,12 +19,14 @@ type Candle struct {
 	PriceClose   float64 `json:"priceClose"`
 	MinPrice     float64 `json:"minPrice"`
 	MaxPrice     float64 `json:"maxPrice"`
+
 	VolumeBase   float64 `json:"volumeBase"`
 	VolumeQuote  float64 `json:"volumeQuote"`
 	TvlBase      float64 `json:"tvlBase"`
 	TvlQuote     float64 `json:"tvlQuote"`
 	FeeRateOpen  float64 `json:"feeRateOpen"`
 	FeeRateClose float64 `json:"feeRateClose"`
+	
 	Period       int     `json:"period"`
 	Time         int     `json:"time"`
 }
@@ -62,6 +64,7 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 }
 
 func (c *CandleBuilder) Close(endTime int) []Candle {
+	// Question 6: Should this be an if statement?
 	for c.running.candle.Time+c.period < endTime {
 		c.closeCandle()
 	}
@@ -83,6 +86,7 @@ func (c *CandleBuilder) closeCandle() {
 }
 
 func (c *CandleBuilder) Increment(accum AccumPoolStats) {
+	// Question 6: Should this be an if statement? 
 	for accum.LatestTime >= c.running.candle.Time+c.period {
 		c.closeCandle()
 	}

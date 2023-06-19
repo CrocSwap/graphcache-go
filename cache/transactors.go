@@ -30,7 +30,7 @@ func (m *MemoryCache) RetrievePoolSet() []types.PoolLocation {
 	return m.poolTradingHistory.keySet()
 }
 
-func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
+func (m *MemoryCache) RetrievePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupCopy(pool)
 	return txs
 }
