@@ -1,0 +1,26 @@
+query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
+swaps(first: 1000, where: { timestamp_gte: $minTime, timestamp_lte: $maxTime }
+) {
+  id
+  transaction {
+    id
+    blockNumber
+  }
+  pool {
+    id
+    token0 {
+      id
+      symbol
+    }
+    token1 {
+      id
+      symbol
+    }
+  }
+  sender
+  recipient
+  amount0
+  amount1
+  timestamp
+ }
+}

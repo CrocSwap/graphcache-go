@@ -91,49 +91,64 @@ func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 func (s *SubgraphSyncer) syncStep(syncTime int) {
 	startTime := s.lastSyncTime + 1
 	doSyncFwd := true
+	uniswapCandles := true
 
-	s.cfg.Query = "./artifacts/graphQueries/balances.query"
-	tblBal := tables.BalanceTable{}
-	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-		tblBal, s.cfg, s.cntr.IngestBalance)
-	nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("User Balances", nRows)
+	if(uniswapCandles){
+		log.Printf("uniswapCandles: %s", uniswapCandles)
+		s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
+		s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+		tblAgg := tables.UniSwapsTable{}
+		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
+			tblAgg, s.cfg, s.cntr.IngestAggEvent)
+		log.Printf("Uniswap syncAgg: %s", syncAgg)
 
-	s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
-	tblLiq := tables.LiqChangeTable{}
-	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
-		tblLiq, s.cfg, s.cntr.IngestLiqChange)
-	nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("LiqChanges", nRows)
+		nRows, _ := syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Poll Agg Events", nRows)
+	}else {	
 
-	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
-	tblSwap := tables.SwapsTable{}
-	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tblSwap, s.cfg, s.cntr.IngestSwap)
-	nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Swaps", nRows)
+		s.cfg.Query = "./artifacts/graphQueries/balances.query"
+		tblBal := tables.BalanceTable{}
+		syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
+			tblBal, s.cfg, s.cntr.IngestBalance)
+		nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("User Balances", nRows)
 
-	s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
-	tblKo := tables.KnockoutTable{}
-	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
-		tblKo, s.cfg, s.cntr.IngestKnockout)
-	nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Knockout crosses", nRows)
+		s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
+		tblLiq := tables.LiqChangeTable{}
+		syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
+			tblLiq, s.cfg, s.cntr.IngestLiqChange)
+		nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("LiqChanges", nRows)
 
-	s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
-	tblFee := tables.FeeTable{}
-	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
-		tblFee, s.cfg, s.cntr.IngestFee)
-	nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Fee Changes", nRows)
+		s.cfg.Query = "./artifacts/graphQueries/swaps.query"
+		tblSwap := tables.SwapsTable{}
+		syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
+			tblSwap, s.cfg, s.cntr.IngestSwap)
+		nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Swaps", nRows)
 
-	s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
-	tblAgg := tables.AggEventsTable{}
-	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
-		tblAgg, s.cfg, s.cntr.IngestAggEvent)
-	nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Poll Agg Events", nRows)
+		s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
+		tblKo := tables.KnockoutTable{}
+		syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
+			tblKo, s.cfg, s.cntr.IngestKnockout)
+		nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Knockout crosses", nRows)
 
+		s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
+		tblFee := tables.FeeTable{}
+		syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
+			tblFee, s.cfg, s.cntr.IngestFee)
+		nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Fee Changes", nRows)
+
+		s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
+		tblAgg := tables.AggEventsTable{}
+		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
+			tblAgg, s.cfg, s.cntr.IngestAggEvent)
+		nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Poll Agg Events", nRows)
+
+	}
 	s.cntr.FlushSyncCycle(syncTime)
 	s.lastSyncTime = syncTime
 }
