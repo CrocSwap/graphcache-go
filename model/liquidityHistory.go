@@ -24,7 +24,7 @@ func (l *LiquidityDeltaHist) netCumulativeLiquidity() float64 {
 		totalLiq += delta.liqChange
 	}
 
-	if totalLiq < MIN_NUMERIC_STABLE_FLOW {
+	if totalLiq < getMinNumericStableFlow() {
 		return 0
 	}
 	return totalLiq
@@ -47,7 +47,7 @@ func (l *LiquidityDeltaHist) weightedAverageTime() int {
 
 		if delta.liqChange < 0 {
 			openLiq = openLiq + delta.liqChange
-			if openLiq < 0 || openLiq < MIN_NUMERIC_STABLE_FLOW {
+			if openLiq < 0 || openLiq < getMinNumericStableFlow() {
 				openLiq = 0
 			}
 		}

@@ -25,3 +25,5 @@ graphcache-go
 tmp*
 .DS_Store
 
+.env
+

@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
+	"github.com/CrocSwap/graphcache-go/utils"
 )
 
 func deriveLiquidityFromAmbientFlow(baseFlow float64, quoteFlow float64) float64 {
@@ -87,16 +88,26 @@ func tickToPrice(tick int) float64 {
 	return math.Pow(1.0001, float64(tick))
 }
 
-const MIN_NUMERIC_STABLE_FLOW = 1000
+func getMinNumericStableFlow() float64 {
+	uniswapCandles := utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
+	if(uniswapCandles){
+		return 0.01
+	} else {
+		return 1000
+	}
+}
+
+
+
 
 func isFlowNumericallyStable(baseFlow float64, quoteFlow float64) bool {
-	return math.Abs(baseFlow) >= MIN_NUMERIC_STABLE_FLOW ||
-		math.Abs(quoteFlow) >= MIN_NUMERIC_STABLE_FLOW
+	return math.Abs(baseFlow) >= getMinNumericStableFlow() ||
+		math.Abs(quoteFlow) >= getMinNumericStableFlow()
 }
 
 func isFlowDualStable(baseFlow float64, quoteFlow float64) bool {
-	return math.Abs(baseFlow) >= MIN_NUMERIC_STABLE_FLOW &&
-		math.Abs(quoteFlow) >= MIN_NUMERIC_STABLE_FLOW
+	return math.Abs(baseFlow) > getMinNumericStableFlow() &&
+		math.Abs(quoteFlow) > getMinNumericStableFlow()
 }
 
 func flowMagns(r *tables.LiqChange) (float64, float64) {

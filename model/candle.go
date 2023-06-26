@@ -1,5 +1,7 @@
 package model
 
+import "github.com/CrocSwap/graphcache-go/utils"
+
 type CandleBuilder struct {
 	series      []Candle
 	running     RunningCandle
@@ -29,8 +31,11 @@ type Candle struct {
 	
 	Period       int     `json:"period"`
 	Time         int     `json:"time"`
+
+	IsDecimalized bool   `json:"isDecimalized"`
 }
 
+var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
 		series:      make([]Candle, 0),
@@ -56,6 +61,7 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 		FeeRateClose: accum.FeeRate,
 		Period:       c.period,
 		Time:         startTime,
+		IsDecimalized: uniswapCandles,
 	}
 
 	c.running.lastAccum = accum
@@ -73,7 +79,7 @@ func (c *CandleBuilder) Close(endTime int) []Candle {
 
 func (c *CandleBuilder) closeCandle() {
 	MIN_VALID_LIQUIDITY := 100000.0
-
+	
 	c.atValidHist = c.atValidHist ||
 		c.running.candle.TvlBase >= MIN_VALID_LIQUIDITY ||
 		c.running.candle.TvlQuote >= MIN_VALID_LIQUIDITY
@@ -86,7 +92,6 @@ func (c *CandleBuilder) closeCandle() {
 }
 
 func (c *CandleBuilder) Increment(accum AccumPoolStats) {
-	// Question 6: Should this be an if statement? 
 	for accum.LatestTime >= c.running.candle.Time+c.period {
 		c.closeCandle()
 	}

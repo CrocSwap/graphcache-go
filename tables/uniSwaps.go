@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 )
 
 type UniSwapsTable struct{}
@@ -57,33 +58,19 @@ type UniSwapSubGraphResp struct {
 }
 
 func (tbl UniSwapsTable) ConvertSubGraphRow(r UniSwapSubGraph, network string) AggEvent {
-	// positive one is base, negative one is quote
-
-	var baseFlow float64
-	var quoteFlow float64
-	var base string
-	var quote string
-
 	amount0 := parseNullableFloat64(r.Amount0)
 	amount1 := parseNullableFloat64(r.Amount1)
-	// Question 7: is this logic correct for determining base/quote?
-	if(*amount0 < 0){
-		base = r.Pool.Token0.ID
-		quote = r.Pool.Token1.ID
-		baseFlow = *amount0
-		quoteFlow = *amount1
-	}  else{
-		base = r.Pool.Token1.ID
-		quote = r.Pool.Token0.ID
-		baseFlow = *amount1
-		quoteFlow =  *amount0
-	}
 
-	// Flip is base/quote is actually reversed
-	// if strings.ToLower(base) > strings.ToLower(base) {
-	// 	base, quote = quote, base
-	// 	baseFlow, quoteFlow = quoteFlow, baseFlow
-	// }
+	base := r.Pool.Token0.ID
+	quote := r.Pool.Token1.ID
+	baseFlow:= *amount0
+	quoteFlow := *amount1
+
+
+	if strings.ToLower(base) < strings.ToLower(base) {
+		base, quote = quote, base
+		baseFlow, quoteFlow = quoteFlow, baseFlow
+	}
 
 	price := math.Abs(baseFlow / quoteFlow)
 	// convert price to string
@@ -99,8 +86,8 @@ func (tbl UniSwapsTable) ConvertSubGraphRow(r UniSwapSubGraph, network string) A
 		TX:            r.Transaction.ID,
 		Base:          base,
 		Quote:         quote,
-		PoolIdx:       420, // TODO: Replaced poolIDX with poolID
-		PoolHash:      r.Pool.ID,// TODO: Replaced poolIDX with poolID
+		PoolIdx:       36000,
+		PoolHash:      r.Pool.ID + base + quote,
 		Block:         parseInt(r.Transaction.BlockNumber),
 		Time:          parseInt(r.Timestamp),
 		BidTick:       0,
@@ -110,8 +97,8 @@ func (tbl UniSwapsTable) ConvertSubGraphRow(r UniSwapSubGraph, network string) A
 		IsLiq:         false,
 		IsSwap:        true,
 		IsTickSkewed:  false,
-		InBaseQty:     true, //TODO: Confirm this is correct
-		FlowsAtMarket: false, // Only used in LiqTypes
+		InBaseQty:     true, 
+		FlowsAtMarket: false,
 		FeeRate:       0,
 		BaseFlow:      baseFlow,
 		QuoteFlow:     quoteFlow,

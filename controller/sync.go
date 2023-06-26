@@ -1,13 +1,20 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
+	"github.com/CrocSwap/graphcache-go/utils"
 )
+
+
+
+
+var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true" 
 
 type SubgraphSyncer struct {
 	cntr         *ControllerOverNetwork
@@ -15,13 +22,20 @@ type SubgraphSyncer struct {
 	lastSyncTime int
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, syncBackwards bool) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	syncNotif := make(chan bool, 1)
-	go sync.syncStart(syncNotif)
+	if(syncBackwards){
+		go sync.historicalSyncCandles(syncNotif)
+	}else {
+		fmt.Printf("Starting poll sync for %s\n", network)
+		go sync.syncStart(syncNotif)
+	}
 	<-syncNotif
 	return sync
 }
+
+
 
 func NewSubgraphPriceSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
@@ -68,9 +82,23 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
+func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool) {
+	notif <- true // Signal that the server is ready to accept requests
+	// UNISWAP_CANDLE_LOOKBACK_WINDOW :=  int(time.Now().Unix()) -  3600 *24 *7
+	JAN_1_2023_GMT :=  1674259200 
+	initialSyncTime := 	JAN_1_2023_GMT
+	now := int(time.Now().Unix())
+	// Goes in reverse from today until initialSyncTime
+	s.syncUniswapCandles(false, initialSyncTime, now)
+	s.cntr.FlushSyncCycle(now)
+	s.lastSyncTime = now
+}
 func (s *SubgraphSyncer) syncStart(notif chan bool) {
-	syncTime, err := loader.LatestSubgraphTime(s.cfg)
+	now := int(time.Now().Unix())
+	s.cntr.FlushSyncCycle(now)
+	s.lastSyncTime = now
 
+	syncTime, err := loader.LatestSubgraphTime(s.cfg)
 	if err != nil {
 		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
 	}
@@ -90,20 +118,10 @@ func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 
 func (s *SubgraphSyncer) syncStep(syncTime int) {
 	startTime := s.lastSyncTime + 1
-	doSyncFwd := true
-	uniswapCandles := true
+	doSyncFwd := true 
 
 	if(uniswapCandles){
-		log.Printf("uniswapCandles: %s", uniswapCandles)
-		s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
-		s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
-		tblAgg := tables.UniSwapsTable{}
-		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent)
-		log.Printf("Uniswap syncAgg: %s", syncAgg)
-
-		nRows, _ := syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-		s.logSyncCycle("Poll Agg Events", nRows)
+		s.syncUniswapCandles(doSyncFwd, startTime, syncTime)
 	}else {	
 
 		s.cfg.Query = "./artifacts/graphQueries/balances.query"
@@ -152,6 +170,18 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	s.cntr.FlushSyncCycle(syncTime)
 	s.lastSyncTime = syncTime
 }
+
+func (s *SubgraphSyncer) syncUniswapCandles(doSyncFwd bool, startTime int, syncTime int) {
+	// If I call this from a few places, will it always produce different tables, or are the tables always coming from the same place? 
+		s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
+		s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+		tblAgg := tables.UniSwapsTable{}
+		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
+			tblAgg, s.cfg, s.cntr.IngestAggEvent)
+		nRows, _ := syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		s.logSyncCycle("Poll Agg Events", nRows)
+}
+
 
 func (s *SubgraphSyncer) syncPricingSwaps() {
 	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
