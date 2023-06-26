@@ -7,9 +7,11 @@ import (
 	"github.com/CrocSwap/graphcache-go/controller"
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/server"
+	"github.com/CrocSwap/graphcache-go/utils"
 	"github.com/CrocSwap/graphcache-go/views"
 )
 
+var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 func main() {
 	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
 	flag.Parse()
@@ -21,7 +23,10 @@ func main() {
 	cntrl := controller.New(netCfg, cache)
 
 	for network, chainCfg := range netCfg {
-		controller.NewSubgraphSyncer(cntrl, chainCfg, network)
+		controller.NewSubgraphSyncer(cntrl, chainCfg, network, false)
+		if(uniswapCandles){
+			controller.NewSubgraphSyncer(cntrl, chainCfg, network, true)
+		}
 	}
 
 	views := views.Views{Cache: cache, OnChain: &onChain}

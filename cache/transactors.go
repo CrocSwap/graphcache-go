@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sort"
+
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -143,7 +145,7 @@ func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime i
 func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime int, endTime int) (model.AccumPoolStats, []model.AccumPoolStats) {
 	retSeries := make([]model.AccumPoolStats, 0)
 	openVal := m.RetrievePoolAccumBefore(loc, startTime)
-
+	
 	pos, okay := m.poolTradingHistory.lookup(loc)
 	if !okay {
 		return openVal, retSeries
@@ -152,7 +154,14 @@ func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime 
 	defer m.poolTradingHistory.lock.RUnlock()
 	m.poolTradingHistory.lock.RLock()
 
-	for _, accum := range pos.TimeSnaps {
+	timeSnaps := pos.TimeSnaps
+
+	// Sort here rather than assuming that the cache is in sorted order
+	sort.Slice(timeSnaps, func(i, j int) bool {
+		return timeSnaps[i].LatestTime < timeSnaps[j].LatestTime
+	})
+
+	for _, accum := range timeSnaps {
 		if accum.LatestTime >= startTime && accum.LatestTime < endTime {
 			retSeries = append(retSeries, accum)
 		}

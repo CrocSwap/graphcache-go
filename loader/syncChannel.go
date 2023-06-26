@@ -3,6 +3,7 @@ package loader
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -124,8 +125,8 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		}
 
 		if nIngested > 0 {
-			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
-				nIngested, s.config.Query, prevObs)
+			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d - %s",
+				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
 	return nIngested, nil

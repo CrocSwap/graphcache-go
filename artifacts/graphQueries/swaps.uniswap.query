@@ -1,5 +1,6 @@
 query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
-swaps(first: 1000, where: { timestamp_gte: $minTime, timestamp_lte: $maxTime }
+swaps(first: 1000, orderBy: timestamp, orderDirection: $orderDir,  
+      where: { timestamp_gte: $minTime, timestamp_lte: $maxTime }
 ) {
   id
   transaction {
