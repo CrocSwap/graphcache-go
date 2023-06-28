@@ -5,6 +5,7 @@ import (
 
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
+	"github.com/CrocSwap/graphcache-go/utils"
 )
 
 func (v *Views) QueryPoolStats(chainId types.ChainId,
@@ -45,13 +46,22 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 		Base:    base,
 		Quote:   quote,
 	}
+	uniswapCandles := utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 
 	endTime := int(time.Now().Unix())
 	startTime := endTime - timeRange.N*timeRange.Period
+	
 
 	if timeRange.StartTime != nil {
-		startTime = *timeRange.StartTime
-		endTime = startTime + timeRange.N*timeRange.Period
+
+		if !uniswapCandles {
+			startTime = *timeRange.StartTime
+			endTime = startTime + timeRange.N*timeRange.Period			 
+		} else {
+			// Go in reverse from the starttime given
+			endTime = *timeRange.StartTime
+			startTime = endTime - timeRange.N*timeRange.Period
+		}
 	}
 
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
