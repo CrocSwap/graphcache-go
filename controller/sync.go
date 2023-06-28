@@ -86,10 +86,11 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool) {
 	notif <- true // Signal that the server is ready to accept requests
 	// UNISWAP_CANDLE_LOOKBACK_WINDOW :=  int(time.Now().Unix()) -  3600 *24 *7
 	JAN_1_2023_GMT :=  1674259200 
+	// YESTERDAY := int(time.Now().Unix()) -  3600 *24
 	initialSyncTime := 	JAN_1_2023_GMT
 	now := int(time.Now().Unix())
 	// Goes in reverse from today until initialSyncTime
-	s.syncUniswapCandles(false, initialSyncTime, now)
+	s.syncUniswapCandles(false, initialSyncTime, now, true)
 	s.cntr.FlushSyncCycle(now)
 	s.lastSyncTime = now
 }
@@ -121,7 +122,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	doSyncFwd := true 
 
 	if(uniswapCandles){
-		s.syncUniswapCandles(doSyncFwd, startTime, syncTime)
+		s.syncUniswapCandles(doSyncFwd, startTime, syncTime, false)
 	}else {	
 
 		s.cfg.Query = "./artifacts/graphQueries/balances.query"
@@ -171,14 +172,21 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	s.lastSyncTime = syncTime
 }
 
-func (s *SubgraphSyncer) syncUniswapCandles(doSyncFwd bool, startTime int, syncTime int) {
+func (s *SubgraphSyncer) syncUniswapCandles(doSyncFwd bool, startTime int, syncTime int, fromDB bool) {
 	// If I call this from a few places, will it always produce different tables, or are the tables always coming from the same place? 
 		s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
 		s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
 		tblAgg := tables.UniSwapsTable{}
 		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
 			tblAgg, s.cfg, s.cntr.IngestAggEvent)
-		nRows, _ := syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+			var nRows int
+			if fromDB {
+				nRows, _ = syncAgg.SyncTableToDB(doSyncFwd, startTime, syncTime)
+
+			}else {
+				nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+
+			}
 		s.logSyncCycle("Poll Agg Events", nRows)
 }
 
