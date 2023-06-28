@@ -1,7 +1,9 @@
 package loader
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -79,6 +81,65 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
+func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int) (int, error) {
+
+	prevObs := startTime
+	if !isAsc {
+		prevObs = endTime
+	}
+
+	hasMore := true
+	nIngested := 0
+
+	for hasMore {
+		var db_resp *sql.Rows
+		var err error
+		if isAsc {
+			db_resp, err = queryFromDB( prevObs, endTime, isAsc)
+		} else {
+			db_resp, err = queryFromDB( startTime, prevObs, isAsc)
+		}	
+
+
+
+		// Iterate over the rows and process the data
+		for db_resp.Next() {
+			var id int
+			var swap_string string
+			var swap_id string
+			var swap_time string
+			err = db_resp.Scan(&id, &swap_string, &swap_time, &swap_id)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			var swap S
+			err := json.Unmarshal([]byte(swap_string), &swap)
+			if err != nil {
+				fmt.Println("Error parsing JSON:", err)
+				
+			}
+			row := s.tbl.ConvertSubGraphRow(swap, string(s.config.Network))
+			s.ingestEntry(row)
+			nIngested += 1
+		}
+		
+		if isAsc {
+			hasMore = s.LastObserved > prevObs
+			prevObs = s.LastObserved
+		} else {
+			hasMore = s.EarliestObserved < prevObs
+			prevObs = s.EarliestObserved
+		}
+
+		if nIngested > 0 {
+			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d - %s",
+				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
+		}
+	}
+	return nIngested, nil
+}
+
 func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTime int) (int, error) {
 	query := readQueryPath(s.config.Query)
 
@@ -131,6 +192,7 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 	}
 	return nIngested, nil
 }
+
 
 func (s *SyncChannel[R, S]) ingestEntry(r R) {
 	if s.tbl.GetTime(r) > s.LastObserved {
