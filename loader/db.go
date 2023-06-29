@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
+	"github.com/CrocSwap/graphcache-go/utils"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var db_string = "./artifacts/db/blank.db"
+var db_string = utils.GoDotEnvVariable("UNISWAP_DB_NAME")
 
 type Swap struct {
 	Swap     string `json:"swap"`
@@ -19,7 +20,6 @@ type Swap struct {
 	SwapId 	string `json:"swap_id"`
 	Id 			int `json:"id"`
 }
-// TODO: clean this up
 
 func logError(msg string, err error) {
 	if err != nil {

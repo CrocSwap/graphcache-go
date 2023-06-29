@@ -1,10 +1,9 @@
 import requests
 import json
 import time
-
 import sqlite3
 
-conn = sqlite3.connect("mydatabase.db")  # Replace with the name of your database file
+conn = sqlite3.connect("swaps.db")  # Replace with the name of your database file
 cursor = conn.cursor()
 # Format of the swaps table
 #     CREATE TABLE swaps (
@@ -21,7 +20,7 @@ url = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
 timestamp = int(time.time())  # Current timestamp
 
 # The timestamp you want to query back to (e.g., 1672444800 is for 1st January 2023)
-end_timestamp = 1687279382
+end_timestamp = 1672531200
 
 
 total_swaps = 0
@@ -83,7 +82,8 @@ while timestamp > end_timestamp:
         # convert the response to JSON
         data = json.loads(response.text)
         swaps = data["data"]["swaps"]
-        print(f"Got {len(swaps)} swaps")
+        # update the timestamp to be the timestamp of the last swap in the result
+        timestamp = int(swaps[-1]["timestamp"])
 
         for swap in swaps:
             cursor.execute(
@@ -96,8 +96,7 @@ while timestamp > end_timestamp:
         if len(swaps) == 0:
             break
 
-        # update the timestamp to be the timestamp of the last swap in the result
-        timestamp = int(swaps[-1]["timestamp"])
+
 
     else:
         print(f"Query failed with status code {response.status_code}")
