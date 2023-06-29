@@ -17,6 +17,7 @@ type SyncChannel[R any, S any] struct {
 	RowsIngested     int
 	idsObserved      map[string]bool
 	consumeFn        func(R)
+	saveToDBFn        func([]S)
 	config           SyncChannelConfig
 	tbl              tables.ITable[R, S]
 }
@@ -28,12 +29,13 @@ type SyncChannelConfig struct {
 }
 
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
-	consumeFn func(R)) SyncChannel[R, S] {
+	consumeFn func(R), saveToDBFn func([]S)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
 		LastObserved:     0,
 		EarliestObserved: 1000 * 1000 * 1000 * 1000,
 		idsObserved:      make(map[string]bool),
 		consumeFn:        consumeFn,
+		saveToDBFn: 	  saveToDBFn,
 		config:           config,
 		tbl:              tbl,
 	}
@@ -133,7 +135,7 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 		}
 
 		if nIngested > 0 {
-			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d - %s",
+			log.Printf("[Historical Syncer]: Loaded %d rows from subgraph from query %s up to time=%d - %s",
 				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
@@ -161,14 +163,20 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 			resp, err = queryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
 		}
 
+
 		if err != nil {
 			return nIngested, err
 		}
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
+
 		if err != nil {
 			log.Println("Warning subgraph request decode error " + err.Error())
 			return nIngested, err
+		}
+
+		if s.saveToDBFn != nil {
+			s.saveToDBFn(entries)
 		}
 
 		for _, entry := range entries {
@@ -185,8 +193,14 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 			prevObs = s.EarliestObserved
 		}
 
+		var logString string
+		if s.saveToDBFn != nil {
+			logString = "[Historical Syncer]:"
+		} else {
+			logString = "[Polling Syncer]:"
+		}
 		if nIngested > 0 {
-			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d - %s",
+			log.Printf("%s Loaded %d rows from subgraph from query %s up to time=%d - %s", logString,
 				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
