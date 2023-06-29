@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/controller"
@@ -23,9 +24,10 @@ func main() {
 	cntrl := controller.New(netCfg, cache)
 
 	for network, chainCfg := range netCfg {
-		controller.NewSubgraphSyncer(cntrl, chainCfg, network, false)
+		startTime :=  int(time.Now().Unix())
+		controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
 		if(uniswapCandles){
-			controller.NewSubgraphSyncer(cntrl, chainCfg, network, true)
+			controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime)
 		}
 	}
 

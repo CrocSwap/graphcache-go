@@ -22,15 +22,21 @@ type SubgraphSyncer struct {
 	lastSyncTime int
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, syncBackwards bool) SubgraphSyncer {
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startTime int) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	syncNotif := make(chan bool, 1)
-	if(syncBackwards){
-		go sync.historicalSyncCandles(syncNotif)
-	}else {
-		fmt.Printf("Starting poll sync for %s\n", network)
-		go sync.syncStart(syncNotif)
-	}
+
+	log.Printf("[Polling Syncer]: Starting poll sync for %s\n", network)
+	go sync.syncStart(syncNotif, startTime)
+
+	<-syncNotif
+	return sync
+}
+
+func NewUniswapSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startTime int) SubgraphSyncer {
+	sync := makeSubgraphSyncer(controller, chainConfig, network)
+	syncNotif := make(chan bool, 1)
+	go sync.historicalSyncCandles(syncNotif, startTime)
 	<-syncNotif
 	return sync
 }
@@ -63,7 +69,7 @@ func (s *SubgraphSyncer) pollSubgraphUpdates() {
 		time.Sleep(time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
-			log.Printf("New subgraph time %d", s.lastSyncTime)
+			log.Printf("[Polling Syncer]: New subgraph time %s", time.Unix(int64(s.lastSyncTime), 0))
 		}
 	}
 }
@@ -82,30 +88,42 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
-func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool) {
+func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, startTime int) {
 	notif <- true // Signal that the server is ready to accept requests
 	// UNISWAP_CANDLE_LOOKBACK_WINDOW :=  int(time.Now().Unix()) -  3600 *24 *7
 	JAN_1_2023_GMT :=  1674259200 
-	// YESTERDAY := int(time.Now().Unix()) -  3600 *24
 	initialSyncTime := 	JAN_1_2023_GMT
-	now := int(time.Now().Unix())
-	// Goes in reverse from today until initialSyncTime
-	s.syncUniswapCandles(false, initialSyncTime, now, true)
-	s.cntr.FlushSyncCycle(now)
-	s.lastSyncTime = now
-}
-func (s *SubgraphSyncer) syncStart(notif chan bool) {
-	now := int(time.Now().Unix())
-	s.cntr.FlushSyncCycle(now)
-	s.lastSyncTime = now
 
-	syncTime, err := loader.LatestSubgraphTime(s.cfg)
+	// Goes in forward from last swap time until today
+	latestSwapTime, err := loader.GetLatestSwapTime()
+	nextSwapTime := int(latestSwapTime) + 1
 	if err != nil {
-		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
+		log.Fatalf("Database not responding")
+		return
+	}
+	log.Printf("[Historical Syncer]: Latest swap time is %s\n", time.Unix(int64(nextSwapTime), 0))
+	s.syncUniswapCandles("save", nextSwapTime, startTime)
+	log.Printf("[Historical Syncer]: Synced and saved to db uniswap swaps from subgraph %s to %s\n", time.Unix(int64(latestSwapTime), 0), time.Unix(int64(startTime), 0))
+	s.syncUniswapCandles("db", initialSyncTime, nextSwapTime)
+	log.Printf("[Historical Syncer]: Synced uniswap swaps from db from %s to %s\n", time.Unix(int64(initialSyncTime), 0), time.Unix(int64(nextSwapTime), 0))
+
+
+}
+
+func (s *SubgraphSyncer) syncStart(notif chan bool, startTime int) {
+	if !uniswapCandles {
+		syncTime, err := loader.LatestSubgraphTime(s.cfg)
+		if err != nil {
+			log.Fatalf("[Polling Syncer]: Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
+		}
+	
+		s.syncStep(syncTime)
+	} else {
+		s.cntr.FlushSyncCycle(startTime)
+		s.lastSyncTime = startTime
 	}
 
-	s.syncStep(syncTime)
-	log.Printf("Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
+	log.Printf("[Polling Syncer]: Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
 	notif <- true
 
 	s.pollSubgraphUpdates()
@@ -113,7 +131,7 @@ func (s *SubgraphSyncer) syncStart(notif chan bool) {
 
 func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 	if nRows > 0 {
-		log.Printf("Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
+		log.Printf("[Polling Syncer]: Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
 	}
 }
 
@@ -122,48 +140,48 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	doSyncFwd := true 
 
 	if(uniswapCandles){
-		s.syncUniswapCandles(doSyncFwd, startTime, syncTime, false)
+		s.syncUniswapCandles("subgraph", startTime, syncTime )
 	}else {	
 
 		s.cfg.Query = "./artifacts/graphQueries/balances.query"
 		tblBal := tables.BalanceTable{}
 		syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-			tblBal, s.cfg, s.cntr.IngestBalance)
+			tblBal, s.cfg, s.cntr.IngestBalance, nil)
 		nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("User Balances", nRows)
 
 		s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 		tblLiq := tables.LiqChangeTable{}
 		syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
-			tblLiq, s.cfg, s.cntr.IngestLiqChange)
+			tblLiq, s.cfg, s.cntr.IngestLiqChange, nil)
 		nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("LiqChanges", nRows)
 
 		s.cfg.Query = "./artifacts/graphQueries/swaps.query"
 		tblSwap := tables.SwapsTable{}
 		syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-			tblSwap, s.cfg, s.cntr.IngestSwap)
+			tblSwap, s.cfg, s.cntr.IngestSwap, nil)
 		nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("Swaps", nRows)
 
 		s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
 		tblKo := tables.KnockoutTable{}
 		syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
-			tblKo, s.cfg, s.cntr.IngestKnockout)
+			tblKo, s.cfg, s.cntr.IngestKnockout, nil)
 		nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("Knockout crosses", nRows)
 
 		s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
 		tblFee := tables.FeeTable{}
 		syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
-			tblFee, s.cfg, s.cntr.IngestFee)
+			tblFee, s.cfg, s.cntr.IngestFee, nil)
 		nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("Fee Changes", nRows)
 
 		s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
 		tblAgg := tables.AggEventsTable{}
 		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent)
+			tblAgg, s.cfg, s.cntr.IngestAggEvent, nil)
 		nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("Poll Agg Events", nRows)
 
@@ -172,22 +190,32 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	s.lastSyncTime = syncTime
 }
 
-func (s *SubgraphSyncer) syncUniswapCandles(doSyncFwd bool, startTime int, syncTime int, fromDB bool) {
-	// If I call this from a few places, will it always produce different tables, or are the tables always coming from the same place? 
-		s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
-		s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
-		tblAgg := tables.UniSwapsTable{}
+
+func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTime int) {
+	s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
+	s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+	tblAgg := tables.UniSwapsTable{}
+	var nRows int
+
+	switch action {
+	case "subgraph":
 		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent)
-			var nRows int
-			if fromDB {
-				nRows, _ = syncAgg.SyncTableToDB(doSyncFwd, startTime, syncTime)
+			tblAgg, s.cfg, s.cntr.IngestAggEvent, nil)
+		nRows, _ = syncAgg.SyncTableToSubgraph(true, startTime, syncTime)
+	case "db":
+		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
+			tblAgg, s.cfg, s.cntr.IngestAggEvent, nil)
+		nRows, _ = syncAgg.SyncTableToDB(false, startTime, syncTime)
+	case "save":
+		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
+			tblAgg, s.cfg, s.cntr.IngestAggEvent, loader.SaveAggEventSubgraphArrayToDB)
+			nRows, _ = syncAgg.SyncTableToSubgraph(true, startTime, syncTime)
 
-			}else {
-				nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-
-			}
-		s.logSyncCycle("Poll Agg Events", nRows)
+	default:
+		fmt.Println("Invalid action:", action)
+		return
+	}
+	s.logSyncCycle("Poll Agg Events", nRows)
 }
 
 
@@ -195,7 +223,7 @@ func (s *SubgraphSyncer) syncPricingSwaps() {
 	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
 	tbl := tables.SwapsTable{}
 	sync := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tbl, s.cfg, s.cntr.IngestSwap)
+		tbl, s.cfg, s.cntr.IngestSwap, nil)
 
 	LOOKBACK_WINDOW := 3600 * 1
 	endTime := int(time.Now().Unix())
