@@ -45,3 +45,14 @@ The following exposed endpoints and their URL and paramters are listed in `serve
 
 Create a .env file and add the var: `UNISWAP_CANDLES=true`
 This will run the repo in such a way that only the swaps from uniswap syncs and no other data is pulled. This is meant to be run alongside the normal implementation of graphcache-go to supplement candles from other pools and historical data. Candles will be found at the same endpoint when run in this mode.
+
+On startup of the server, a few things will happen
+
+1. the Polling Syncer will begin pulling data from the uniswap subgraph into memory every minute or so.
+2. Concurrently, it will fetch the date of the most recent swap in the db (`dbLast`) and then try to update the db to the start time from the uniswap subgraph while producing candle data for those swaps. It goes in forward order.
+3. Once the db is caught up to start time, it will go in reverse order from `dbLast` until Jan1 loading candle data from the db.
+
+## Run Uniswap Candles
+
+1. Pull db w/ swaps from January 1, 2023 `./_data/pull-db.sh`
+2. Build and run the container: `docker-compose up`
