@@ -56,3 +56,7 @@ On startup of the server, a few things will happen
 
 1. Pull db w/ swaps from January 1, 2023 `./_data/pull-db.sh`
 2. Build and run the container: `docker-compose up`
+
+#### fetch_uniswaps
+
+file fetch_uniswaps.py can by run like this `python3 fetch_uniswaps.py` - this routine is used to grab uniswap swap data and store it in the database. Was used once only to generate db file on creation of uniswap candle feature.
