@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
@@ -91,8 +92,13 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, startTime int) {
 	notif <- true // Signal that the server is ready to accept requests
 	// UNISWAP_CANDLE_LOOKBACK_WINDOW :=  int(time.Now().Unix()) -  3600 *24 *7
-	JAN_1_2023_GMT :=  1674259200 
-	initialSyncTime := 	JAN_1_2023_GMT
+	initialSyncTimeEnv := 	utils.GoDotEnvVariable("UNISWAP_CANDLE_BEGINNING_TIMESTAMP")
+	initialSyncTime, err := strconv.Atoi(initialSyncTimeEnv)
+	if err != nil {	
+		log.Println("Falling back to default initial sync time of Jan 1 2023")
+		initialSyncTime  = 1672531200	/// Fall back to Jan 1 2023
+	} 
+
 
 	// Goes in forward from last swap time until today
 	latestSwapTime, err := loader.GetLatestSwapTime()
