@@ -1,0 +1,4 @@
+*.db
+_data/
+.data/
+*.tar
