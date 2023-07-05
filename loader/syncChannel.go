@@ -17,7 +17,7 @@ type SyncChannel[R any, S any] struct {
 	RowsIngested     int
 	idsObserved      map[string]bool
 	consumeFn        func(R)
-	saveToDBFn        func([]S)
+	saveToDBFn       func([]S)
 	config           SyncChannelConfig
 	tbl              tables.ITable[R, S]
 }
@@ -35,7 +35,7 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 		EarliestObserved: 1000 * 1000 * 1000 * 1000,
 		idsObserved:      make(map[string]bool),
 		consumeFn:        consumeFn,
-		saveToDBFn: 	  saveToDBFn,
+		saveToDBFn:       saveToDBFn,
 		config:           config,
 		tbl:              tbl,
 	}
@@ -97,12 +97,10 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 		var db_resp *sql.Rows
 		var err error
 		if isAsc {
-			db_resp, err = queryFromDB( prevObs, endTime, isAsc)
+			db_resp, err = queryFromDB(prevObs, endTime, isAsc)
 		} else {
-			db_resp, err = queryFromDB( startTime, prevObs, isAsc)
-		}	
-
-
+			db_resp, err = queryFromDB(startTime, prevObs, isAsc)
+		}
 
 		// Iterate over the rows and process the data
 		for db_resp.Next() {
@@ -119,13 +117,13 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 			err := json.Unmarshal([]byte(swap_string), &swap)
 			if err != nil {
 				fmt.Println("Error parsing JSON:", err)
-				
+
 			}
 			row := s.tbl.ConvertSubGraphRow(swap, string(s.config.Network))
 			s.ingestEntry(row)
 			nIngested += 1
 		}
-		
+
 		if isAsc {
 			hasMore = s.LastObserved > prevObs
 			prevObs = s.LastObserved
@@ -162,7 +160,6 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		} else {
 			resp, err = queryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
 		}
-
 
 		if err != nil {
 			return nIngested, err
@@ -206,7 +203,6 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 	}
 	return nIngested, nil
 }
-
 
 func (s *SyncChannel[R, S]) ingestEntry(r R) {
 	if s.tbl.GetTime(r) > s.LastObserved {

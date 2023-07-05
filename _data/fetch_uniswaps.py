@@ -7,7 +7,7 @@ import os
 # print cwd
 print(os.getcwd())
 
-conn = sqlite3.connect("./swaps.db")  # Replace with the name of your database file
+conn = sqlite3.connect("./mydatabase.db")  # Replace with the name of your database file
 cursor = conn.cursor()
 # Format of the swaps table
 #     CREATE TABLE swaps (
@@ -18,7 +18,8 @@ cursor = conn.cursor()
 # );
 
 # define the endpoint
-url = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+# url = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+url = "https://api.thegraph.com/subgraphs/name/a0910841082130913312/croc91"
 
 # Start from the current time and keep fetching swaps that are older
 timestamp = int(time.time())  # Current timestamp
@@ -74,6 +75,37 @@ while timestamp > end_timestamp:
     }}
     """
 
+    query = f"""
+    {{
+      swaps(where: {{time_lte: {timestamp}}}, first: 1000, orderBy: time, orderDirection: desc) {{
+            id
+            id
+            transactionHash
+            callIndex
+            transactionIndex
+            user
+            pool {{
+                id
+                base
+                quote
+                poolIdx
+            }}
+            block
+            time
+            isBuy
+            inBaseQty
+            qty
+            limitPrice
+            minOut
+            baseFlow
+            quoteFlow
+            callSource
+            dex
+      }}
+    }}
+    """
+
+
 
     response = requests.post(url, json={"query": query})
 
@@ -87,12 +119,12 @@ while timestamp > end_timestamp:
         data = json.loads(response.text)
         swaps = data["data"]["swaps"]
         # update the timestamp to be the timestamp of the last swap in the result
-        timestamp = int(swaps[-1]["timestamp"])
+        timestamp = int(swaps[-1]["time"])
 
         for swap in swaps:
             cursor.execute(
                 "INSERT INTO swaps (swap, swap_time, swap_id) VALUES (?, ?, ?)",
-                (json.dumps(swap), swap["timestamp"], swap["id"]),
+                (json.dumps(swap), swap["time"], swap["id"]),
             )
         conn.commit()
 
