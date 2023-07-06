@@ -13,17 +13,8 @@ import (
 )
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
-var testNetEnv = utils.GoDotEnvVariable("TESTNET") == "true"
-
 func main() {
-	var networkFile string
-	if testNetEnv {
-		networkFile = "./config/testNetwork.json"
-	} else {
-		networkFile = "./config/networks.json"
-	}
-
-	var netCfgPath = flag.String("netCfg", networkFile, "network config file")
+	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
@@ -33,9 +24,9 @@ func main() {
 	cntrl := controller.New(netCfg, cache)
 
 	for network, chainCfg := range netCfg {
-		startTime := int(time.Now().Unix())
+		startTime :=  int(time.Now().Unix())
 		controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
-		if uniswapCandles {
+		if(uniswapCandles){
 			controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime)
 		}
 	}
