@@ -191,23 +191,19 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 		nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 		s.logSyncCycle("Fee Changes", nRows)
 
-		s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
-		tblAgg := tables.AggEventsTable{}
-		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent, nil)
-		nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-		s.logSyncCycle("Poll Agg Events", nRows)
+		s.syncCrocSwapCandles(doSyncFwd, startTime, syncTime)
+
 	}
 	s.cntr.FlushSyncCycle(syncTime)
 	s.lastSyncTime = syncTime
 }
 
 func (s *SubgraphSyncer) syncCrocSwapCandles(doSyncFwd bool, startTime int, syncTime int) {
-	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
-	tbl := tables.Croc91SwapsTable{}
-	sync := loader.NewSyncChannel[tables.AggEvent, tables.SwapSubGraph](
-		tbl, s.cfg, s.cntr.IngestAggEvent, nil)
-	nRows, _ := sync.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
+	tblAgg := tables.AggEventsTable{}
+	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
+		tblAgg, s.cfg, s.cntr.IngestAggEvent, nil)
+	nRows, _ := syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	s.logSyncCycle("Poll Agg Events", nRows)
 }
 func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTime int) {
