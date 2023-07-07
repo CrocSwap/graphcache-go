@@ -20,7 +20,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/user_balance_tokens", s.queryUserTokens)
 	r.GET("gcgo/user_positions", s.queryUserPositions)
 	r.GET("gcgo/pool_positions", s.queryPoolPositions)
-	r.GET("gcgo/pool_position_apy_leaders", s.queryPoolPositions)
+	r.GET("gcgo/pool_position_apy_leaders", s.queryPoolPositionsApyLeaders)
 	r.GET("gcgo/user_pool_positions", s.queryUserPoolPositions)
 	r.GET("gcgo/position_stats", s.querySinglePosition)
 	r.GET("gcgo/user_limit_orders", s.queryUserLimits)
