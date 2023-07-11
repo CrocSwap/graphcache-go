@@ -76,9 +76,17 @@ func (c *CandleBuilder) Close(endTime int) []Candle {
 	}
 	return c.series
 }
+func getMinValidLiqudity() float64 {
+	uniswapCandles := utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
+	if(uniswapCandles){
+		return 1
+	} else {
+		return 100000
+	}
+}
 
 func (c *CandleBuilder) closeCandle() {
-	MIN_VALID_LIQUIDITY := 100000.0
+	MIN_VALID_LIQUIDITY := getMinValidLiqudity()
 	
 	c.atValidHist = c.atValidHist ||
 		c.running.candle.TvlBase >= MIN_VALID_LIQUIDITY ||
