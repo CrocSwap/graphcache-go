@@ -66,8 +66,22 @@ func (tbl UniSwapsTable) ConvertSubGraphRow(r UniSwapSubGraph, network string) A
 	baseFlow:= *amount0
 	quoteFlow := *amount1
 
+	baseCheck := strings.ToLower(base)
+	if base == "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" {
+		// ensure that if it's weth, it's always base
+		baseCheck = "0x0000000000000000000000000000000000000000"
+	}
 
-	if strings.ToLower(base) < strings.ToLower(base) {
+	quoteCheck := strings.ToLower(quote)
+	if quote == "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" {
+		// ensure that if it's weth, it's always base
+		quoteCheck = "0x0000000000000000000000000000000000000000"
+	}
+
+
+	if strings.ToLower(quoteCheck) < strings.ToLower(baseCheck) {
+		// If quote is lower than base, switch them around
+		// The lower one should be base
 		base, quote = quote, base
 		baseFlow, quoteFlow = quoteFlow, baseFlow
 	}

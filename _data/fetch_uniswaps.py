@@ -7,7 +7,7 @@ import os
 # print cwd
 print(os.getcwd())
 
-conn = sqlite3.connect("./swaps.db")  # Replace with the name of your database file
+conn = sqlite3.connect("./eth.db")  # Replace with the name of your database file
 cursor = conn.cursor()
 # Format of the swaps table
 #     CREATE TABLE swaps (
