@@ -43,9 +43,9 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 
 func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
 	cfg.Query = "./artifacts/graphQueries/meta.query"
-	metaQuery := readQueryPath(cfg.Query)
+	metaQuery := ReadQueryPath(cfg.Query)
 
-	resp, err := queryFromSubgraph(cfg.Chain, metaQuery, 0, 0, false)
+	resp, err := QueryFromSubgraph(cfg.Chain, metaQuery, 0, 0, false)
 	if err != nil {
 		return 0, err
 	}
@@ -83,7 +83,7 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
-func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int) (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int, db_string string) (int, error) {
 
 	prevObs := startTime
 	if !isAsc {
@@ -97,9 +97,9 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 		var db_resp *sql.Rows
 		var err error
 		if isAsc {
-			db_resp, err = queryFromDB( prevObs, endTime, isAsc)
+			db_resp, err = queryFromDB( prevObs, endTime, isAsc, db_string)
 		} else {
-			db_resp, err = queryFromDB( startTime, prevObs, isAsc)
+			db_resp, err = queryFromDB( startTime, prevObs, isAsc, db_string)
 		}	
 
 
@@ -135,15 +135,15 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 		}
 
 		if nIngested > 0 {
-			log.Printf("[Historical Syncer]: Loaded %d rows from subgraph from query %s up to time=%d - %s",
-				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
+			log.Printf("[Historical Syncer][%s]: Loaded %d rows from subgraph from query %s up to time=%d - %s",
+			db_string, nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
 	return nIngested, nil
 }
 
 func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTime int) (int, error) {
-	query := readQueryPath(s.config.Query)
+	query := ReadQueryPath(s.config.Query)
 
 	prevObs := startTime
 	if !isAsc {
@@ -158,9 +158,9 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		var err error
 
 		if isAsc {
-			resp, err = queryFromSubgraph(s.config.Chain, query, prevObs, endTime, isAsc)
+			resp, err = QueryFromSubgraph(s.config.Chain, query, prevObs, endTime, isAsc)
 		} else {
-			resp, err = queryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
+			resp, err = QueryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
 		}
 
 

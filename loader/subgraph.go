@@ -37,7 +37,7 @@ func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	}
 }
 
-func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
+func QueryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	request := GraphRequest{
 		Query:     query,
 		Variables: makeSubgraphVars(isAsc, startTime, endTime),
@@ -69,7 +69,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	return body, nil
 }
 
-func readQueryPath(filename string) SubgraphQuery {
+func ReadQueryPath(filename string) SubgraphQuery {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal("Unable to read file: " + filename)
