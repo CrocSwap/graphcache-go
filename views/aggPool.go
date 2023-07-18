@@ -53,13 +53,14 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	startTime := endTime - timeRange.N*timeRange.Period
 
 	if timeRange.StartTime != nil {
+
 		if(uniswapCandles){
-			endTime = *timeRange.StartTime
-			startTime = endTime - timeRange.N*timeRange.Period
-		}else {
-			startTime = *timeRange.StartTime
-			endTime = startTime + timeRange.N*timeRange.Period
-		}
+            endTime = *timeRange.StartTime + timeRange.Period
+            startTime = *timeRange.StartTime - timeRange.N *timeRange.Period
+        }else {
+            startTime = *timeRange.StartTime
+            endTime = startTime + timeRange.N*timeRange.Period
+        }
 	}
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
 
