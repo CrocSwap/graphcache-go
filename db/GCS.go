@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -77,7 +76,6 @@ func FetchObjectData(bucketName, objectName string) ([]byte, error) {
 	var ctx = context.Background()
 	var client, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
 	
-	// client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -96,28 +94,4 @@ func FetchObjectData(bucketName, objectName string) ([]byte, error) {
 	return data, nil
 }
 
-func main() {
-	// Example usage
-	bucketName := "gcgo-swap-shards"
-	// objectName := "your-object-name"
-	// filePath := "_data/file.txt"
 
-	// Fetch items from the bucket
-	items, err := FetchBucketItems(bucketName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Fetched Items:")
-	for _, item := range items {
-		fmt.Println(item.Name)
-	}
-
-	// Upload an item to the bucket
-	// err = UploadItemToBucket(bucketName, objectName, filePath)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	fmt.Println("Item uploaded successfully!")
-}

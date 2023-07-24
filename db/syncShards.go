@@ -12,16 +12,11 @@ import (
 	"github.com/CrocSwap/graphcache-go/loader"
 )
 
-var bucketName = "gcgo-swap-shards"
+
 
 func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
-	chainCfg.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
-
-	// Example usage
-	initialTimestamp := 1672531200 // January 1, 2023
-
-	daysList := GetDaysList(int64(initialTimestamp))	
-	shards, err := FetchBucketItems(bucketName)
+	daysList := GetDaysList(InitialTimestamp)
+	shards, err := FetchBucketItems(BucketName)
 	if err != nil {
 		log.Println("[Shard Syncer]: Error ", err)
 		return
@@ -34,14 +29,14 @@ func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
 		endTime := GetEndOfDayTimestamp(day)
 		shardPath := fmt.Sprintf("./db/shards/%s", day)
 		fullShardPath := shardPath + ".db"
-		if(fileExistsInDir(fullShardPath)){
-			if(!filePathExistsInBucket(fullShardPath, shards)){
+		if(FileExistsInDir(fullShardPath)){
+			if(!FilePathExistsInBucket(fullShardPath, shards)){
 				log.Println("[Shard Syncer]: Shard exists in locally but not in GCS, uploading ", shardPath)
-				UploadShardToBucket(fullShardPath, shards)
+				UploadShardToBucket(fullShardPath)
 			} else {
 				log.Println("[Shard Syncer]: Shard exists locally, skipping ", shardPath)
 			}
-		}else if(filePathExistsInBucket(fullShardPath, shards)){
+		}else if(FilePathExistsInBucket(fullShardPath, shards)){
 			log.Println("[Shard Syncer]: Shard exists in GCS, downloading ", shardPath)
 			DownloadShardFromBucket(fullShardPath)
 		}else{
@@ -53,18 +48,10 @@ func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
 	}
 }
 
-func DownloadAllShardsInBucket(){
-	shards, err := FetchBucketItems(bucketName)
-	if err != nil {
-		log.Println("[Shard Syncer]: Error ", err)
-		return 
-	}
-	log.Println("[Shard Syncer]: Found ", len(shards), " shards")
-}
 
 func DownloadShardFromBucket(filePath string){
 	_, fileName := filepath.Split(filePath)
-	data, err := FetchObjectData(bucketName, fileName)
+	data, err := FetchObjectData(BucketName, fileName)
 	if err != nil {
 		log.Fatalf("Failed to fetch object data: %v", err)
 	}
@@ -81,11 +68,11 @@ func DownloadShardFromBucket(filePath string){
 
 func UploadAllShardsToBucket(){
 	directoryPath := "./db/shards" // Specify the path to the directory
-	shards, err := FetchBucketItems(bucketName)
+	shards, err := FetchBucketItems(BucketName)
 	if err != nil {
 		log.Fatalf("Failed to get shards from GCS: %v", err)
 	}
-	files, err := getFilesInDirectory(directoryPath)
+	files, err := GetFilesInDirectory(directoryPath)
 	if err != nil {
 		log.Fatalf("Failed to get files in directory: %v", err)
 	}
@@ -95,15 +82,15 @@ func UploadAllShardsToBucket(){
 		objectName := file.Name()
 		// If file isn't in list of shards, upload it
 		if fileExistsInBucket(objectName, shards) == false {
-			log.Printf("[Shard Syncer]: In Progress - Uploading '%s' to bucket '%s'\n", filePath, bucketName)
-			err := UploadItemToBucket(bucketName, objectName, filePath)
+			log.Printf("[Shard Syncer]: In Progress - Uploading '%s' to bucket '%s'\n", filePath, BucketName)
+			err := UploadItemToBucket(BucketName, objectName, filePath)
 			if err != nil {
 				log.Printf("[Shard Syncer]: Failed to upload '%s': %v\n", filePath, err)
 			} else {
-				log.Printf("[Shard Syncer]: Finished - Uploaded '%s' to bucket '%s'\n", filePath, bucketName)
+				log.Printf("[Shard Syncer]: Finished - Uploaded '%s' to bucket '%s'\n", filePath, BucketName)
 			}
 		} else {
-			log.Printf("[Shard Syncer]: Skipping '%s' to bucket '%s'\n", filePath, bucketName)
+			log.Printf("[Shard Syncer]: Skipping '%s' to bucket '%s'\n", filePath, BucketName)
 		}
 	}
 
@@ -111,33 +98,30 @@ func UploadAllShardsToBucket(){
 }
 
 
-func UploadShardToBucket(filePath string, shards []*storage.ObjectAttrs){
+func UploadShardToBucket(filePath string){
 	_, fileName := filepath.Split(filePath)
-	var err error
-	if(len(shards) == 0){
 		
-		shards, err = FetchBucketItems(bucketName)
-		if err != nil {
-			log.Fatalf("Failed to get shards from GCS: %v", err)
-		}
+	shards, err := FetchBucketItems(BucketName)
+	if err != nil {
+		log.Fatalf("Failed to get shards from GCS: %v", err)
 	}
 	
 	// If file isn't in list of shards, upload it
 	if fileExistsInBucket(fileName, shards) == false {
-		log.Printf("[Shard Syncer]: In Progress - Uploading '%s' to bucket '%s'\n", filePath, bucketName)
-		err := UploadItemToBucket(bucketName, fileName, filePath)
+		log.Printf("[Shard Syncer]: In Progress - Uploading '%s' to bucket '%s'\n", filePath, BucketName)
+		err := UploadItemToBucket(BucketName, fileName, filePath)
 		if err != nil {
 			log.Printf("[Shard Syncer]: Failed to upload '%s': %v\n", filePath, err)
 		} else {
-			log.Printf("[Shard Syncer]: Finished - Uploaded '%s' to bucket '%s'\n", filePath, bucketName)
+			log.Printf("[Shard Syncer]: Finished - Uploaded '%s' to bucket '%s'\n", filePath, BucketName)
 		}
 	} else {
-		log.Printf("[Shard Syncer]: Skipping '%s' to bucket '%s'\n", filePath, bucketName)
+		log.Printf("[Shard Syncer]: Skipping '%s' to bucket '%s'\n", filePath, BucketName)
 	}
 	
 }
 
-func filePathExistsInBucket(filePath string, shards []*storage.ObjectAttrs) bool {
+func FilePathExistsInBucket(filePath string, shards []*storage.ObjectAttrs) bool {
 	_, fileName := filepath.Split(filePath)
 	return fileExistsInBucket(fileName, shards)
 }
@@ -152,7 +136,7 @@ func fileExistsInBucket(fileName string, shards []*storage.ObjectAttrs) bool {
 	return false
 }
 
-func fileExistsInDir(filePath string) bool {
+func FileExistsInDir(filePath string) bool {
 	// Check if the file exists
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
@@ -161,7 +145,7 @@ func fileExistsInDir(filePath string) bool {
 
 	return true
 }
-func getFilesInDirectory(directoryPath string) ([]os.FileInfo, error) {
+func GetFilesInDirectory(directoryPath string) ([]os.FileInfo, error) {
 	files, err := ioutil.ReadDir(directoryPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %v", err)
@@ -178,13 +162,13 @@ func getFilesInDirectory(directoryPath string) ([]os.FileInfo, error) {
 }
 
 // GetDaysList returns a list of formatted date strings between the given initial timestamp and the current date (excluding the current day).
-func GetDaysList(initialTimestamp int64) []string {
+func GetDaysList(startTime int64) []string {
 	currentTime := time.Now()
 	currentDate := currentTime.Truncate(24 * time.Hour) // Truncate time to get the start of the current day
 
 	var daysList []string
 
-	for timestamp := initialTimestamp + 24*60*60; timestamp < currentDate.Unix(); timestamp += 24*60*60 {
+	for timestamp := currentDate.Unix(); timestamp >= startTime + 24*60*60;  timestamp -= 24*60*60 {
 		date := time.Unix(timestamp, 0).Format("2006-01-02")
 		daysList = append(daysList, date)
 	}

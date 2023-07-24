@@ -6,11 +6,12 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/tables"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 
@@ -18,23 +19,23 @@ import (
 
 
 func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, startTime int, endTime int) {
-	shardFile := shardPath + ".db"
-	shardTempFile := shardPath + "_temp.db"
-	if(fileExistsInDir(shardFile)){
+	chainCfg.Subgraph = UniswapSubgraph
+	trimmedFileName := strings.TrimSuffix(shardPath, ".db")
+	shardFile := trimmedFileName + ".db"
+	shardTempFile := trimmedFileName + "_temp.db"
+	if(FileExistsInDir(shardFile)){
 		log.Println("[Shard Syncer]: Shard already exists, skipping ", shardPath)
 		return 
 	}
 
-	// Connect to the SQLite database
-	// Name it after shard_name
-	db, err := sql.Open("sqlite3", shardTempFile) // Replace with the name of your database file
+	db_, err := sql.Open("sqlite3", shardTempFile) // Replace with the name of your database file
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
-	defer db.Close()
+	defer db_.Close()
 
 	// Create the swaps table if it doesn't exist
-	_, err = db.Exec(`
+	_, err = db_.Exec(`
 		CREATE TABLE IF NOT EXISTS swaps (
 			id INTEGER PRIMARY KEY,
 			swap JSON,
@@ -59,7 +60,7 @@ func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, s
 			return 
 		} 
 	
-		log.Printf("[Shard Syncer]: Fetch swaps between %s and %s\n", time.Unix(int64(startTime), 0).Format("01/02/2006 15:04:05"), time.Unix(int64(endTime), 0).Format("01/02/2006 15:04:05"))
+		log.Printf("[Shard Syncer]: Fetched swaps between %s and %s\n", time.Unix(int64(startTime), 0).Format("01/02/2006 15:04:05"), time.Unix(int64(endTime), 0).Format("01/02/2006 15:04:05"))
 		// Check the status of the request
 		if err == nil {
 			swaps, ok := uniswapsTable.ParseSubGraphResp(response)
@@ -78,7 +79,7 @@ func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, s
 			newStartTime, err := strconv.Atoi(lastSwap.Timestamp)
 			startTime = newStartTime + 1
 
-			tx, err := db.Begin()
+			tx, err := db_.Begin()
 			if err != nil {
 				log.Fatalf("Failed to start transaction: %v", err)
 			}
@@ -122,6 +123,6 @@ func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, s
 	if rename_error != nil {
 		log.Fatalf("Failed to rename file: %v", err)
 	}
-	go UploadShardToBucket(shardFile, []*storage.ObjectAttrs{})
+	go UploadShardToBucket(shardFile)
 
 }

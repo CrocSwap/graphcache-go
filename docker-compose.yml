@@ -12,4 +12,3 @@ services:
       - ./_data:/app/_data
     environment:
       - UNISWAP_CANDLES=true
-      - UNISWAP_DB_NAME=./_data/database.db
