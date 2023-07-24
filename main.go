@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/controller"
-	"github.com/CrocSwap/graphcache-go/db"
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/server"
 	"github.com/CrocSwap/graphcache-go/utils"
@@ -23,20 +23,13 @@ func main() {
 
 	cache := cache.New()
 	cntrl := controller.New(netCfg, cache)
-
 	for network, chainCfg := range netCfg {
-		// startTime :=  int(time.Now().Unix())
-		// yesterday := startTime - 3600*24
-		// controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
-		// if(uniswapCandles){
-		// 	// controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime, "./_data/database.db")
-		// 	// controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime, "./_data/eth.db")
-		// 	// loader.FetchUniswapAndSaveToShard(chainCfg, "./_data/new.db", yesterday, startTime)
-
-		// }
-		fmt.Println("cntrl, network", cntrl, network, chainCfg)
-		// db.SyncLocalShardsWithUniswap(chainCfg)
-		db.SyncLocalShardsWithUniswap(chainCfg)
+		startTime :=  int(time.Now().Unix())
+		controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
+		if(uniswapCandles){
+			controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime)
+		}
+		fmt.Println("cntrl, network", cntrl, network, chainCfg,startTime)
 
 	}
 

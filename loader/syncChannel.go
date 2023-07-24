@@ -17,7 +17,6 @@ type SyncChannel[R any, S any] struct {
 	RowsIngested     int
 	idsObserved      map[string]bool
 	consumeFn        func(R)
-	saveToDBFn        func([]S)
 	config           SyncChannelConfig
 	tbl              tables.ITable[R, S]
 }
@@ -29,13 +28,12 @@ type SyncChannelConfig struct {
 }
 
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
-	consumeFn func(R), saveToDBFn func([]S)) SyncChannel[R, S] {
+	consumeFn func(R)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
 		LastObserved:     0,
 		EarliestObserved: 1000 * 1000 * 1000 * 1000,
 		idsObserved:      make(map[string]bool),
 		consumeFn:        consumeFn,
-		saveToDBFn: 	  saveToDBFn,
 		config:           config,
 		tbl:              tbl,
 	}
@@ -83,7 +81,7 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
-func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int, db_string string) (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int, dbString string) (int, error) {
 
 	prevObs := startTime
 	if !isAsc {
@@ -97,9 +95,9 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 		var db_resp *sql.Rows
 		var err error
 		if isAsc {
-			db_resp, err = queryFromDB( prevObs, endTime, isAsc, db_string)
+			db_resp, err = QueryFromDB( prevObs, endTime, isAsc, dbString)
 		} else {
-			db_resp, err = queryFromDB( startTime, prevObs, isAsc, db_string)
+			db_resp, err = QueryFromDB( startTime, prevObs, isAsc, dbString)
 		}	
 
 
@@ -136,7 +134,7 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 
 		if nIngested > 0 {
 			log.Printf("[Historical Syncer][%s]: Loaded %d rows from subgraph from query %s up to time=%d - %s",
-			db_string, nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
+			dbString, nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
 	return nIngested, nil
@@ -175,10 +173,6 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 			return nIngested, err
 		}
 
-		if s.saveToDBFn != nil {
-			s.saveToDBFn(entries)
-		}
-
 		for _, entry := range entries {
 			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
 			s.ingestEntry(row)
@@ -193,12 +187,8 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 			prevObs = s.EarliestObserved
 		}
 
-		var logString string
-		if s.saveToDBFn != nil {
-			logString = "[Historical Syncer]:"
-		} else {
-			logString = "[Polling Syncer]:"
-		}
+		logString := "[Polling Syncer]:"
+
 		if nIngested > 0 {
 			log.Printf("%s Loaded %d rows from subgraph from query %s up to time=%d - %s", logString,
 				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())

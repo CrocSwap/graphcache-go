@@ -28,4 +28,5 @@ tmp*
 .env
 
 *.db
+*GCS_credentials.json
 
