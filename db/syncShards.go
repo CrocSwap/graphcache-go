@@ -27,7 +27,7 @@ func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
 	for _, day := range daysList {
 		startTime := GetStartOfDayTimestamp(day)
 		endTime := GetEndOfDayTimestamp(day)
-		shardPath := fmt.Sprintf("./db/shards/%s", day)
+		shardPath := fmt.Sprintf("%s/%s",ShardsPath, day)
 		fullShardPath := shardPath + ".db"
 		if(FileExistsInDir(fullShardPath)){
 			if(!FilePathExistsInBucket(fullShardPath, shards)){
