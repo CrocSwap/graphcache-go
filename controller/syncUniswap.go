@@ -102,7 +102,7 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 			dayEndTime := db.GetEndOfDayTimestamp(ingestionItem.Name)
 			log.Printf("[Historical Syncer]: Creating shard from Subgraph: %s between dates %s and %s \n", ingestionItem.Name,  time.Unix(int64(dayStartTime), 0),  time.Unix(int64(dayEndTime), 0))
 
-			db.FetchUniswapAndSaveToShard(s.cfg.Chain, ingestionItem.Path, int(dayStartTime), int(dayEndTime))
+			db.FetchUniswapAndSaveToShard(s.cfg.Chain, ingestionItem.Path, int(dayStartTime), int(dayEndTime), "Historical Syncer")
 			log.Printf("[Historical Syncer]: Created shard: %s \n", ingestionItem.Name)
 
 		}
@@ -116,7 +116,6 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 
 func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTime int, dbString string) {
 	s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
-	s.cfg.Chain.Subgraph = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
 	tblAgg := tables.UniSwapsTable{}
 	var nRows int
 

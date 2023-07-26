@@ -18,13 +18,12 @@ import (
 
 
 
-func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, startTime int, endTime int) {
-	chainCfg.Subgraph = UniswapSubgraph
+func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, startTime int, endTime int, source string) {
 	trimmedFileName := strings.TrimSuffix(shardPath, ".db")
 	shardFile := trimmedFileName + ".db"
 	shardTempFile := trimmedFileName + "_temp.db"
 	if(FileExistsInDir(shardFile)){
-		log.Println("[Shard Syncer]: Shard already exists, skipping ", shardPath)
+		log.Printf("[%s]: Shard already exists, skipping %s ", source, shardPath)
 		return 
 	}
 
@@ -60,7 +59,7 @@ func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, s
 			return 
 		} 
 	
-		log.Printf("[Shard Syncer]: Fetched swaps between %s and %s\n", time.Unix(int64(startTime), 0).Format("01/02/2006 15:04:05"), time.Unix(int64(endTime), 0).Format("01/02/2006 15:04:05"))
+		log.Printf("[%s]: Fetched swaps between %s and %s\n",source, time.Unix(int64(startTime), 0).Format("01/02/2006 15:04:05"), time.Unix(int64(endTime), 0).Format("01/02/2006 15:04:05"))
 		// Check the status of the request
 		if err == nil {
 			swaps, ok := uniswapsTable.ParseSubGraphResp(response)
@@ -72,7 +71,7 @@ func FetchUniswapAndSaveToShard(chainCfg loader.ChainConfig, shardPath string, s
 				break
 			}
 			total_swaps += len(swaps)
-			log.Println("[Shard Syncer]: Total swaps: ", total_swaps)
+			log.Printf("[%s]: Total swaps: %d", source, total_swaps)
 
 			// Update the timestamp to be the timestamp of the last swap in the result
 			lastSwap := swaps[len(swaps)-1]

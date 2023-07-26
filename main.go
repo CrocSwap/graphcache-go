@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/controller"
+	"github.com/CrocSwap/graphcache-go/db"
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/server"
 	"github.com/CrocSwap/graphcache-go/utils"
@@ -16,6 +17,9 @@ import (
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 func main() {
 	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
+	if(uniswapCandles){
+		*netCfgPath = "./config/uniswapNetwork.json"
+	}
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
@@ -27,9 +31,16 @@ func main() {
 		startTime :=  int(time.Now().Unix())
 		controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
 		if(uniswapCandles){
+			hourToSyncUniswapShards, err := strconv.Atoi(utils.GoDotEnvVariable("HOUR_TO_SYNC_UNISWAP_SHARDS"))
+			if err != nil {
+				hourToSyncUniswapShards = 1
+			}
+			gmt := time.FixedZone("GMT", 0)
+			time.Local = gmt
+		
+			go db.ScheduleSyncShards(hourToSyncUniswapShards, chainCfg)
 			controller.NewUniswapSyncer(cntrl, chainCfg, network, startTime)
 		}
-		fmt.Println("cntrl, network", cntrl, network, chainCfg,startTime)
 
 	}
 

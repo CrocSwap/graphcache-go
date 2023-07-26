@@ -41,7 +41,7 @@ func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
 			DownloadShardFromBucket(fullShardPath)
 		}else{
 			log.Println("[Shard Syncer]: Creating shard from uniswap ", shardPath)
-			FetchUniswapAndSaveToShard(chainCfg,shardPath, int(startTime), int(endTime))
+			FetchUniswapAndSaveToShard(chainCfg,shardPath, int(startTime), int(endTime), "Shard Syncer")
 		}
 
 		
@@ -168,11 +168,11 @@ func GetDaysList(startTime int64) []string {
 
 	var daysList []string
 
-	for timestamp := currentDate.Unix(); timestamp >= startTime + 24*60*60;  timestamp -= 24*60*60 {
+	for timestamp := currentDate.Unix() - 1; timestamp >= startTime;  timestamp -= 24*60*60 {
 		date := time.Unix(timestamp, 0).Format("2006-01-02")
 		daysList = append(daysList, date)
 	}
-
+	
 	return daysList
 }
 
