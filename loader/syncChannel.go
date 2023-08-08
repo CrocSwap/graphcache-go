@@ -100,6 +100,10 @@ func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int
 			db_resp, err = QueryFromDB( startTime, prevObs, isAsc, dbString)
 		}	
 
+		if(err != nil){
+			fmt.Println(err)
+		}
+
 
 
 		// Iterate over the rows and process the data

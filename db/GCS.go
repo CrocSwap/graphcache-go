@@ -9,7 +9,6 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 )
-var credentialsFile = "./db/GCS_credentials.json"
 
 // FetchBucketItems fetches the items (objects) from the specified GCS bucket and returns a slice of storage.ObjectAttrs.
 func FetchBucketItems(bucketName string) ([]*storage.ObjectAttrs, error) {

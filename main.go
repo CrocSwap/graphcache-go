@@ -31,7 +31,7 @@ func main() {
 		startTime :=  int(time.Now().Unix())
 		controller.NewSubgraphSyncer(cntrl, chainCfg, network, startTime)
 		if(uniswapCandles){
-			hourToSyncUniswapShards, err := strconv.Atoi(utils.GoDotEnvVariable("HOUR_TO_SYNC_UNISWAP_SHARDS"))
+			hourToSyncUniswapShards, err := strconv.Atoi(utils.GoDotEnvVariable("UNISWAP_HOUR_TO_SYNC_SHARDS"))
 			if err != nil {
 				hourToSyncUniswapShards = 1
 			}

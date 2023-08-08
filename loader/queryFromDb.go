@@ -31,7 +31,7 @@ func QueryFromDB(startTime int, endTime int, isAsc bool, dbString string) (*sql.
 		FROM swaps
 		WHERE swap_time >= ? AND swap_time <= ?
 		ORDER BY swap_time ` + order + `
-		LIMIT 10000
+		LIMIT 50000;
 		`)
 
 

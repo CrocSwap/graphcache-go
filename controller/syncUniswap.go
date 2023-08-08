@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/db"
@@ -19,7 +18,6 @@ type IngestionItem  struct {
 	Name string
 	Path string
 	Method string // local, gcs, subgraph 
-	// TODO: better typing on method
 };
 
 func NewUniswapSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, serverStartupTime int) SubgraphSyncer {
@@ -31,7 +29,11 @@ func NewUniswapSyncer(controller *Controller, chainConfig loader.ChainConfig, ne
 }
 
 
-
+// Creates a list for each day back to the initial timestamp
+// Each item in the list has a method for how to ingest the data
+// local: the shard is already downloaded locally
+// gcs: the shard is in the GCS bucket
+// subgraph: the shard needs to be created from the subgraph
 func createIngestionList() []IngestionItem{
 	GCSShards, err := db.FetchBucketItems(db.BucketName)
 
@@ -64,14 +66,6 @@ func createIngestionList() []IngestionItem{
 
 }
 func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTime int) {
-	// notif <- true // Signal that the server is ready to accept requests
-	// UNISWAP_CANDLE_LOOKBACK_WINDOW :=  int(time.Now().Unix()) -  3600 *24 *7
-	// TODO: remove this env var
-	daysOfCandlesBeforeServerReady, err := strconv.Atoi(utils.GoDotEnvVariable("DAYS_OF_UNISWAP_CANDLES_BEFORE_SERVER_READY"))
-	if err != nil {
-		daysOfCandlesBeforeServerReady = 0
-	}
-	
 	currentTime :=  time.Now()
     startOfToday := currentTime.Truncate(24 * time.Hour).Unix()
 
@@ -85,8 +79,8 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 	firedNotif := false
 	for i, ingestionItem := range ingestionList {
 		log.Println("Ingesting item",ingestionItem.Name)
-		if  i > daysOfCandlesBeforeServerReady && !firedNotif {
-			log.Printf("[Historical Syncer]: Exposing API after ingesting %d days of data\n", daysOfCandlesBeforeServerReady)
+		if  i > db.DaysOfCandlesBeforeServerReady && !firedNotif {
+			log.Printf("[Historical Syncer]: Exposing API after ingesting %d days of data\n", db.DaysOfCandlesBeforeServerReady)
 			notif <- true
 			firedNotif = true
 		}
@@ -97,20 +91,15 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 			db.DownloadShardFromBucket(ingestionItem.Path)
 			case "subgraph":
 			// Fetch from subgraph while saving to a shard
-
 			dayStartTime := db.GetStartOfDayTimestamp(ingestionItem.Name)
 			dayEndTime := db.GetEndOfDayTimestamp(ingestionItem.Name)
 			log.Printf("[Historical Syncer]: Creating shard from Subgraph: %s between dates %s and %s \n", ingestionItem.Name,  time.Unix(int64(dayStartTime), 0),  time.Unix(int64(dayEndTime), 0))
-
 			db.FetchUniswapAndSaveToShard(s.cfg.Chain, ingestionItem.Path, int(dayStartTime), int(dayEndTime), "Historical Syncer")
 			log.Printf("[Historical Syncer]: Created shard: %s \n", ingestionItem.Name)
-
 		}
 		s.syncUniswapCandles("shard", int(db.InitialTimestamp), serverStartupTime, ingestionItem.Path)
 		log.Printf("[Historical Syncer]: Synced local shard %s \n", ingestionItem.Name)
-
 	}
-
 }
 
 
@@ -126,7 +115,7 @@ func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTi
 		nRows, _ = syncAgg.SyncTableToSubgraph(true, startTime, syncTime)
 	case "shard":
 		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent)
+			tblAgg, s.cfg, s.cntr.IngestAggEvent)		
 		nRows, _ = syncAgg.SyncTableToDB(false, startTime, syncTime, dbString)
 
 	default:
