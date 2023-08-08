@@ -1,0 +1,20 @@
+# This docker file will run the app in uniswap candles mode
+version: "3"
+services:
+  graphcache-go:
+    image: graphcache-go
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 8080:8080
+    restart: always
+    volumes:
+      - ./db/shards:/app/db/shards
+    environment:
+      - UNISWAP_CANDLES=true
+      - UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30
+      - UNISWAP_HOUR_TO_SYNC_SHARDS=1
+      - UNISWAP_GCS_BUCKET_NAME=gcgo-swap-shards
+      - UNISWAP_SHARDS_PATH=./db/shards
+      - UNISWAP_PATH_TO_GCS_CREDENTIALS=./GCS_credentials.json

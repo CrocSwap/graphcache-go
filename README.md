@@ -43,20 +43,31 @@ The following exposed endpoints and their URL and paramters are listed in `serve
 
 ## Uniswap Candles
 
-Create a .env file and add the var: `UNISWAP_CANDLES=true`
-This will run the repo in such a way that only the swaps from uniswap syncs and no other data is pulled. This is meant to be run alongside the normal implementation of graphcache-go to supplement candles from other pools and historical data. Candles will be found at the same endpoint when run in this mode.
+To run the repo in such a way that only the swaps from uniswap syncs and no other data is pulled, perform the following steps. This is meant to be run alongside the normal implementation of graphcache-go to supplement candles from other pools and historical data. Candles will be found at `gcgo/pool_candles` when run in this mode.
+
+1. Create a .env file and add the vars:
+
+```
+UNISWAP_CANDLES=true // Flag to put system into Uniswap Candles mode
+UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30 //
+UNISWAP_HOUR_TO_SYNC_SHARDS=1
+UNISWAP_GCS_BUCKET_NAME=gcgo-swap-shards
+UNISWAP_SHARDS_PATH=./db/shards
+UNISWAP_PATH_TO_GCS_CREDENTIALS=./GCS_credentials.json
+```
+
+2. Add the credentials file `GCS_credentials.json`
+3. Build and run the container: `docker-compose -f ./docker-compose.uniswap.yml up`
+4. To run w/o docker - `go build && ./graphcache-go` will work assuming you have the right env.
 
 On startup of the server, a few things will happen
 
 1. the Polling Syncer will begin pulling data from the uniswap subgraph into memory every minute or so.
-2. Concurrently, it will fetch the date of the most recent swap in the db (`dbLast`) and then try to update the db to the start time from the uniswap subgraph while producing candle data for those swaps. It goes in forward order.
-3. Once the db is caught up to start time, it will go in reverse order from `dbLast` until Jan1 loading candle data from the db.
+2. It will then iterate all the dance from today back to January first and attempt to load them either from a GCS Shard or from the subgraph.
+3. A task `SyncLocalShardsWithUniswap` is run once per day to create any shards and store them in GCS for a faster reboot later.
 
-## Run Uniswap Candles
+#### Env Explanation
 
-1. Pull db w/ swaps from January 1, 2023 `./_data/pull-db.sh`
-2. Build and run the container: `docker-compose up`
-
-#### fetch_uniswaps
-
-file fetch_uniswaps.py can by run like this `python3 fetch_uniswaps.py` - this routine is used to grab uniswap swap data and store it in the database. Was used once only to generate db file on creation of uniswap candle feature.
+UNISWAP_CANDLES: Flag to put system into Uniswap Candles mode
+UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY: Don't expose endpoints until this many days have been ingested into memory
+UNISWAP_HOUR_TO_SYNC_SHARDS=Hour to run sync task, 1 => 1AM, 13 => 1PM

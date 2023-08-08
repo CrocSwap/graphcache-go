@@ -9,8 +9,6 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-// var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
-
 type SubgraphSyncer struct {
 	cntr         *ControllerOverNetwork
 	cfg          loader.SyncChannelConfig

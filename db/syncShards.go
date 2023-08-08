@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/CrocSwap/graphcache-go/loader"
 )
-
 
 
 func SyncLocalShardsWithUniswap(chainCfg loader.ChainConfig) {
@@ -56,7 +54,7 @@ func DownloadShardFromBucket(filePath string){
 		log.Fatalf("Failed to fetch object data: %v", err)
 	}
 	// Now write the data to the filepath
-	err = ioutil.WriteFile(filePath, data, 0644)
+	err = os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		log.Fatalf("Failed to write file: %v", err)
 	}
@@ -64,37 +62,6 @@ func DownloadShardFromBucket(filePath string){
 	log.Println("[Shard Syncer]: Finished - Downloaded shard from bucket", filePath)
 
 
-}
-
-func UploadAllShardsToBucket(){
-	directoryPath := "./db/shards" // Specify the path to the directory
-	shards, err := FetchBucketItems(BucketName)
-	if err != nil {
-		log.Fatalf("Failed to get shards from GCS: %v", err)
-	}
-	files, err := GetFilesInDirectory(directoryPath)
-	if err != nil {
-		log.Fatalf("Failed to get files in directory: %v", err)
-	}
-
-	for _, file := range files {
-		filePath := directoryPath + "/" + file.Name()
-		objectName := file.Name()
-		// If file isn't in list of shards, upload it
-		if fileExistsInBucket(objectName, shards) == false {
-			log.Printf("[Shard Syncer]: In Progress - Uploading '%s' to bucket '%s'\n", filePath, BucketName)
-			err := UploadItemToBucket(BucketName, objectName, filePath)
-			if err != nil {
-				log.Printf("[Shard Syncer]: Failed to upload '%s': %v\n", filePath, err)
-			} else {
-				log.Printf("[Shard Syncer]: Finished - Uploaded '%s' to bucket '%s'\n", filePath, BucketName)
-			}
-		} else {
-			log.Printf("[Shard Syncer]: Skipping '%s' to bucket '%s'\n", filePath, BucketName)
-		}
-	}
-
-	log.Println("[Shard Syncer]: Finished - Uploaded all shards to bucket")
 }
 
 
@@ -145,21 +112,6 @@ func FileExistsInDir(filePath string) bool {
 
 	return true
 }
-func GetFilesInDirectory(directoryPath string) ([]os.FileInfo, error) {
-	files, err := ioutil.ReadDir(directoryPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %v", err)
-	}
-
-	var fileList []os.FileInfo
-	for _, file := range files {
-		if !file.IsDir() {
-			fileList = append(fileList, file)
-		}
-	}
-
-	return fileList, nil
-}
 
 // GetDaysList returns a list of formatted date strings between the given initial timestamp and the current date (excluding the current day).
 func GetDaysList(startTime int64) []string {
@@ -172,7 +124,7 @@ func GetDaysList(startTime int64) []string {
 		date := time.Unix(timestamp, 0).Format("2006-01-02")
 		daysList = append(daysList, date)
 	}
-	
+
 	return daysList
 }
 
@@ -188,7 +140,3 @@ func GetEndOfDayTimestamp(date string) int64 {
 	return endTime.Add(24*time.Hour - time.Second).Unix()
 }
 
-// FetchSwapShard is a placeholder function that accepts start and end timestamps and performs some operation.
-func FetchSwapShard(shardName string, startTime, endTime int) {
-	fmt.Printf("Calling FetchSwapShard for %s with start time: %v, end time: %v\n", shardName, startTime, endTime)
-}
