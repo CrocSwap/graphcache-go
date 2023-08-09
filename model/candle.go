@@ -1,6 +1,11 @@
 package model
 
-import "github.com/CrocSwap/graphcache-go/utils"
+import (
+	"fmt"
+	"math"
+
+	"github.com/CrocSwap/graphcache-go/utils"
+)
 
 type CandleBuilder struct {
 	series      []Candle
@@ -14,6 +19,10 @@ type RunningCandle struct {
 	lastAccum       AccumPoolStats
 	openCumBaseVol  float64
 	openCumQuoteVol float64
+
+	accumPoolStats []AccumPoolStats
+
+
 }
 
 type Candle struct {
@@ -33,9 +42,14 @@ type Candle struct {
 	Time         int     `json:"time"`
 
 	IsDecimalized bool   `json:"isDecimalized"`
+
+
+
 }
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
+var MevThreshold = utils.GetEnvVarIntFromString("MEV_THRESHOLD", 1000000)
+var EnableStdDevFilter = utils.GoDotEnvVariable("ENABLE_STD_DEV_FILTER") == "true"
 func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
 		series:      make([]Candle, 0),
@@ -67,6 +81,8 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 	c.running.lastAccum = accum
 	c.running.openCumBaseVol = accum.BaseVolume
 	c.running.openCumQuoteVol = accum.QuoteVolume
+	c.running.accumPoolStats =  make([]AccumPoolStats, 0)
+
 }
 
 func (c *CandleBuilder) Close(endTime int) []Candle {
@@ -99,25 +115,75 @@ func (c *CandleBuilder) closeCandle() {
 	c.openCandle(c.running.lastAccum, c.running.candle.Time+c.period)
 }
 
-func (c *CandleBuilder) Increment(accum AccumPoolStats) {
+
+
+func (c *CandleBuilder) accumulateCandle(rollingStdDev RollingStdDev) {
+	valid := 0
+	filtered := 0
+
+	for _, accum := range c.running.accumPoolStats {
+
+		if(!EnableStdDevFilter || AllowedThroughStdDevFilter(accum, rollingStdDev, c.running.candle.PriceOpen, c.running.candle.PriceClose)){
+			valid += 1
+			if accum.LastPriceSwap < c.running.candle.MinPrice {
+				c.running.candle.MinPrice = accum.LastPriceSwap
+			}
+			if accum.LastPriceSwap > c.running.candle.MaxPrice {
+				c.running.candle.MaxPrice = accum.LastPriceSwap
+			}
+
+			c.running.candle.VolumeBase = accum.BaseVolume - c.running.openCumBaseVol
+			c.running.candle.VolumeQuote = accum.QuoteVolume - c.running.openCumQuoteVol
+
+			c.running.candle.TvlBase = accum.BaseTvl
+			c.running.candle.TvlQuote = accum.QuoteTvl
+
+			c.running.candle.FeeRateClose = accum.FeeRate
+		} else {
+			filtered += 1
+		}
+	} 
+
+	fmt.Println("Debug, percent filtered", filtered, valid, math.Round(float64(filtered)/float64(len(c.running.accumPoolStats)) * 100 ))
+	c.running.accumPoolStats = make([]AccumPoolStats, 0)
+	c.closeCandle()
+}
+
+func (c *CandleBuilder) Increment(accum AccumPoolStats, rollingStdDev RollingStdDev)  {
 	for accum.LatestTime >= c.running.candle.Time+c.period {
-		c.closeCandle()
+		c.accumulateCandle(rollingStdDev)
 	}
-
 	c.running.candle.PriceClose = accum.LastPriceSwap
-	if accum.LastPriceSwap < c.running.candle.MinPrice {
-		c.running.candle.MinPrice = accum.LastPriceSwap
-	}
-	if accum.LastPriceSwap > c.running.candle.MaxPrice {
-		c.running.candle.MaxPrice = accum.LastPriceSwap
-	}
-
-	c.running.candle.VolumeBase = accum.BaseVolume - c.running.openCumBaseVol
-	c.running.candle.VolumeQuote = accum.QuoteVolume - c.running.openCumQuoteVol
-
-	c.running.candle.TvlBase = accum.BaseTvl
-	c.running.candle.TvlQuote = accum.QuoteTvl
-
-	c.running.candle.FeeRateClose = accum.FeeRate
+	c.running.accumPoolStats = append(c.running.accumPoolStats, accum)
 	c.running.lastAccum = accum
+} 
+
+func AllowedThroughStdDevFilter(accum AccumPoolStats, rollingStdDev RollingStdDev, PriceOpen float64, PriceClose float64) bool {
+	thresholdMin := math.Min(PriceOpen, PriceClose)
+	thresholdMax := math.Max(PriceOpen, PriceClose)
+	stdev := rollingStdDev[accum.LatestTime]
+	var mevMargin = 0.0
+	if accum.LastPriceSwap < thresholdMin {
+		mevMargin = (thresholdMin - accum.LastPriceSwap) / stdev
+	} else if accum.LastPriceSwap > thresholdMax {
+		mevMargin = (accum.LastPriceSwap - thresholdMax )/ stdev
+	}
+
+
+	if mevMargin > float64(MevThreshold){
+		return false
+	}
+	
+
+	return true
+}
+
+func calculateMEVMargin(Price float64, stdev, thresholdMin float64, thresholdMax float64) float64{
+	var mevMargin = 0.0
+	if Price < thresholdMin {
+		mevMargin = (thresholdMin - Price) / stdev
+	} else if Price > thresholdMax {
+		mevMargin = (Price - thresholdMax )/ stdev
+	}
+	return mevMargin
 }
