@@ -71,3 +71,5 @@ On startup of the server, a few things will happen
 UNISWAP_CANDLES: Flag to put system into Uniswap Candles mode
 UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY: Don't expose endpoints until this many days have been ingested into memory
 UNISWAP_HOUR_TO_SYNC_SHARDS=Hour to run sync task, 1 => 1AM, 13 => 1PM
+
+Uniswap candles is only run with mainnet - there is no testnet env.

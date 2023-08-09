@@ -1,9 +1,11 @@
 package model
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
+	"github.com/montanaflynn/stats"
 )
 
 type PoolTradingHistory struct {
@@ -34,6 +36,51 @@ func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
 		h.TimeSnaps = append(h.TimeSnaps, h.StatsCounter)
 	}
 	h.StatsCounter.Accumulate(r)
+}
+
+ 
+type RollingStdDev map[int]float64 
+
+func ComputeRollingStdDev(data []AccumPoolStats, windowSize int) RollingStdDev {
+	if(len(data) < windowSize){
+		return RollingStdDev{}
+	}
+
+	prices := make([]float64, len(data))
+	fmt.Println("Debug, len data", len(data))
+
+	for i, d := range data {
+		prices[i] = float64(d.LastPriceSwap)
+	}
+	fmt.Println("Debug, A")
+	rangeStdDev := make([]float64, len(data)-windowSize+1)
+
+	rollingStdDev := make(RollingStdDev)
+
+	fmt.Println("Debug, B")
+
+	for i := range rangeStdDev {
+		sdev, err := stats.StandardDeviation(prices[i:i+windowSize])
+		if err != nil {
+			fmt.Println("Rolling Standard Dev error")
+		}
+		rollingStdDev[data[i].LatestTime] = sdev
+	}
+
+	// Convert the struct to JSON
+	// jsonData, err := json.Marshal(rollingStdDev)
+	// if err != nil {
+	// 	fmt.Println("Error marshaling JSON:", err)
+	// }
+
+	// // Write the JSON data to a file
+	// err = ioutil.WriteFile("rollingStdDev.json", jsonData, 0644)
+	// if err != nil {
+	// 	fmt.Println("Error writing file:", err)
+		
+	// }
+
+	return rollingStdDev
 }
 
 type AccumPoolStats struct {

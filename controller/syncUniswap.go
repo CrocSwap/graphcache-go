@@ -72,7 +72,7 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 	ingestionList := createIngestionList()
 	log.Printf("[Historical Syncer]: now syncing Uniswaps from %s to %s\n", time.Unix(int64(startOfToday), 0), time.Unix(int64(serverStartupTime), 0))
 
-	s.syncUniswapCandles("subgraph", int(startOfToday), serverStartupTime, "")
+	// s.syncUniswapCandles("subgraph", int(startOfToday), serverStartupTime, "")
 	log.Printf("[Historical Syncer]: Synced uniswap swaps from subgraph %s to %s\n", time.Unix(int64(startOfToday), 0), time.Unix(int64(serverStartupTime), 0))
 
 

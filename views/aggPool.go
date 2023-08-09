@@ -9,6 +9,7 @@ import (
 )
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
+var stdDevWindowSize = utils.GetEnvVarIntFromString("UNISWAP_STD_DEV_WINDOW_SIZE", 5)
 
 func (v *Views) QueryPoolStats(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int) model.AccumPoolStats {
@@ -64,11 +65,14 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	}
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
 
+	rollingStdDev  := model.ComputeRollingStdDev(series, stdDevWindowSize)
+
 	builder := model.NewCandleBuilder(startTime, timeRange.Period, open)
 	for _, accum := range series {
-		builder.Increment(accum)
+		builder.Increment(accum, rollingStdDev)
 	}
 	 candles := builder.Close(endTime)
+	 
 
 	 if(uniswapCandles){
 		//  Reverse the order of the candles
