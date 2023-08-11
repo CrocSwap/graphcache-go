@@ -18,10 +18,7 @@ type RunningCandle struct {
 	lastAccum       AccumPoolStats
 	openCumBaseVol  float64
 	openCumQuoteVol float64
-
 	accumPoolStats []AccumPoolStats
-
-
 }
 
 type Candle struct {
@@ -41,14 +38,11 @@ type Candle struct {
 	Time         int     `json:"time"`
 
 	IsDecimalized bool   `json:"isDecimalized"`
-
-
-
 }
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 var MevThreshold = utils.GetEnvVarIntFromString("MEV_THRESHOLD", 1000000)
-var EnableStdDevFilter = utils.GoDotEnvVariable("ENABLE_MAD_FILTER") == "true"
+var EnableMADFilter = utils.GoDotEnvVariable("ENABLE_MAD_FILTER") == "true"
 func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
 		series:      make([]Candle, 0),
@@ -81,7 +75,6 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 	c.running.openCumBaseVol = accum.BaseVolume
 	c.running.openCumQuoteVol = accum.QuoteVolume
 	c.running.accumPoolStats =  make([]AccumPoolStats, 0)
-
 }
 
 func (c *CandleBuilder) Close(endTime int) []Candle {
@@ -116,14 +109,10 @@ func (c *CandleBuilder) closeCandle() {
 
 
 
-func (c *CandleBuilder) accumulateCandle(rollingStdDev RollingStdDev) {
-	valid := 0
-	filtered := 0
-
+func (c *CandleBuilder) accumulateCandle(rollingMAD RollingMAD) {
 	for _, accum := range c.running.accumPoolStats {
 
-		if(!EnableStdDevFilter || AllowedThroughStdDevFilter(accum, rollingStdDev, c.running.candle.PriceOpen, c.running.candle.PriceClose)){
-			valid += 1
+		if(!EnableMADFilter || AllowedThroughMADFilter(accum, rollingMAD, c.running.candle.PriceOpen, c.running.candle.PriceClose)){
 			if accum.LastPriceSwap < c.running.candle.MinPrice {
 				c.running.candle.MinPrice = accum.LastPriceSwap
 			}
@@ -138,28 +127,26 @@ func (c *CandleBuilder) accumulateCandle(rollingStdDev RollingStdDev) {
 			c.running.candle.TvlQuote = accum.QuoteTvl
 
 			c.running.candle.FeeRateClose = accum.FeeRate
-		} else {
-			filtered += 1
-		}
+		} 
 	} 
 
 	c.running.accumPoolStats = make([]AccumPoolStats, 0)
 	c.closeCandle()
 }
 
-func (c *CandleBuilder) Increment(accum AccumPoolStats, rollingStdDev RollingStdDev)  {
+func (c *CandleBuilder) Increment(accum AccumPoolStats, rollingMAD RollingMAD)  {
 	for accum.LatestTime >= c.running.candle.Time+c.period {
-		c.accumulateCandle(rollingStdDev)
+		c.accumulateCandle(rollingMAD)
 	}
 	c.running.candle.PriceClose = accum.LastPriceSwap
 	c.running.accumPoolStats = append(c.running.accumPoolStats, accum)
 	c.running.lastAccum = accum
 } 
 
-func AllowedThroughStdDevFilter(accum AccumPoolStats, rollingStdDev RollingStdDev, PriceOpen float64, PriceClose float64) bool {
+func AllowedThroughMADFilter(accum AccumPoolStats, rollingMAD RollingMAD, PriceOpen float64, PriceClose float64) bool {
 	thresholdMin := math.Min(PriceOpen, PriceClose)
 	thresholdMax := math.Max(PriceOpen, PriceClose)
-	stdev := rollingStdDev[accum.LatestTime]
+	stdev := rollingMAD[accum.LatestTime]
 	var mevMargin = 0.0
 	if accum.LastPriceSwap < thresholdMin {
 		mevMargin = (thresholdMin - accum.LastPriceSwap) / stdev
@@ -174,14 +161,4 @@ func AllowedThroughStdDevFilter(accum AccumPoolStats, rollingStdDev RollingStdDe
 	
 
 	return true
-}
-
-func calculateMEVMargin(Price float64, stdev, thresholdMin float64, thresholdMax float64) float64{
-	var mevMargin = 0.0
-	if Price < thresholdMin {
-		mevMargin = (thresholdMin - Price) / stdev
-	} else if Price > thresholdMax {
-		mevMargin = (Price - thresholdMax )/ stdev
-	}
-	return mevMargin
 }
