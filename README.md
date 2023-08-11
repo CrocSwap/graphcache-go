@@ -45,15 +45,20 @@ The following exposed endpoints and their URL and paramters are listed in `serve
 
 To run the repo in such a way that only the swaps from uniswap syncs and no other data is pulled, perform the following steps. This is meant to be run alongside the normal implementation of graphcache-go to supplement candles from other pools and historical data. Candles will be found at `gcgo/pool_candles` when run in this mode.
 
+Uniswap candles is only run with mainnet - there is no testnet env.
+
 1. Create a .env file and add the vars:
 
 ```
-UNISWAP_CANDLES=true // Flag to put system into Uniswap Candles mode
-UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30 //
-UNISWAP_HOUR_TO_SYNC_SHARDS=1
+UNISWAP_CANDLES=true # Flag to put system into Uniswap Candles mode
+UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30 # Don't expose endpoints until this many days have been ingested into memory
+UNISWAP_HOUR_TO_SYNC_SHARDS=1 # Hour to run sync task, 1 => 1AM, 13 => 1PM
 UNISWAP_GCS_BUCKET_NAME=gcgo-swap-shards
 UNISWAP_SHARDS_PATH=./db/shards
 UNISWAP_PATH_TO_GCS_CREDENTIALS=./GCS_credentials.json
+ENABLE_MAD_FILTER=true # Enabled Median Absolute Deviation filter on candles to stop MEV wicks
+MAD_WINDOW_SIZE=20
+MEV_THRESHOLD=8 # MEV margin must be below this threshold to pass
 ```
 
 2. Add the credentials file `GCS_credentials.json`
@@ -66,10 +71,6 @@ On startup of the server, a few things will happen
 2. It will then iterate all the dance from today back to January first and attempt to load them either from a GCS Shard or from the subgraph.
 3. A task `SyncLocalShardsWithUniswap` is run once per day to create any shards and store them in GCS for a faster reboot later.
 
-#### Env Explanation
+## MEV MAD Filter
 
-UNISWAP_CANDLES: Flag to put system into Uniswap Candles mode
-UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY: Don't expose endpoints until this many days have been ingested into memory
-UNISWAP_HOUR_TO_SYNC_SHARDS=Hour to run sync task, 1 => 1AM, 13 => 1PM
-
-Uniswap candles is only run with mainnet - there is no testnet env.
+A filter which looks at the Median Absolute Deviation of swaps and then computes the MEV margin and determines whether it's below a reasonable threshold of deviation to look for outliers.
