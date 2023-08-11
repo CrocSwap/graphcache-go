@@ -1,7 +1,7 @@
 package model
 
 import (
-	"fmt"
+	"log"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
@@ -38,11 +38,11 @@ func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
 	h.StatsCounter.Accumulate(r)
 }
 
-type RollingStdDev map[int]float64 
+type RollingMAD map[int]float64 
 
-func ComputeRollingMAD(data []AccumPoolStats, windowSize int) RollingStdDev {
+func ComputeRollingMAD(data []AccumPoolStats, windowSize int) RollingMAD {
 	if(len(data) < windowSize){
-		return RollingStdDev{}
+		return RollingMAD{}
 	}
 
 	prices := make([]float64, len(data))
@@ -50,20 +50,20 @@ func ComputeRollingMAD(data []AccumPoolStats, windowSize int) RollingStdDev {
 	for i, d := range data {
 		prices[i] = float64(d.LastPriceSwap)
 	}
-	rangeStdDev := make([]float64, len(data)-windowSize+1)
+	rangeMAD := make([]float64, len(data)-windowSize+1)
 
-	rollingStdDev := make(RollingStdDev)
+	rollingMAD := make(RollingMAD)
 
-	for i := range rangeStdDev {
+	for i := range rangeMAD {
 		sdev, err := stats.MedianAbsoluteDeviation(prices[i:i+windowSize])
 		if err != nil {
-			fmt.Println("Rolling Standard Dev error")
+			log.Println("Rolling MAD error")
 		}
-		rollingStdDev[data[i].LatestTime] = sdev
+		rollingMAD[data[i].LatestTime] = sdev
 	}
 
 
-	return rollingStdDev
+	return rollingMAD
 }
 
 type AccumPoolStats struct {

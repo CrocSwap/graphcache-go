@@ -10,7 +10,7 @@ import (
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 var RollingMADWindowSize = utils.GetEnvVarIntFromString("MAD_WINDOW_SIZE", 5)
-
+var EnableMADFilter = utils.GoDotEnvVariable("ENABLE_MAD_FILTER") == "true"
 func (v *Views) QueryPoolStats(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int) model.AccumPoolStats {
 
@@ -64,12 +64,14 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
         }
 	}
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
-
-	rollingStdDev  := model.ComputeRollingMAD(series, RollingMADWindowSize)
+	rollingMAD := model.RollingMAD{}
+	if(EnableMADFilter){
+		rollingMAD  = model.ComputeRollingMAD(series, RollingMADWindowSize)
+	}
 
 	builder := model.NewCandleBuilder(startTime, timeRange.Period, open)
 	for _, accum := range series {
-		builder.Increment(accum, rollingStdDev)
+		builder.Increment(accum, rollingMAD)
 	}
 	 candles := builder.Close(endTime)
 	 
