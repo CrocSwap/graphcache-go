@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/utils"
@@ -49,7 +48,7 @@ type Candle struct {
 
 var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
 var MevThreshold = utils.GetEnvVarIntFromString("MEV_THRESHOLD", 1000000)
-var EnableStdDevFilter = utils.GoDotEnvVariable("ENABLE_STD_DEV_FILTER") == "true"
+var EnableStdDevFilter = utils.GoDotEnvVariable("ENABLE_MAD_FILTER") == "true"
 func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
 		series:      make([]Candle, 0),
@@ -144,7 +143,6 @@ func (c *CandleBuilder) accumulateCandle(rollingStdDev RollingStdDev) {
 		}
 	} 
 
-	fmt.Println("Debug, percent filtered", filtered, valid, math.Round(float64(filtered)/float64(len(c.running.accumPoolStats)) * 100 ))
 	c.running.accumPoolStats = make([]AccumPoolStats, 0)
 	c.closeCandle()
 }
