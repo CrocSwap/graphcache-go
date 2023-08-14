@@ -43,6 +43,8 @@ The following exposed endpoints and their URL and paramters are listed in `serve
 
 ## Uniswap Candles
 
+### Running Locally
+
 To run the repo in such a way that only the swaps from uniswap syncs and no other data is pulled, perform the following steps. This is meant to be run alongside the normal implementation of graphcache-go to supplement candles from other pools and historical data. Candles will be found at `gcgo/pool_candles` when run in this mode.
 
 Uniswap candles is only run with mainnet - there is no testnet env.
@@ -74,3 +76,21 @@ On startup of the server, a few things will happen
 ## MEV MAD Filter
 
 A filter which looks at the Median Absolute Deviation of swaps and then computes the MEV margin and determines whether it's below a reasonable threshold of deviation to look for outliers.
+
+## Deployment
+
+To deploy a new version to docker hub, perform the following steps.
+
+1. Create the repository in docker hub, currently it's deployed to cadehypotenuse/graphcache-go-candles:latest
+2. Copy the repo to a VM linux instance or do it locally, but be aware that if it is build on an ARM chip the executable not compile on linux.
+3. Build the docker image: `docker-compose -f ./docker-compose.uniswap.yml build`
+4. tag the build: `docker tag graphcache-go:latest cadehypotenuse/graphcache-go-candles:latest`
+5. push to docker hub: `docker push cadehypotenuse/graphcache-go-candles:latest`
+
+To run from a new instance via docker hub, perform the following steps:
+
+1. `docker pull cadehypotenuse/graphcache-go-candles:latest`
+2. Add the contents of `docker-compose.uniswap.prod.yml` to a root file called `docker-compose.yml`
+3. create the shards folder in root: `mkdir shards`
+4. add credentials file: `GCS_credentials.json`
+5. run the image as a container: `docker-compose up` or `docker-compose -f docker-compose.uniswap.prod.yml up` if you imported the file directly.
