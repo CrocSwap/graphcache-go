@@ -20,6 +20,7 @@ type IngestionItem  struct {
 	Method string // local, gcs, subgraph 
 };
 
+// Syncs past unswap swaps to produce candles
 func NewUniswapSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, serverStartupTime int) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	syncNotif := make(chan bool, 1)
@@ -65,6 +66,9 @@ func createIngestionList() []IngestionItem{
 	return ingestionList
 
 }
+
+// Syncs uniswap candles from beginning of day up until server startup time
+// Then it syncs the rest of the shards for every day from yesterday back to January 1st, 2023
 func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTime int) {
 	currentTime :=  time.Now()
     startOfToday := currentTime.Truncate(24 * time.Hour).Unix()
@@ -103,6 +107,7 @@ func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTim
 }
 
 
+// Syncs uniswap candles from the subgraph or a local shard
 func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTime int, dbString string) {
 	s.cfg.Query = "./artifacts/graphQueries/swaps.uniswap.query"
 	tblAgg := tables.UniSwapsTable{}
@@ -115,7 +120,7 @@ func (s *SubgraphSyncer) syncUniswapCandles(action string, startTime int, syncTi
 		nRows, _ = syncAgg.SyncTableToSubgraph(true, startTime, syncTime)
 	case "shard":
 		syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.UniSwapSubGraph](
-			tblAgg, s.cfg, s.cntr.IngestAggEvent)		
+			tblAgg, s.cfg, s.cntr.IngestAggEvent)
 		nRows, _ = syncAgg.SyncTableToDB(false, startTime, syncTime, dbString)
 
 	default:

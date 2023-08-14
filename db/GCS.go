@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -17,22 +18,22 @@ func FetchBucketItems(bucketName string) ([]*storage.ObjectAttrs, error) {
 	var client, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
 	
 	if err != nil {
+		log.Println("[Shard Syncer]: Error creating client", err)
 		return nil, err
 	}
 
 	it := client.Bucket(bucketName).Objects(ctx, nil)
 	var items []*storage.ObjectAttrs
-
 	for {
-		obj, err := it.Next()
-		if err != nil {
+		attrs, err := it.Next()
+		if err == iterator.Done {
 			break
 		}
 		if err != nil {
+			log.Println("[Shard Syncer]: Error iterating through objects", err)
 			return nil, err
 		}
-
-		items = append(items, obj)
+		items = append(items, attrs)
 	}
 
 	return items, nil

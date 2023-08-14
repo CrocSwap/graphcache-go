@@ -11,6 +11,7 @@ services:
     restart: always
     volumes:
       - ./db/shards:/app/db/shards
+      - ./GCS_credentials.json:/app/GCS_credentials.json
     environment:
       - UNISWAP_CANDLES=true
       - UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30
