@@ -145,7 +145,7 @@ func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime i
 func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime int, endTime int) (model.AccumPoolStats, []model.AccumPoolStats) {
 	retSeries := make([]model.AccumPoolStats, 0)
 	openVal := m.RetrievePoolAccumBefore(loc, startTime)
-	
+
 	pos, okay := m.poolTradingHistory.lookup(loc)
 	if !okay {
 		return openVal, retSeries

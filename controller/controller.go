@@ -132,7 +132,6 @@ func (c *ControllerOverNetwork) IngestAggEvent(r tables.AggEvent) {
 		Quote:   types.RequireEthAddr(r.Quote),
 	}
 
-	// TODO: this should acquire a lock if events can be added concurrently
 	hist := c.ctrl.cache.MaterializePoolTradingHist(pool)
 	hist.NextEvent(r)
 }

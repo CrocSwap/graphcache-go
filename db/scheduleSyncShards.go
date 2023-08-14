@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -34,9 +33,6 @@ func ScheduleSyncShards(hourToSyncUniswapShards int, chainCfg loader.ChainConfig
 		// Execute the task
 		log.Println("[Shard Syncer]: Executing shard syncer")
 		go SyncLocalShardsWithUniswap(chainCfg)
-
-		// If you want to see a message when the task runs, uncomment the following line
-		fmt.Println("[Shard Syncer] executed at:", time.Now())
 
 		// Reset the timer to schedule the next task 
 		timer.Reset(24 * time.Second)

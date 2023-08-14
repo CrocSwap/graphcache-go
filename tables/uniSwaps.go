@@ -26,7 +26,6 @@ type UniSwapSubGraph struct {
 		BlockNumber string `json:"blockNumber"`
 	}`json:"transaction"`
 
-	// EventIndex      int    `json:"eventIndex"`
 	Pool            struct {
 		ID string `json:"id"`
 		Token0 struct {
@@ -89,8 +88,6 @@ func (tbl UniSwapsTable) ConvertSubGraphRow(r UniSwapSubGraph, network string) A
 	price := math.Abs(baseFlow / quoteFlow)
 	// convert price to string
 	priceString := fmt.Sprintf("%f", price)
-
-	// convert pool.Id to int
 
 
 	return AggEvent{

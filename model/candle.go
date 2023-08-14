@@ -26,17 +26,14 @@ type Candle struct {
 	PriceClose   float64 `json:"priceClose"`
 	MinPrice     float64 `json:"minPrice"`
 	MaxPrice     float64 `json:"maxPrice"`
-
 	VolumeBase   float64 `json:"volumeBase"`
 	VolumeQuote  float64 `json:"volumeQuote"`
 	TvlBase      float64 `json:"tvlBase"`
 	TvlQuote     float64 `json:"tvlQuote"`
 	FeeRateOpen  float64 `json:"feeRateOpen"`
 	FeeRateClose float64 `json:"feeRateClose"`
-	
 	Period       int     `json:"period"`
 	Time         int     `json:"time"`
-
 	IsDecimalized bool   `json:"isDecimalized"`
 }
 
@@ -78,7 +75,6 @@ func (c *CandleBuilder) openCandle(accum AccumPoolStats, startTime int) {
 }
 
 func (c *CandleBuilder) Close(endTime int) []Candle {
-	// Question 6: Should this be an if statement?
 	for c.running.candle.Time+c.period < endTime {
 		c.closeCandle()
 	}
@@ -95,7 +91,6 @@ func getMinValidLiqudity() float64 {
 
 func (c *CandleBuilder) closeCandle() {
 	MIN_VALID_LIQUIDITY := getMinValidLiqudity()
-	
 	c.atValidHist = c.atValidHist ||
 		c.running.candle.TvlBase >= MIN_VALID_LIQUIDITY ||
 		c.running.candle.TvlQuote >= MIN_VALID_LIQUIDITY
