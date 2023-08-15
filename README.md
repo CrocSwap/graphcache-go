@@ -89,8 +89,7 @@ To deploy a new version to docker hub, perform the following steps.
 
 To run from a new instance via docker hub, perform the following steps:
 
-1. `docker pull cadehypotenuse/graphcache-go-candles:latest`
-2. Add the contents of `docker-compose.uniswap.prod.yml` to a root file called `docker-compose.yml`
-3. create the shards folder in root: `mkdir shards`
-4. add credentials file: `GCS_credentials.json`
-5. run the image as a container: `docker-compose up` or `docker-compose -f docker-compose.uniswap.prod.yml up` if you imported the file directly.
+1. Import `docker-compose.uniswap.prod.yml` into root
+2. Import `dockerhub_start.sh` into root
+3. `chmod +x dockerhub_start.sh `
+4. `./dockerhub_start.sh`
