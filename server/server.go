@@ -26,6 +26,7 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/user_limit_orders", s.queryUserLimits)
 	r.GET("gcgo/pool_limit_orders", s.queryPoolLimits)
 	r.GET("gcgo/user_pool_limit_orders", s.queryUserPoolLimits)
+	r.GET("gcgo/user_pool_txs", s.queryUserPoolTxHist)
 	r.GET("gcgo/limit_stats", s.querySingleLimit)
 	r.GET("gcgo/user_txs", s.queryUserTxHist)
 	r.GET("gcgo/pool_txs", s.queryPoolTxHist)
@@ -263,6 +264,21 @@ func (s *APIWebServer) queryUserPoolLimits(c *gin.Context) {
 	}
 
 	resp := s.Views.QueryUserPoolLimits(chainId, user, base, quote, poolIdx)
+	wrapDataErrResp(c, resp, nil)
+}
+
+func (s *APIWebServer) queryUserPoolTxHist(c *gin.Context) {
+	chainId := parseChainParam(c, "chainId")
+	user := parseAddrParam(c, "user")
+	base := parseAddrParam(c, "base")
+	quote := parseAddrParam(c, "quote")
+	poolIdx := parseIntParam(c, "poolIdx")
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryUserPoolTxHist(chainId, user, base, quote, poolIdx)
 	wrapDataErrResp(c, resp, nil)
 }
 
