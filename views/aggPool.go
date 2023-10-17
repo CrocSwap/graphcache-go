@@ -69,7 +69,7 @@ func (v *Views) QueryPoolSet(chainId types.ChainId) []types.PoolLocation {
 	poolSet := make([]types.PoolLocation, 0)
 	for _, pool := range fullSet {
 		if pool.ChainId == chainId {
-			poolSet = append(fullSet, pool)
+			poolSet = append(poolSet, pool)
 		}
 	}
 
