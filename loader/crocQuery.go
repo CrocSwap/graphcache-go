@@ -20,7 +20,7 @@ type CrocQuery struct {
 func NewCrocQuery(chain *OnChainLoader) *CrocQuery {
 	return &CrocQuery{
 		queryAbi: crocQueryAbi(),
-		addrs:    crocQueryAddrs(),
+		addrs:    crocQueryAddrs(chain.Cfg),
 		chain:    chain,
 	}
 }
@@ -168,9 +168,13 @@ func crocQueryAbi() abi.ABI {
 	return parsedABI
 }
 
-func crocQueryAddrs() map[types.ChainId]types.EthAddress {
+func crocQueryAddrs(cfg NetworkConfig) map[types.ChainId]types.EthAddress {
 	addrs := make(map[types.ChainId]types.EthAddress)
-	addrs["0x5"] = "0xc9900777baa5EE94Cd2C6509fb09278A1A46b7e8"
-	addrs["0x1"] = "0xc2e1f740E11294C64adE66f69a1271C5B32004c8"
+
+	for _, chainCfg := range cfg {
+		chainId := types.IntToChainId(chainCfg.ChainID)
+		addrs[chainId] = types.EthAddress(chainCfg.QueryContract)
+	}
+
 	return addrs
 }
