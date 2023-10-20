@@ -1,0 +1,8 @@
+# This docker file will run the app in uniswap candles mode
+version: "3"
+services:
+  graphcache-go:
+    image: cadehypotenuse/graphcache-go:latest
+    ports:
+      - 8080:8080
+    restart: always
