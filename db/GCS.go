@@ -15,7 +15,7 @@ import (
 func FetchBucketItems(bucketName string) ([]*storage.ObjectAttrs, error) {
 	log.Println("[Shard Syncer]: Fetching shards from GCS")
 	var ctx = context.Background()
-	var client, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
+	var client, err = storage.NewClient(ctx, option.WithCredentialsJSON(GetGCSCredentials()))
 	
 	if err != nil {
 		log.Println("[Shard Syncer]: Error creating client", err)
@@ -42,7 +42,7 @@ func FetchBucketItems(bucketName string) ([]*storage.ObjectAttrs, error) {
 // UploadItemToBucket uploads a local file to the specified GCS bucket with the given object name.
 func UploadItemToBucket(bucketName, objectName, filePath string) error {
 	var ctx = context.Background()
-	var client, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
+	var client, err = storage.NewClient(ctx, option.WithCredentialsJSON(GetGCSCredentials()))
 	
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func readFile(file *os.File) []byte {
 func FetchObjectData(bucketName, objectName string) ([]byte, error) {
 	log.Println("[Shard Syncer]: Fetching shard from GCS", objectName)
 	var ctx = context.Background()
-	var client, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
+	var client, err = storage.NewClient(ctx, option.WithCredentialsJSON(GetGCSCredentials()))
 	
 	if err != nil {
 		return nil, err

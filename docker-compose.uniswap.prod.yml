@@ -15,7 +15,6 @@ services:
       - UNISWAP_HOUR_TO_SYNC_SHARDS=1
       - UNISWAP_GCS_BUCKET_NAME=gcgo-swap-shards
       - UNISWAP_SHARDS_PATH=./db/shards
-      - UNISWAP_PATH_TO_GCS_CREDENTIALS=./GCS_credentials.json
       - ENABLE_MAD_FILTER=true
       - MAD_WINDOW_SIZE=10
       - MEV_THRESHOLD=8

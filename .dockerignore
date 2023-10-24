@@ -1,3 +1,2 @@
 **/*.db
 *.tar
-**/*GCS_credentials.json

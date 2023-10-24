@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/db"
@@ -70,6 +71,12 @@ func createIngestionList() []IngestionItem{
 // Syncs uniswap candles from beginning of day up until server startup time
 // Then it syncs the rest of the shards for every day from yesterday back to January 1st, 2023
 func (s *SubgraphSyncer) historicalSyncCandles(notif chan bool, serverStartupTime int) {
+
+	// create shards directory if it doesn't exist
+	if _, err := os.Stat(db.ShardsPath); os.IsNotExist(err) {
+		log.Println("[Shard Syncer]: Creating shards directory")
+		os.Mkdir(db.ShardsPath, 0755)
+	}
 	currentTime :=  time.Now()
     startOfToday := currentTime.Truncate(24 * time.Hour).Unix()
 

@@ -57,7 +57,6 @@ UNISWAP_DAYS_OF_CANDLES_BEFORE_SERVER_READY=30 # Don't expose endpoints until th
 UNISWAP_HOUR_TO_SYNC_SHARDS=1 # Hour to run sync task, 1 => 1AM, 13 => 1PM
 UNISWAP_GCS_BUCKET_NAME=gcgo-swap-shards
 UNISWAP_SHARDS_PATH=./db/shards
-UNISWAP_PATH_TO_GCS_CREDENTIALS=./GCS_credentials.json
 ENABLE_MAD_FILTER=true # Enabled Median Absolute Deviation filter on candles to stop MEV wicks
 MAD_WINDOW_SIZE=20
 MEV_THRESHOLD=8 # MEV margin must be below this threshold to pass
@@ -81,15 +80,15 @@ A filter which looks at the Median Absolute Deviation of swaps and then computes
 
 To deploy a new version to docker hub, perform the following steps.
 
-1. Create the repository in docker hub, currently it's deployed to cadehypotenuse/graphcache-go-candles:latest
-2. Copy the repo to a VM linux instance or do it locally, but be aware that if it is build on an ARM chip the executable not compile on linux.
-3. Build the docker image: `docker-compose -f ./docker-compose.uniswap.yml build`
-4. tag the build: `docker tag graphcache-go:latest cadehypotenuse/graphcache-go-candles:latest`
-5. push to docker hub: `docker push cadehypotenuse/graphcache-go-candles:latest`
+1. Modify the `push-to-dockerhub.sh` script to the correct dockerhub name
+2. add your credentials to .env
+   ```
+   DOCKERHUB_USERNAME=''
+   DOCKERHUB_PASSWORD=''
+   ```
+3. `./push-to-dockerhub.sh`
 
 To run from a new instance via docker hub, perform the following steps:
 
 1. Import `docker-compose.uniswap.prod.yml` into root
-2. Import `dockerhub_start.sh` into root
-3. `chmod +x dockerhub_start.sh `
-4. `./dockerhub_start.sh`
+2. `docker-compose -f docker-compose.uniswap.prod.yml up`
