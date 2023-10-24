@@ -25,3 +25,8 @@ graphcache-go
 tmp*
 .DS_Store
 
+.env
+
+*.db
+*GCS_credentials.json
+

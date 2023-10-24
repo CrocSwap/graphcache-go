@@ -131,6 +131,7 @@ func (c *ControllerOverNetwork) IngestAggEvent(r tables.AggEvent) {
 		Base:    types.RequireEthAddr(r.Base),
 		Quote:   types.RequireEthAddr(r.Quote),
 	}
+
 	hist := c.ctrl.cache.MaterializePoolTradingHist(pool)
 	hist.NextEvent(r)
 }

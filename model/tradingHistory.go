@@ -1,9 +1,11 @@
 package model
 
 import (
+	"log"
 	"math"
 
 	"github.com/CrocSwap/graphcache-go/tables"
+	"github.com/montanaflynn/stats"
 )
 
 type PoolTradingHistory struct {
@@ -34,6 +36,34 @@ func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
 		h.TimeSnaps = append(h.TimeSnaps, h.StatsCounter)
 	}
 	h.StatsCounter.Accumulate(r)
+}
+
+type RollingMAD map[int]float64 
+
+func ComputeRollingMAD(data []AccumPoolStats, windowSize int) RollingMAD {
+	if(len(data) < windowSize){
+		return RollingMAD{}
+	}
+
+	prices := make([]float64, len(data))
+
+	for i, d := range data {
+		prices[i] = float64(d.LastPriceSwap)
+	}
+	rangeMAD := make([]float64, len(data)-windowSize+1)
+
+	rollingMAD := make(RollingMAD)
+
+	for i := range rangeMAD {
+		sdev, err := stats.MedianAbsoluteDeviation(prices[i:i+windowSize])
+		if err != nil {
+			log.Println("Rolling MAD error")
+		}
+		rollingMAD[data[i].LatestTime] = sdev
+	}
+
+
+	return rollingMAD
 }
 
 type AccumPoolStats struct {

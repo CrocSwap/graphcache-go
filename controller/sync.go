@@ -15,13 +15,18 @@ type SubgraphSyncer struct {
 	lastSyncTime int
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startTime int ) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	syncNotif := make(chan bool, 1)
-	go sync.syncStart(syncNotif)
+
+	log.Printf("[Polling Syncer]: Starting poll sync for %s\n", network)
+	go sync.syncStart(syncNotif, startTime)
+
 	<-syncNotif
 	return sync
 }
+
+
 
 func NewSubgraphPriceSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
@@ -49,7 +54,7 @@ func (s *SubgraphSyncer) pollSubgraphUpdates() {
 		time.Sleep(time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
-			log.Printf("New subgraph time %d", s.lastSyncTime)
+			log.Printf("[Polling Syncer]: New subgraph time %s", time.Unix(int64(s.lastSyncTime), 0))
 		}
 	}
 }
@@ -68,15 +73,22 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
-func (s *SubgraphSyncer) syncStart(notif chan bool) {
-	syncTime, err := loader.LatestSubgraphTime(s.cfg)
 
-	if err != nil {
-		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
+
+func (s *SubgraphSyncer) syncStart(notif chan bool, startTime int) {
+	if !uniswapCandles {
+		syncTime, err := loader.LatestSubgraphTime(s.cfg)
+		if err != nil {
+			log.Fatalf("[Polling Syncer]: Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
+		}
+	
+		s.syncStep(syncTime)
+	} else {
+		s.cntr.FlushSyncCycle(startTime)
+		s.lastSyncTime = startTime
 	}
 
-	s.syncStep(syncTime)
-	log.Printf("Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
+	log.Printf("[Polling Syncer]: Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
 	notif <- true
 
 	s.pollSubgraphUpdates()
@@ -84,13 +96,20 @@ func (s *SubgraphSyncer) syncStart(notif chan bool) {
 
 func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 	if nRows > 0 {
-		log.Printf("Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
+		log.Printf("[Polling Syncer]: Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
 	}
 }
 
 func (s *SubgraphSyncer) syncStep(syncTime int) {
 	startTime := s.lastSyncTime + 1
-	doSyncFwd := true
+	doSyncFwd := true 
+
+	if(uniswapCandles){
+		s.syncUniswapCandles("subgraph", startTime, syncTime, "" )
+		s.cntr.FlushSyncCycle(syncTime)
+		s.lastSyncTime = syncTime
+		return 
+	}
 
 	s.cfg.Query = "./artifacts/graphQueries/balances.query"
 	tblBal := tables.BalanceTable{}
@@ -137,6 +156,8 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	s.cntr.FlushSyncCycle(syncTime)
 	s.lastSyncTime = syncTime
 }
+
+
 
 func (s *SubgraphSyncer) syncPricingSwaps() {
 	s.cfg.Query = "./artifacts/graphQueries/swaps.query"

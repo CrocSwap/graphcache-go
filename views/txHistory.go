@@ -34,7 +34,7 @@ func (v *Views) QueryPoolTxHist(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	results := v.Cache.RetrivePoolTxs(loc)
+	results := v.Cache.RetrievePoolTxs(loc)
 	sort.Sort(byTimeTx(results))
 
 	if len(results) < nResults {

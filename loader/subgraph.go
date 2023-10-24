@@ -3,9 +3,10 @@ package loader
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
 type GraphRequest struct {
@@ -37,7 +38,7 @@ func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	}
 }
 
-func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
+func QueryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	request := GraphRequest{
 		Query:     query,
 		Variables: makeSubgraphVars(isAsc, startTime, endTime),
@@ -62,7 +63,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Subgraph Query Read Error: " + err.Error())
 		return nil, err
@@ -70,8 +71,8 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	return body, nil
 }
 
-func readQueryPath(filename string) SubgraphQuery {
-	content, err := ioutil.ReadFile(filename)
+func ReadQueryPath(filename string) SubgraphQuery {
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal("Unable to read file: " + filename)
 	}

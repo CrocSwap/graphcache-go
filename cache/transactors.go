@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sort"
+
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -30,7 +32,7 @@ func (m *MemoryCache) RetrievePoolSet() []types.PoolLocation {
 	return m.poolTradingHistory.keySet()
 }
 
-func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
+func (m *MemoryCache) RetrievePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupCopy(pool)
 	return txs
 }
@@ -152,7 +154,14 @@ func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime 
 	defer m.poolTradingHistory.lock.RUnlock()
 	m.poolTradingHistory.lock.RLock()
 
-	for _, accum := range pos.TimeSnaps {
+	timeSnaps := pos.TimeSnaps
+
+	// Sort here rather than assuming that the cache is in sorted order
+	sort.Slice(timeSnaps, func(i, j int) bool {
+		return timeSnaps[i].LatestTime < timeSnaps[j].LatestTime
+	})
+
+	for _, accum := range timeSnaps {
 		if accum.LatestTime >= startTime && accum.LatestTime < endTime {
 			retSeries = append(retSeries, accum)
 		}

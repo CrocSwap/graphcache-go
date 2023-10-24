@@ -5,8 +5,12 @@ import (
 
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
+	"github.com/CrocSwap/graphcache-go/utils"
 )
 
+var uniswapCandles = utils.GoDotEnvVariable("UNISWAP_CANDLES") == "true"
+var RollingMADWindowSize = utils.GetEnvVarIntFromString("MAD_WINDOW_SIZE", 5)
+var EnableMADFilter = utils.GoDotEnvVariable("ENABLE_MAD_FILTER") == "true"
 func (v *Views) QueryPoolStats(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int) model.AccumPoolStats {
 
@@ -50,17 +54,35 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	startTime := endTime - timeRange.N*timeRange.Period
 
 	if timeRange.StartTime != nil {
-		startTime = *timeRange.StartTime
-		endTime = startTime + timeRange.N*timeRange.Period
-	}
 
+		if(uniswapCandles){
+            endTime = *timeRange.StartTime + timeRange.Period
+            startTime = *timeRange.StartTime - timeRange.N *timeRange.Period
+        }else {
+            startTime = *timeRange.StartTime
+            endTime = startTime + timeRange.N*timeRange.Period
+        }
+	}
 	open, series := v.Cache.RetrievePoolAccumSeries(loc, startTime, endTime)
+	rollingMAD := model.RollingMAD{}
+	if(EnableMADFilter){
+		rollingMAD  = model.ComputeRollingMAD(series, RollingMADWindowSize)
+	}
 
 	builder := model.NewCandleBuilder(startTime, timeRange.Period, open)
 	for _, accum := range series {
-		builder.Increment(accum)
+		builder.Increment(accum, rollingMAD)
 	}
-	return builder.Close(endTime)
+	 candles := builder.Close(endTime)
+	 
+
+	 if(uniswapCandles){
+		//  Reverse the order of the candles
+		for i, j := 0, len(candles)-1; i < j; i, j = i+1, j-1 {
+			candles[i], candles[j] = candles[j], candles[i]
+		}
+	}
+	return candles
 }
 
 func (v *Views) QueryPoolSet(chainId types.ChainId) []types.PoolLocation {

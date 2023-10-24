@@ -1,8 +1,11 @@
 package loader
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -38,9 +41,9 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 
 func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
 	cfg.Query = "./artifacts/graphQueries/meta.query"
-	metaQuery := readQueryPath(cfg.Query)
+	metaQuery := ReadQueryPath(cfg.Query)
 
-	resp, err := queryFromSubgraph(cfg.Chain, metaQuery, 0, 0, false)
+	resp, err := QueryFromSubgraph(cfg.Chain, metaQuery, 0, 0, false)
 	if err != nil {
 		return 0, err
 	}
@@ -78,8 +81,71 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
+func (s *SyncChannel[R, S]) SyncTableToDB(isAsc bool, startTime int, endTime int, dbString string) (int, error) {
+
+	prevObs := startTime
+	if !isAsc {
+		prevObs = endTime
+	}
+
+	hasMore := true
+	nIngested := 0
+
+	for hasMore {
+		var db_resp *sql.Rows
+		var err error
+		if isAsc {
+			db_resp, err = QueryFromDB( prevObs, endTime, isAsc, dbString)
+		} else {
+			db_resp, err = QueryFromDB( startTime, prevObs, isAsc, dbString)
+		}	
+
+		if(err != nil){
+			fmt.Println(err)
+		}
+
+
+
+		// Iterate over the rows and process the data
+		for db_resp.Next() {
+			var id int
+			var swap_string string
+			var swap_id string
+			var swap_time string
+			err = db_resp.Scan(&id, &swap_string, &swap_time, &swap_id)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			var swap S
+			err := json.Unmarshal([]byte(swap_string), &swap)
+			if err != nil {
+				fmt.Println("Error parsing JSON:", err)
+				
+			}
+			row := s.tbl.ConvertSubGraphRow(swap, string(s.config.Network))
+			s.ingestEntry(row)
+			nIngested += 1
+		}
+		
+		if isAsc {
+			hasMore = s.LastObserved > prevObs
+			prevObs = s.LastObserved
+		} else {
+			hasMore = s.EarliestObserved < prevObs
+			prevObs = s.EarliestObserved
+		}
+
+		if nIngested > 0 {
+			log.Printf("[Historical Syncer][%s]: Loaded %d rows from subgraph from query %s up to time=%d - %s",
+			dbString, nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
+		}
+	}
+	return nIngested, nil
+}
+
 func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTime int) (int, error) {
-	query := readQueryPath(s.config.Query)
+	query := ReadQueryPath(s.config.Query)
 
 	prevObs := startTime
 	if !isAsc {
@@ -94,16 +160,18 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		var err error
 
 		if isAsc {
-			resp, err = queryFromSubgraph(s.config.Chain, query, prevObs, endTime, isAsc)
+			resp, err = QueryFromSubgraph(s.config.Chain, query, prevObs, endTime, isAsc)
 		} else {
-			resp, err = queryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
+			resp, err = QueryFromSubgraph(s.config.Chain, query, startTime, prevObs, isAsc)
 		}
+
 
 		if err != nil {
 			return nIngested, err
 		}
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
+
 		if err != nil {
 			log.Println("Warning subgraph request decode error " + err.Error())
 			return nIngested, err
@@ -123,13 +191,16 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 			prevObs = s.EarliestObserved
 		}
 
+		logString := "[Polling Syncer]:"
+
 		if nIngested > 0 {
-			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
-				nIngested, s.config.Query, prevObs)
+			log.Printf("%s Loaded %d rows from subgraph from query %s up to time=%d - %s", logString,
+				nIngested, s.config.Query, prevObs, time.Unix(int64(prevObs), 0).String())
 		}
 	}
 	return nIngested, nil
 }
+
 
 func (s *SyncChannel[R, S]) ingestEntry(r R) {
 	if s.tbl.GetTime(r) > s.LastObserved {
