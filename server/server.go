@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/CrocSwap/graphcache-go/views"
@@ -11,29 +12,31 @@ type APIWebServer struct {
 	Views views.IViews
 }
 
-func (s *APIWebServer) Serve() {
+func (s *APIWebServer) Serve(prefix string) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(CORSMiddleware())
 	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
-	r.GET("gcgo/", func(c *gin.Context) { c.Status(http.StatusOK) })
-	r.GET("gcgo/user_balance_tokens", s.queryUserTokens)
-	r.GET("gcgo/user_positions", s.queryUserPositions)
-	r.GET("gcgo/pool_positions", s.queryPoolPositions)
-	r.GET("gcgo/pool_position_apy_leaders", s.queryPoolPositionsApyLeaders)
-	r.GET("gcgo/user_pool_positions", s.queryUserPoolPositions)
-	r.GET("gcgo/position_stats", s.querySinglePosition)
-	r.GET("gcgo/user_limit_orders", s.queryUserLimits)
-	r.GET("gcgo/pool_limit_orders", s.queryPoolLimits)
-	r.GET("gcgo/user_pool_limit_orders", s.queryUserPoolLimits)
-	r.GET("gcgo/limit_stats", s.querySingleLimit)
-	r.GET("gcgo/user_txs", s.queryUserTxHist)
-	r.GET("gcgo/pool_txs", s.queryPoolTxHist)
-	r.GET("gcgo/pool_liq_curve", s.queryPoolLiqCurve)
-	r.GET("gcgo/pool_stats", s.queryPoolStats)
-	r.GET("gcgo/pool_candles", s.queryPoolCandles)
-	r.GET("gcgo/pool_list", s.queryPoolList)
-	r.GET("gcgo/chain_stats", s.queryChainStats)
+	r.GET(prefix+"/", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET(prefix+"/user_balance_tokens", s.queryUserTokens)
+	r.GET(prefix+"/user_positions", s.queryUserPositions)
+	r.GET(prefix+"/pool_positions", s.queryPoolPositions)
+	r.GET(prefix+"/pool_position_apy_leaders", s.queryPoolPositionsApyLeaders)
+	r.GET(prefix+"/user_pool_positions", s.queryUserPoolPositions)
+	r.GET(prefix+"/position_stats", s.querySinglePosition)
+	r.GET(prefix+"/user_limit_orders", s.queryUserLimits)
+	r.GET(prefix+"/pool_limit_orders", s.queryPoolLimits)
+	r.GET(prefix+"/user_pool_limit_orders", s.queryUserPoolLimits)
+	r.GET(prefix+"/limit_stats", s.querySingleLimit)
+	r.GET(prefix+"/user_txs", s.queryUserTxHist)
+	r.GET(prefix+"/pool_txs", s.queryPoolTxHist)
+	r.GET(prefix+"/pool_liq_curve", s.queryPoolLiqCurve)
+	r.GET(prefix+"/pool_stats", s.queryPoolStats)
+	r.GET(prefix+"/pool_candles", s.queryPoolCandles)
+	r.GET(prefix+"/pool_list", s.queryPoolList)
+	r.GET(prefix+"/chain_stats", s.queryChainStats)
+
+	log.Println("API Serving at", prefix)
 	r.Run()
 }
 

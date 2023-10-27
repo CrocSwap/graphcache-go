@@ -12,6 +12,7 @@ import (
 
 func main() {
 	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
+	var apiPath = flag.String("apiPath", "gcgo", "API server root path")
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
@@ -26,5 +27,5 @@ func main() {
 
 	views := views.Views{Cache: cache, OnChain: &onChain}
 	apiServer := server.APIWebServer{Views: &views}
-	apiServer.Serve()
+	apiServer.Serve(*apiPath)
 }
