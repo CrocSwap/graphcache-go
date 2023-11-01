@@ -1,5 +1,5 @@
 {
-    "scrollSepolia": {
+    "scroll": {
       "chain_id": 534352,
       "rpc": "https://rpc.scroll.io",
       "subgraph": "https://api.studio.thegraph.com/query/47610/croc-scroll/version/latest",
