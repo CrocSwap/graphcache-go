@@ -44,9 +44,14 @@ func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, 
 
 const SUBGRAPH_POLL_SECS = 1
 
+// Used because subgraph synchronization is not observed to be non-atomic
+// between meta latest time and updating individual tables. Gives the subraph
+// indexer time to index the incremental rows
+const SUBGRAPH_SYNC_DELAY = 1
+
 func (s *SubgraphSyncer) pollSubgraphUpdates() {
 	for true {
-		time.Sleep(time.Second)
+		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
 			log.Printf("New subgraph time %d", s.lastSyncTime)
@@ -62,6 +67,7 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	}
 
 	if metaTime > s.lastSyncTime {
+		time.Sleep(SUBGRAPH_SYNC_DELAY * time.Second)
 		s.syncStep(metaTime)
 		return true, nil
 	}

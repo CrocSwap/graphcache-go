@@ -100,6 +100,7 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		}
 
 		if err != nil {
+			log.Println("Warning subgraph request error " + err.Error())
 			return nIngested, err
 		}
 
@@ -126,6 +127,9 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 		if nIngested > 0 {
 			log.Printf("Loaded %d rows from subgraph from query %s up to time=%d",
 				nIngested, s.config.Query, prevObs)
+		} else {
+			log.Printf("No rows loaded from subgraph from query %s up to endTime=%d",
+				s.config.Query, endTime)
 		}
 	}
 	return nIngested, nil
