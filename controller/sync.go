@@ -13,6 +13,16 @@ type SubgraphSyncer struct {
 	cntr         *ControllerOverNetwork
 	cfg          loader.SyncChannelConfig
 	lastSyncTime int
+	lookbackTime int
+	channels     syncChannels
+}
+type syncChannels struct {
+	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
+	liq   loader.SyncChannel[tables.LiqChange, tables.LiqChangeSubGraph]
+	ko    loader.SyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph]
+	swaps loader.SyncChannel[tables.Swap, tables.SwapSubGraph]
+	fees  loader.SyncChannel[tables.FeeChange, tables.FeeChangeSubGraph]
+	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
 }
 
 func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
@@ -20,12 +30,6 @@ func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, n
 	syncNotif := make(chan bool, 1)
 	go sync.syncStart(syncNotif)
 	<-syncNotif
-	return sync
-}
-
-func NewSubgraphPriceSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
-	sync := makeSubgraphSyncer(controller, chainConfig, network)
-	go sync.syncPricingSwaps()
 	return sync
 }
 
@@ -37,8 +41,9 @@ func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, 
 	netCntr := controller.OnNetwork(network)
 
 	return SubgraphSyncer{
-		cntr: netCntr,
-		cfg:  cfg,
+		cntr:     netCntr,
+		cfg:      cfg,
+		channels: makeSyncChannels(netCntr, cfg),
 	}
 }
 
@@ -94,66 +99,74 @@ func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 	}
 }
 
-func (s *SubgraphSyncer) syncStep(syncTime int) {
-	startTime := s.lastSyncTime + 1
-	doSyncFwd := true
-
-	s.cfg.Query = "./artifacts/graphQueries/balances.query"
+func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig) syncChannels {
+	cfg.Query = "./artifacts/graphQueries/balances.query"
 	tblBal := tables.BalanceTable{}
 	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-		tblBal, s.cfg, s.cntr.IngestBalance)
-	nRows, _ := syncBal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("User Balances", nRows)
+		tblBal, cfg, cntr.IngestBalance)
 
-	s.cfg.Query = "./artifacts/graphQueries/liqchanges.query"
+	cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
-		tblLiq, s.cfg, s.cntr.IngestLiqChange)
-	nRows, _ = syncLiq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("LiqChanges", nRows)
+		tblLiq, cfg, cntr.IngestLiqChange)
 
-	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
+	cfg.Query = "./artifacts/graphQueries/swaps.query"
 	tblSwap := tables.SwapsTable{}
 	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tblSwap, s.cfg, s.cntr.IngestSwap)
-	nRows, _ = syncSwap.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Swaps", nRows)
+		tblSwap, cfg, cntr.IngestSwap)
 
-	s.cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
+	cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
 	tblKo := tables.KnockoutTable{}
 	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
-		tblKo, s.cfg, s.cntr.IngestKnockout)
-	nRows, _ = syncKo.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Knockout crosses", nRows)
+		tblKo, cfg, cntr.IngestKnockout)
 
-	s.cfg.Query = "./artifacts/graphQueries/feechanges.query"
+	cfg.Query = "./artifacts/graphQueries/feechanges.query"
 	tblFee := tables.FeeTable{}
 	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
-		tblFee, s.cfg, s.cntr.IngestFee)
-	nRows, _ = syncFee.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
-	s.logSyncCycle("Fee Changes", nRows)
+		tblFee, cfg, cntr.IngestFee)
 
-	s.cfg.Query = "./artifacts/graphQueries/aggevent.query"
+	cfg.Query = "./artifacts/graphQueries/aggevent.query"
 	tblAgg := tables.AggEventsTable{}
 	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
-		tblAgg, s.cfg, s.cntr.IngestAggEvent)
-	nRows, _ = syncAgg.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+		tblAgg, cfg, cntr.IngestAggEvent)
+
+	return syncChannels{
+		bal:   syncBal,
+		liq:   syncLiq,
+		ko:    syncKo,
+		swaps: syncSwap,
+		fees:  syncFee,
+		aggs:  syncAgg,
+	}
+}
+
+func (s *SubgraphSyncer) syncStep(syncTime int) {
+	// We use the second to last previous sync time. This makes sure that every time
+	// window is sycn'd for a second time on the next block. This is necessary to prevent
+	// table synchronization issues where a window isn't fully synced on a table during the
+	// first pass on the block
+	startTime := s.lookbackTime + 1
+	doSyncFwd := true
+
+	nRows, _ := s.channels.bal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("User Balances", nRows)
+
+	nRows, _ = s.channels.liq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("LiqChanges", nRows)
+
+	nRows, _ = s.channels.swaps.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("Swaps", nRows)
+
+	nRows, _ = s.channels.ko.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("Knockout crosses", nRows)
+
+	nRows, _ = s.channels.fees.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	s.logSyncCycle("Fee Changes", nRows)
+
+	nRows, _ = s.channels.aggs.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
 	s.logSyncCycle("Poll Agg Events", nRows)
 
 	s.cntr.FlushSyncCycle(syncTime)
+	s.lookbackTime = s.lastSyncTime
 	s.lastSyncTime = syncTime
-}
-
-func (s *SubgraphSyncer) syncPricingSwaps() {
-	s.cfg.Query = "./artifacts/graphQueries/swaps.query"
-	tbl := tables.SwapsTable{}
-	sync := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
-		tbl, s.cfg, s.cntr.IngestSwap)
-
-	LOOKBACK_WINDOW := 3600 * 1
-	endTime := int(time.Now().Unix())
-	startTime := endTime - LOOKBACK_WINDOW
-
-	nRows, _ := sync.SyncTableToSubgraph(false, startTime, endTime)
-	log.Println("Sync Pricing swaps subgraph with rows=", nRows)
 }
