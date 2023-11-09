@@ -146,24 +146,23 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	// table synchronization issues where a window isn't fully synced on a table during the
 	// first pass on the block
 	startTime := s.lookbackTime + 1
-	doSyncFwd := true
 
-	nRows, _ := s.channels.bal.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ := s.channels.bal.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("User Balances", nRows)
 
-	nRows, _ = s.channels.liq.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ = s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("LiqChanges", nRows)
 
-	nRows, _ = s.channels.swaps.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ = s.channels.swaps.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Swaps", nRows)
 
-	nRows, _ = s.channels.ko.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ = s.channels.ko.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Knockout crosses", nRows)
 
-	nRows, _ = s.channels.fees.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ = s.channels.fees.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Fee Changes", nRows)
 
-	nRows, _ = s.channels.aggs.SyncTableToSubgraph(doSyncFwd, startTime, syncTime)
+	nRows, _ = s.channels.aggs.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Poll Agg Events", nRows)
 
 	s.cntr.FlushSyncCycle(syncTime)

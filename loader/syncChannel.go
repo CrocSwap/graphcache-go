@@ -9,13 +9,11 @@ import (
 )
 
 type SyncChannel[R any, S any] struct {
-	LastObserved     int
-	EarliestObserved int
-	RowsIngested     int
-	idsObserved      map[string]bool
-	consumeFn        func(R)
-	config           SyncChannelConfig
-	tbl              tables.ITable[R, S]
+	RowsIngested int
+	idsObserved  map[string]bool
+	consumeFn    func(R)
+	config       SyncChannelConfig
+	tbl          tables.ITable[R, S]
 }
 
 type SyncChannelConfig struct {
@@ -27,12 +25,10 @@ type SyncChannelConfig struct {
 func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelConfig,
 	consumeFn func(R)) SyncChannel[R, S] {
 	return SyncChannel[R, S]{
-		LastObserved:     0,
-		EarliestObserved: 1000 * 1000 * 1000 * 1000,
-		idsObserved:      make(map[string]bool),
-		consumeFn:        consumeFn,
-		config:           config,
-		tbl:              tbl,
+		idsObserved: make(map[string]bool),
+		consumeFn:   consumeFn,
+		config:      config,
+		tbl:         tbl,
 	}
 }
 
@@ -78,30 +74,21 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTime int) (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int, error) {
 	query := readQueryPath(s.config.Query)
 
-	prevObs := startTime
-	if !isAsc {
-		prevObs = endTime
-	}
+	lastObs := startTime
 
 	hasMore := true
 	nIngested := 0
 
 	for hasMore {
-		var queryStartTime int
-		var queryEndTime int
+		hasMore = false
 
-		if isAsc {
-			queryStartTime = prevObs
-			queryEndTime = endTime
-		} else {
-			queryStartTime = startTime
-			queryEndTime = prevObs
-		}
+		queryStartTime := lastObs
+		queryEndTime := endTime
 
-		resp, err := queryFromSubgraph(s.config.Chain, query, queryStartTime, queryEndTime, isAsc)
+		resp, err := queryFromSubgraph(s.config.Chain, query, queryStartTime, queryEndTime, true)
 
 		if err != nil {
 			log.Println("Warning subgraph request error " + err.Error())
@@ -116,16 +103,16 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 
 		for _, entry := range entries {
 			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
-			s.ingestEntry(row)
-			nIngested += 1
-		}
+			isFreshPoint, eventTime := s.ingestEntry(row)
 
-		if isAsc {
-			hasMore = s.LastObserved > prevObs
-			prevObs = s.LastObserved
-		} else {
-			hasMore = s.EarliestObserved < prevObs
-			prevObs = s.EarliestObserved
+			if isFreshPoint {
+				nIngested += 1
+				hasMore = true
+
+				if eventTime > lastObs {
+					lastObs = eventTime
+				}
+			}
 		}
 
 		log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
@@ -134,17 +121,14 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(isAsc bool, startTime int, endTi
 	return nIngested, nil
 }
 
-func (s *SyncChannel[R, S]) ingestEntry(r R) {
-	if s.tbl.GetTime(r) > s.LastObserved {
-		s.LastObserved = s.tbl.GetTime(r)
-	}
-	if s.tbl.GetTime(r) < s.EarliestObserved {
-		s.EarliestObserved = s.tbl.GetTime(r)
-	}
-
+func (s *SyncChannel[R, S]) ingestEntry(r R) (bool, int) {
 	_, hasEntry := s.idsObserved[s.tbl.GetID(r)]
+
 	if !hasEntry {
 		s.idsObserved[s.tbl.GetID(r)] = true
 		s.consumeFn(r)
+		return true, s.tbl.GetTime(r)
+	} else {
+		return false, -1
 	}
 }
