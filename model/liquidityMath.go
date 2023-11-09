@@ -66,7 +66,7 @@ func deriveRootFromInRange(baseFlow float64, quoteFlow float64,
 
 	solutionPos := (-termB + math.Sqrt(termB*termB-4*termA*termC)) /
 		(2 * termA)
-	solutionNeg := (-termB + math.Sqrt(termB*termB-4*termA*termC)) /
+	solutionNeg := (-termB - math.Sqrt(termB*termB-4*termA*termC)) /
 		(2 * termA)
 
 	if solutionPos >= bidPrice && solutionPos <= askPrice {
