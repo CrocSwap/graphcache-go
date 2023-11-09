@@ -11,6 +11,36 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type ICrocQuery interface {
+	QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error)
+	QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error)
+	QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error)
+	QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error)
+	QueryKnockoutPivot(pos types.PositionLocation) (uint32, error)
+}
+
+type NonCrocQuery struct{}
+
+func (q *NonCrocQuery) QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
+	return 0, nil
+}
+
 type CrocQuery struct {
 	queryAbi abi.ABI
 	addrs    map[types.ChainId]types.EthAddress

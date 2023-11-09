@@ -14,9 +14,7 @@ type workers struct {
 	liqRefresher *LiquidityRefresher
 }
 
-func initWorkers(netCfg loader.NetworkConfig) *workers {
-	chain := &loader.OnChainLoader{Cfg: netCfg}
-	query := loader.NewCrocQuery(chain)
+func initWorkers(netCfg loader.NetworkConfig, query *loader.ICrocQuery) *workers {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{

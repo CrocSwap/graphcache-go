@@ -17,7 +17,7 @@ type HandleRefresher struct {
 type LiquidityRefresher struct {
 	pending     chan IRefreshHandle
 	postProcess chan string
-	query       *loader.CrocQuery
+	query       *loader.ICrocQuery
 	workers     []chan IRefreshHandle
 	nextWorker  int
 }
@@ -27,7 +27,7 @@ const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
 
-func NewLiquidityRefresher(query *loader.CrocQuery) *LiquidityRefresher {
+func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
 	workers := make([]chan IRefreshHandle, NUM_PARALLEL_QUERIES)
 	for idx := 0; idx < NUM_PARALLEL_QUERIES; idx += 1 {
 		workers[idx] = make(chan IRefreshHandle, QUERY_WORKER_QUEUE)

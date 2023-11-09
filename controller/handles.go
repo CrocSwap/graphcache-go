@@ -10,7 +10,7 @@ import (
 )
 
 type IRefreshHandle interface {
-	RefreshQuery(query *loader.CrocQuery)
+	RefreshQuery(query *loader.ICrocQuery)
 	LabelTag() string
 }
 
@@ -30,26 +30,26 @@ type KnockoutPostHandle struct {
 	hasQueried bool
 }
 
-func (p *PositionRefreshHandle) RefreshQuery(query *loader.CrocQuery) {
+func (p *PositionRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
 	posType := types.PositionTypeForLiq(p.location.LiquidityLocation)
 
 	if posType == "ambient" {
-		liqFn := func() (*big.Int, error) { return query.QueryAmbientLiq(p.location) }
+		liqFn := func() (*big.Int, error) { return (*query).QueryAmbientLiq(p.location) }
 		ambientLiq := tryQueryAttempt(liqFn, "ambientLiq")
 		p.pos.UpdateAmbient(*ambientLiq)
 	}
 
 	if posType == "range" {
-		liqFn := func() (*big.Int, error) { return query.QueryRangeLiquidity(p.location) }
-		rewardFn := func() (*big.Int, error) { return query.QueryRangeRewardsLiq(p.location) }
+		liqFn := func() (*big.Int, error) { return (*query).QueryRangeLiquidity(p.location) }
+		rewardFn := func() (*big.Int, error) { return (*query).QueryRangeRewardsLiq(p.location) }
 		concLiq := tryQueryAttempt(liqFn, "rangeLiq")
 		rewardLiq := tryQueryAttempt(rewardFn, "rangeRewards")
 		p.pos.UpdateRange(*concLiq, *rewardLiq)
 	}
 }
 
-func (p *KnockoutAliveHandle) RefreshQuery(query *loader.CrocQuery) {
-	pivotTimeFn := func() (uint32, error) { return query.QueryKnockoutPivot(p.location) }
+func (p *KnockoutAliveHandle) RefreshQuery(query *loader.ICrocQuery) {
+	pivotTimeFn := func() (uint32, error) { return (*query).QueryKnockoutPivot(p.location) }
 	pivotTime := int(tryQueryAttempt(pivotTimeFn, "pivotTimeLatest"))
 
 	if pivotTime == 0 {
@@ -57,15 +57,15 @@ func (p *KnockoutAliveHandle) RefreshQuery(query *loader.CrocQuery) {
 
 	} else {
 		claimLoc := types.KOClaimLocation{PositionLocation: p.location, PivotTime: pivotTime}
-		liqFn := func() (*big.Int, error) { return query.QueryKnockoutLiq(claimLoc) }
+		liqFn := func() (*big.Int, error) { return (*query).QueryKnockoutLiq(claimLoc) }
 
 		knockoutLiq := tryQueryAttempt(liqFn, "knockoutLiq")
 		p.pos.Liq.UpdateActiveLiq(*knockoutLiq)
 	}
 }
 
-func (p *KnockoutPostHandle) RefreshQuery(query *loader.CrocQuery) {
-	liqFn := func() (*big.Int, error) { return query.QueryKnockoutLiq(p.location) }
+func (p *KnockoutPostHandle) RefreshQuery(query *loader.ICrocQuery) {
+	liqFn := func() (*big.Int, error) { return (*query).QueryKnockoutLiq(p.location) }
 	knockoutLiq := tryQueryAttempt(liqFn, "knockoutLiq")
 	p.pos.Liq.UpdatePostKOLiq(p.location.PivotTime, *knockoutLiq)
 }

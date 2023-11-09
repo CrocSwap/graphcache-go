@@ -115,8 +115,10 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 			}
 		}
 
-		log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
-			nIngested, s.config.Query, queryStartTime, queryEndTime)
+		if nIngested > 0 {
+			log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
+				nIngested, s.config.Query, queryStartTime, queryEndTime)
+		}
 	}
 	return nIngested, nil
 }

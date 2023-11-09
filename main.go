@@ -13,6 +13,7 @@ import (
 func main() {
 	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
 	var apiPath = flag.String("apiPath", "gcgo", "API server root path")
+	var noRpcMode = flag.Bool("noRpcMode", false, "Run in mode with no RPC calls")
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
@@ -20,6 +21,11 @@ func main() {
 
 	cache := cache.New()
 	cntrl := controller.New(netCfg, cache)
+
+	if *noRpcMode {
+		nonQuery := loader.NonCrocQuery{}
+		cntrl = controller.NewOnQuery(netCfg, cache, &nonQuery)
+	}
 
 	for network, chainCfg := range netCfg {
 		controller.NewSubgraphSyncer(cntrl, chainCfg, network)
