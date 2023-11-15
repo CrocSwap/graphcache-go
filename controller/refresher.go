@@ -106,7 +106,7 @@ func (r *HandleRefresher) watchPending() {
 	}
 }
 
-const MAX_REQS_PER_SEC = 200
+const MAX_REQS_PER_SEC = 50
 
 func (r *LiquidityRefresher) watchPending() {
 	lastSec := time.Now().Unix()
@@ -137,8 +137,8 @@ func (r *LiquidityRefresher) watchPending() {
 	}
 }
 
-const RETRY_QUERY_MIN_WAIT = 5
-const RETRY_QUERY_MAX_WAIT = 15
+const RETRY_QUERY_MIN_WAIT = 30
+const RETRY_QUERY_MAX_WAIT = 60
 const N_MAX_RETRIES = 3
 
 // Do this so that in case the problem is overloading the RPC, calls don't all spam again
