@@ -17,10 +17,10 @@ func main() {
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
-	onChain := loader.OnChainLoader{Cfg: netCfg}
+	onChain := loader.NewOnChainLoader(netCfg)
 
 	cache := cache.New()
-	cntrl := controller.New(netCfg, cache)
+	cntrl := controller.New(netCfg, cache, onChain)
 
 	if *noRpcMode {
 		nonQuery := loader.NonCrocQuery{}
@@ -31,7 +31,7 @@ func main() {
 		controller.NewSubgraphSyncer(cntrl, chainCfg, network)
 	}
 
-	views := views.Views{Cache: cache, OnChain: &onChain}
+	views := views.Views{Cache: cache, OnChain: onChain}
 	apiServer := server.APIWebServer{Views: &views}
 	apiServer.Serve(*apiPath)
 }

@@ -18,8 +18,7 @@ type Controller struct {
 	workers *workers
 }
 
-func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
-	chain := &loader.OnChainLoader{Cfg: netCfg}
+func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache, chain *loader.OnChainLoader) *Controller {
 	query := loader.NewCrocQuery(chain)
 
 	return NewOnQuery(netCfg, cache, query)

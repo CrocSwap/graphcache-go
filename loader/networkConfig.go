@@ -16,6 +16,8 @@ type ChainConfig struct {
 	RPCEndpoint       string `json:"rpc"`
 	Subgraph          string `json:"subgraph"`
 	QueryContract     string `json:"query_contract"`
+	MulticallContract string `json:"multicall_contract"`
+	MulticallMaxBatch int    `json:"multicall_max_batch"`
 	QueryContractABI  string `json:"query_contract_abi"`
 	KnockoutTickWidth int    `json:"knockout_tick_width"`
 }
