@@ -33,26 +33,22 @@ type CallJob struct {
 }
 
 type OnChainLoader struct {
-	Cfg           NetworkConfig
-	JobChans      map[int]chan CallJob
-	BatchInterval time.Duration
-	multicallAbi  abi.ABI
+	Cfg          NetworkConfig
+	jobChans     map[int]chan CallJob
+	multicallAbi abi.ABI
 }
 
 func NewOnChainLoader(cfg NetworkConfig) *OnChainLoader {
-	chans := make(map[int]chan CallJob)
-	for _, chain := range cfg {
-		chans[chain.ChainID] = make(chan CallJob)
-	}
-
 	c := &OnChainLoader{
-		Cfg:           cfg,
-		JobChans:      chans,
-		BatchInterval: time.Duration(500) * time.Millisecond,
-		multicallAbi:  multicallAbi(),
+		Cfg:          cfg,
+		jobChans:     make(map[int]chan CallJob),
+		multicallAbi: multicallAbi(),
 	}
 	for key, chain := range cfg {
-		go c.multicallWorker(chain.ChainID, key)
+		if !chain.MulticallDisabled {
+			c.jobChans[chain.ChainID] = make(chan CallJob)
+			go c.multicallWorker(chain.ChainID, key)
+		}
 	}
 	return c
 }
@@ -118,13 +114,18 @@ func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
 }
 
 func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
+	chainIdInt, _ := strconv.ParseInt(string(chainId)[2:], 16, 32)
+	jobChan := c.jobChans[int(chainIdInt)]
+	if jobChan == nil { // if multicall is disabled for this chain
+		return c.singleContractDataCall(client, chainId, contract, data)
+	}
+
 	job := CallJob{
 		Contract: contract,
 		CallData: data,
-		Result:   make(chan []byte, 1),
+		Result:   make(chan []byte, 1), // buffered to not lock the worker if the call timed out
 	}
-	chainIdInt, _ := strconv.ParseInt(string(chainId)[2:], 16, 32)
-	c.JobChans[int(chainIdInt)] <- job
+	jobChan <- job
 
 	// Wait for the multicall result and fall back to a direct call if it times out
 	select {
@@ -134,33 +135,42 @@ func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types
 		}
 		return result, nil
 	case <-time.After(2000 * time.Millisecond):
-		log.Println("Multicall timed out, sending manually")
-		addr := common.HexToAddress(string(contract))
-
-		msg := ethereum.CallMsg{
-			To:   &addr,
-			Data: data,
-		}
-
-		result, err := client.CallContract(context.Background(), msg, nil)
-		if err != nil {
-			return []byte{}, err
-		}
-		return result, nil
+		log.Println("Multicall timed out, calling manually")
+		return c.singleContractDataCall(client, chainId, contract, data)
 	}
+}
+
+// Call a contract directly
+func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, chainId types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
+	addr := common.HexToAddress(string(contract))
+
+	msg := ethereum.CallMsg{
+		To:   &addr,
+		Data: data,
+	}
+
+	result, err := client.CallContract(context.Background(), msg, nil)
+	if err != nil {
+		return []byte{}, err
+	}
+	return result, nil
 }
 
 // Goroutine that aggregates calls and sends them to the multicall contract after a timeout
 func (c *OnChainLoader) multicallWorker(chainId int, networkName types.NetworkName) {
-	jobChan := c.JobChans[chainId]
+	jobChan := c.jobChans[chainId]
 	jobs := make([]CallJob, 0)
-	batchTimer := time.NewTimer(1<<63 - 1)
+	batchTimer := time.NewTimer(1<<63 - 1) // infinite timer until the first job
 	maxBatchSize := c.Cfg[networkName].MulticallMaxBatch
 	if maxBatchSize == 0 {
 		maxBatchSize = 10
 	}
+	batchInterval := time.Duration(c.Cfg[networkName].MulticallIntervalMs) * time.Millisecond
+	if batchInterval == time.Duration(0) {
+		batchInterval = time.Duration(500) * time.Millisecond
+	}
 
-	log.Println("multicallWorker started", chainId, networkName, "maxBatchSize", maxBatchSize, "batchInterval", c.BatchInterval)
+	log.Println("multicallWorker started", chainId, networkName, "maxBatchSize", maxBatchSize, "batchInterval", batchInterval)
 
 	for {
 		// Timer starts as soon as the first job is received.
@@ -168,7 +178,7 @@ func (c *OnChainLoader) multicallWorker(chainId int, networkName types.NetworkNa
 		select {
 		case job := <-jobChan:
 			if len(jobs) == 0 {
-				batchTimer.Reset(c.BatchInterval)
+				batchTimer.Reset(batchInterval)
 			}
 			jobs = append(jobs, job)
 			if len(jobs) < maxBatchSize {
@@ -212,20 +222,15 @@ func (c *OnChainLoader) multicall(jobs []CallJob, chainId int, networkName types
 	}
 	packed, err := c.multicallAbi.Pack("aggregate3", inputs)
 	if err != nil {
-		log.Fatal("failed to pack aggregate3", err)
-	}
-
-	addr := common.HexToAddress(c.Cfg[networkName].MulticallContract)
-	msg := ethereum.CallMsg{
-		To:   &addr,
-		Data: packed,
+		log.Println("failed to pack aggregate3", err)
+		return err
 	}
 
 	client, err := c.ethClientForChain(types.IntToChainId(chainId))
 	if err != nil {
 		return err
 	}
-	multicallResult, err := client.CallContract(context.Background(), msg, nil)
+	multicallResult, err := c.singleContractDataCall(client, types.IntToChainId(chainId), types.EthAddress(c.Cfg[networkName].MulticallContract), packed)
 	if err != nil {
 		return err
 	}
@@ -233,7 +238,8 @@ func (c *OnChainLoader) multicall(jobs []CallJob, chainId int, networkName types
 	var results []Call3OutputType
 	err = c.multicallAbi.UnpackIntoInterface(&results, "aggregate3", multicallResult)
 	if err != nil {
-		log.Fatal("failed to unpack aggregate3", err)
+		log.Println("failed to unpack aggregate3", err)
+		return err
 	}
 
 	for i, job := range jobs {
