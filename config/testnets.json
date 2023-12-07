@@ -1,0 +1,17 @@
+{
+    "goerli": {
+        "chain_id": 5,
+        "rpc": "https://goerli.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
+        "subgraph": "https://api.thegraph.com/subgraphs/name/crocswap/croc-testnet",
+        "query_contract": "0x49281c10c66f217705b4aa108e59785c6b6bc39e",
+        "knockout_tick_width": 64
+    },
+
+    "scrollSepolia": {
+        "chain_id": 534351,
+        "rpc": "https://sepolia-rpc.scroll.io",
+        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-scroll-sepolia/v0.1.4",
+        "query_contract": "0x43eC1302FE3587862e15B2D52AD9653575FD79e9",
+        "knockout_tick_width": 1
+    }
+}
