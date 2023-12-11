@@ -22,7 +22,7 @@ type LiquidityRefresher struct {
 	nextWorker  int
 }
 
-const NUM_PARALLEL_QUERIES = 50
+const NUM_PARALLEL_QUERIES = 5
 const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
@@ -106,11 +106,13 @@ func (r *HandleRefresher) watchPending() {
 	}
 }
 
-const MAX_REQS_PER_SEC = 50
+const MAX_REQS_PER_SEC = 900
+const MIN_MS_BETWEEN_REFRESH = 1
 
 func (r *LiquidityRefresher) watchPending() {
 	lastSec := time.Now().Unix()
 	callCnt := 0
+	totalCnt := 0
 
 	for true {
 		nowSec := time.Now().Unix()
@@ -118,7 +120,7 @@ func (r *LiquidityRefresher) watchPending() {
 			callCnt += 1
 		} else {
 			callCnt = 0
-			nowSec = lastSec
+			lastSec = nowSec
 		}
 
 		if callCnt > MAX_REQS_PER_SEC {
@@ -134,12 +136,15 @@ func (r *LiquidityRefresher) watchPending() {
 				r.nextWorker = 0
 			}
 		}
+
+		totalCnt += 1
+		time.Sleep(MIN_MS_BETWEEN_REFRESH * time.Millisecond)
 	}
 }
 
-const RETRY_QUERY_MIN_WAIT = 30
+const RETRY_QUERY_MIN_WAIT = 10
 const RETRY_QUERY_MAX_WAIT = 60
-const N_MAX_RETRIES = 3
+const N_MAX_RETRIES = 5
 
 // Do this so that in case the problem is overloading the RPC, calls don't all spam again
 // at same deterministic time

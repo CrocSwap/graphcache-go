@@ -100,11 +100,6 @@ func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 }
 
 func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig) syncChannels {
-	cfg.Query = "./artifacts/graphQueries/balances.query"
-	tblBal := tables.BalanceTable{}
-	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-		tblBal, cfg, cntr.IngestBalance)
-
 	cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
@@ -129,6 +124,11 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	tblAgg := tables.AggEventsTable{}
 	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
 		tblAgg, cfg, cntr.IngestAggEvent)
+
+	cfg.Query = "./artifacts/graphQueries/balances.query"
+	tblBal := tables.BalanceTable{}
+	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
+		tblBal, cfg, cntr.IngestBalance)
 
 	return syncChannels{
 		bal:   syncBal,
