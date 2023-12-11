@@ -3,7 +3,7 @@
     "chain_id": 5,
     "rpc": "https://goerli.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
     "subgraph": "https://api.thegraph.com/subgraphs/name/crocswap/croc-testnet",
-    "query_contract": "0x49281c10c66f217705b4aa108e59785c6b6bc39e",
+    "query_contract": "0xc9900777baa5EE94Cd2C6509fb09278A1A46b7e8",
     "knockout_tick_width": 64
   },
 

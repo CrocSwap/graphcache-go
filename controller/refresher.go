@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -179,10 +178,6 @@ func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
 				time.Sleep(time.Second)
 				callCnt = 0
 			}
-		}
-
-		if totalCnt%100 == 0 {
-			fmt.Println("Processed ", totalCnt, " on thread")
 		}
 
 		totalCnt += 1
