@@ -73,13 +73,13 @@ func (msg *posImpactMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidity
 	accum.lock.Lock()
 	refresher, ok := accum.posRefreshers[msg.loc]
 	if !ok {
-		handle := PositionRefreshHandle{location: msg.loc, pos: msg.pos}
+		handle := RewardsRefreshHandle{location: msg.loc, pos: msg.pos}
 		refresher = NewHandleRefresher(&handle, liq.pending)
 		accum.posRefreshers[msg.loc] = refresher
 	}
 	accum.lock.Unlock()
 
-	refresher.PushRefresh(msg.eventTime)
+	refresher.PushRefreshPoll(msg.eventTime)
 }
 
 func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -22,10 +23,11 @@ type LiquidityRefresher struct {
 	nextWorker  int
 }
 
-const NUM_PARALLEL_QUERIES = 5
+const NUM_PARALLEL_QUERIES = 50
 const QUERY_CHANNEL_WINDOW = 25000
 const POSITION_CHANNEL_WINDOW = 1000
 const QUERY_WORKER_QUEUE = 1000
+const MAX_REQS_PER_SEC = 200
 
 func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
 	workers := make([]chan IRefreshHandle, NUM_PARALLEL_QUERIES)
@@ -69,6 +71,12 @@ func (r *HandleRefresher) PushRefresh(eventTime int) {
 	}
 }
 
+func (r *HandleRefresher) PushRefreshPoll(eventTime int) {
+	r.requestRefresh()
+	// Since these are periodic polls, no followup to force convergence on event
+	// state is necessary
+}
+
 func (r *HandleRefresher) requestRefresh() {
 	latestTime := time.Now().Unix()
 	windowTag := latestTime / REFRESH_WINDOW
@@ -106,9 +114,6 @@ func (r *HandleRefresher) watchPending() {
 	}
 }
 
-const MAX_REQS_PER_SEC = 900
-const MIN_MS_BETWEEN_REFRESH = 1
-
 func (r *LiquidityRefresher) watchPending() {
 	lastSec := time.Now().Unix()
 	callCnt := 0
@@ -123,7 +128,7 @@ func (r *LiquidityRefresher) watchPending() {
 			lastSec = nowSec
 		}
 
-		if callCnt > MAX_REQS_PER_SEC {
+		if callCnt > 100000 {
 			log.Println("Throttling liquidity refreshes per second")
 			time.Sleep(time.Second)
 
@@ -138,7 +143,6 @@ func (r *LiquidityRefresher) watchPending() {
 		}
 
 		totalCnt += 1
-		time.Sleep(MIN_MS_BETWEEN_REFRESH * time.Millisecond)
 	}
 }
 
@@ -155,10 +159,33 @@ func retryWaitRandom() {
 }
 
 func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
+	lastSec := time.Now().Unix()
+	callCnt := 0
+	totalCnt := 0
+
 	for true {
 		hndl := <-workQueue
 		hndl.RefreshQuery(r.query)
 		r.postProcess <- hndl.LabelTag()
+
+		nowSec := time.Now().Unix()
+		if nowSec != lastSec {
+			callCnt = 0
+			lastSec = nowSec
+
+		} else {
+			callCnt += 1
+			if callCnt > MAX_REQS_PER_SEC {
+				time.Sleep(time.Second)
+				callCnt = 0
+			}
+		}
+
+		if totalCnt%100 == 0 {
+			fmt.Println("Processed ", totalCnt, " on thread")
+		}
+
+		totalCnt += 1
 	}
 }
 
