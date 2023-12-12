@@ -74,7 +74,7 @@ func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val,
 		}
 	}
 	m.lock.RUnlock()
-	return result, ok
+	return retVal, ok
 }
 
 func (m *RWLockMap[Key, Val]) insert(key Key, val Val) {
