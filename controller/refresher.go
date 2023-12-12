@@ -23,9 +23,9 @@ type LiquidityRefresher struct {
 }
 
 const NUM_PARALLEL_QUERIES = 50
-const QUERY_CHANNEL_WINDOW = 25000
-const POSITION_CHANNEL_WINDOW = 1000
-const QUERY_WORKER_QUEUE = 1000
+const QUERY_CHANNEL_WINDOW = 100000
+const POSITION_CHANNEL_WINDOW = 10000
+const QUERY_WORKER_QUEUE = 10000
 const MAX_REQS_PER_SEC = 200
 
 func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {

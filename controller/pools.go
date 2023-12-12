@@ -11,18 +11,21 @@ import (
 const N_POSITIONS_REFRESH_ON_SWAP = 50
 
 func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
-	loc := types.PoolLocation{
-		ChainId: c.chainId,
-		PoolIdx: l.PoolIdx,
-		Base:    types.RequireEthAddr(l.Base),
-		Quote:   types.RequireEthAddr(l.Quote),
-	}
-	positions := c.ctrl.cache.RetrievePoolPositions(loc)
-
-	hotPos := c.subsetRecent(positions)
 	var msgs []posImpactMsg
-	for loc, pos := range hotPos {
-		msgs = append(msgs, posImpactMsg{loc, pos, l.Time})
+
+	if isRecentEvent(l.Time) {
+		loc := types.PoolLocation{
+			ChainId: c.chainId,
+			PoolIdx: l.PoolIdx,
+			Base:    types.RequireEthAddr(l.Base),
+			Quote:   types.RequireEthAddr(l.Quote),
+		}
+		positions := c.ctrl.cache.RetrievePoolPositions(loc)
+
+		hotPos := c.subsetRecent(positions)
+		for loc, pos := range hotPos {
+			msgs = append(msgs, posImpactMsg{loc, pos, l.Time})
+		}
 	}
 	return msgs
 }
