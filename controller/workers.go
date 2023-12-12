@@ -48,7 +48,7 @@ func watchUpdateSeq(liq *LiquidityRefresher) chan IMsgType {
 	return sink
 }
 
-const UPDATE_CHANNEL_SIZE = 16000
+const UPDATE_CHANNEL_SIZE = 250000
 
 type IMsgType interface {
 	processUpdate(*RefreshAccumulator, *LiquidityRefresher)
