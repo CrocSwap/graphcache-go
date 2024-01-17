@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/CrocSwap/graphcache-go/views"
@@ -11,7 +12,7 @@ type APIWebServer struct {
 	Views views.IViews
 }
 
-func (s *APIWebServer) Serve() {
+func (s *APIWebServer) Serve(prefix string) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(CORSMiddleware())
@@ -35,6 +36,8 @@ func (s *APIWebServer) Serve() {
 	r.GET("gcgo/pool_candles", s.queryPoolCandles)
 	r.GET("gcgo/pool_list", s.queryPoolList)
 	r.GET("gcgo/chain_stats", s.queryChainStats)
+
+	log.Println("API Serving at", prefix)
 	r.Run()
 }
 

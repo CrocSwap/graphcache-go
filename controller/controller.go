@@ -19,12 +19,19 @@ type Controller struct {
 }
 
 func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache) *Controller {
+	chain := &loader.OnChainLoader{Cfg: netCfg}
+	query := loader.NewCrocQuery(chain)
+
+	return NewOnQuery(netCfg, cache, query)
+}
+
+func NewOnQuery(netCfg loader.NetworkConfig, cache *cache.MemoryCache, query loader.ICrocQuery) *Controller {
 	history := model.NewHistoryWriter(netCfg, cache.AddPoolEvent)
 
 	ctrl := &Controller{
 		netCfg:  netCfg,
 		cache:   cache,
-		workers: initWorkers(netCfg),
+		workers: initWorkers(netCfg, &query),
 		history: history,
 	}
 	go ctrl.runPeriodicRefresh()
@@ -182,7 +189,7 @@ func (c *Controller) resyncFullCycle(time int) {
 	}
 }
 
-const REFRESH_CYCLE_TIME = 10 * 60
+const REFRESH_CYCLE_TIME = 30 * 60
 
 func (c *Controller) runPeriodicRefresh() {
 	for true {

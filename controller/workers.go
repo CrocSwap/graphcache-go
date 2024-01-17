@@ -14,9 +14,7 @@ type workers struct {
 	liqRefresher *LiquidityRefresher
 }
 
-func initWorkers(netCfg loader.NetworkConfig) *workers {
-	chain := &loader.OnChainLoader{Cfg: netCfg}
-	query := loader.NewCrocQuery(chain)
+func initWorkers(netCfg loader.NetworkConfig, query *loader.ICrocQuery) *workers {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{
@@ -50,7 +48,7 @@ func watchUpdateSeq(liq *LiquidityRefresher) chan IMsgType {
 	return sink
 }
 
-const UPDATE_CHANNEL_SIZE = 16000
+const UPDATE_CHANNEL_SIZE = 250000
 
 type IMsgType interface {
 	processUpdate(*RefreshAccumulator, *LiquidityRefresher)
@@ -75,13 +73,13 @@ func (msg *posImpactMsg) processUpdate(accum *RefreshAccumulator, liq *Liquidity
 	accum.lock.Lock()
 	refresher, ok := accum.posRefreshers[msg.loc]
 	if !ok {
-		handle := PositionRefreshHandle{location: msg.loc, pos: msg.pos}
+		handle := RewardsRefreshHandle{location: msg.loc, pos: msg.pos}
 		refresher = NewHandleRefresher(&handle, liq.pending)
 		accum.posRefreshers[msg.loc] = refresher
 	}
 	accum.lock.Unlock()
 
-	refresher.PushRefresh(msg.eventTime)
+	refresher.PushRefreshPoll(msg.eventTime)
 }
 
 func (msg *koPosUpdateMsg) processUpdate(accum *RefreshAccumulator, liq *LiquidityRefresher) {

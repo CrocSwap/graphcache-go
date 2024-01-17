@@ -17,17 +17,18 @@ type HandleRefresher struct {
 type LiquidityRefresher struct {
 	pending     chan IRefreshHandle
 	postProcess chan string
-	query       *loader.CrocQuery
+	query       *loader.ICrocQuery
 	workers     []chan IRefreshHandle
 	nextWorker  int
 }
 
 const NUM_PARALLEL_QUERIES = 50
-const QUERY_CHANNEL_WINDOW = 25000
-const POSITION_CHANNEL_WINDOW = 1000
-const QUERY_WORKER_QUEUE = 1000
+const QUERY_CHANNEL_WINDOW = 100000
+const POSITION_CHANNEL_WINDOW = 10000
+const QUERY_WORKER_QUEUE = 10000
+const MAX_REQS_PER_SEC = 200
 
-func NewLiquidityRefresher(query *loader.CrocQuery) *LiquidityRefresher {
+func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
 	workers := make([]chan IRefreshHandle, NUM_PARALLEL_QUERIES)
 	for idx := 0; idx < NUM_PARALLEL_QUERIES; idx += 1 {
 		workers[idx] = make(chan IRefreshHandle, QUERY_WORKER_QUEUE)
@@ -69,6 +70,12 @@ func (r *HandleRefresher) PushRefresh(eventTime int) {
 	}
 }
 
+func (r *HandleRefresher) PushRefreshPoll(eventTime int) {
+	r.requestRefresh()
+	// Since these are periodic polls, no followup to force convergence on event
+	// state is necessary
+}
+
 func (r *HandleRefresher) requestRefresh() {
 	latestTime := time.Now().Unix()
 	windowTag := latestTime / REFRESH_WINDOW
@@ -106,11 +113,10 @@ func (r *HandleRefresher) watchPending() {
 	}
 }
 
-const MAX_REQS_PER_SEC = 200
-
 func (r *LiquidityRefresher) watchPending() {
 	lastSec := time.Now().Unix()
 	callCnt := 0
+	totalCnt := 0
 
 	for true {
 		nowSec := time.Now().Unix()
@@ -118,10 +124,10 @@ func (r *LiquidityRefresher) watchPending() {
 			callCnt += 1
 		} else {
 			callCnt = 0
-			nowSec = lastSec
+			lastSec = nowSec
 		}
 
-		if callCnt > MAX_REQS_PER_SEC {
+		if callCnt > 100000 {
 			log.Println("Throttling liquidity refreshes per second")
 			time.Sleep(time.Second)
 
@@ -134,12 +140,14 @@ func (r *LiquidityRefresher) watchPending() {
 				r.nextWorker = 0
 			}
 		}
+
+		totalCnt += 1
 	}
 }
 
-const RETRY_QUERY_MIN_WAIT = 5
-const RETRY_QUERY_MAX_WAIT = 15
-const N_MAX_RETRIES = 3
+const RETRY_QUERY_MIN_WAIT = 10
+const RETRY_QUERY_MAX_WAIT = 60
+const N_MAX_RETRIES = 5
 
 // Do this so that in case the problem is overloading the RPC, calls don't all spam again
 // at same deterministic time
@@ -150,10 +158,29 @@ func retryWaitRandom() {
 }
 
 func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
+	lastSec := time.Now().Unix()
+	callCnt := 0
+	totalCnt := 0
+
 	for true {
 		hndl := <-workQueue
 		hndl.RefreshQuery(r.query)
 		r.postProcess <- hndl.LabelTag()
+
+		nowSec := time.Now().Unix()
+		if nowSec != lastSec {
+			callCnt = 0
+			lastSec = nowSec
+
+		} else {
+			callCnt += 1
+			if callCnt > MAX_REQS_PER_SEC {
+				time.Sleep(time.Second)
+				callCnt = 0
+			}
+		}
+
+		totalCnt += 1
 	}
 }
 

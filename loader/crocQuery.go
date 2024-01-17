@@ -11,6 +11,36 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type ICrocQuery interface {
+	QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error)
+	QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error)
+	QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error)
+	QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error)
+	QueryKnockoutPivot(pos types.PositionLocation) (uint32, error)
+}
+
+type NonCrocQuery struct{}
+
+func (q *NonCrocQuery) QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func (q *NonCrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
+	return 0, nil
+}
+
 type CrocQuery struct {
 	queryAbi abi.ABI
 	addrs    map[types.ChainId]types.EthAddress
@@ -20,7 +50,7 @@ type CrocQuery struct {
 func NewCrocQuery(chain *OnChainLoader) *CrocQuery {
 	return &CrocQuery{
 		queryAbi: crocQueryAbi(),
-		addrs:    crocQueryAddrs(),
+		addrs:    crocQueryAddrs(chain.Cfg),
 		chain:    chain,
 	}
 }
@@ -168,9 +198,13 @@ func crocQueryAbi() abi.ABI {
 	return parsedABI
 }
 
-func crocQueryAddrs() map[types.ChainId]types.EthAddress {
+func crocQueryAddrs(cfg NetworkConfig) map[types.ChainId]types.EthAddress {
 	addrs := make(map[types.ChainId]types.EthAddress)
-	addrs["0x5"] = "0xc9900777baa5EE94Cd2C6509fb09278A1A46b7e8"
-	addrs["0x1"] = "0xc2e1f740E11294C64adE66f69a1271C5B32004c8"
+
+	for _, chainCfg := range cfg {
+		chainId := types.IntToChainId(chainCfg.ChainID)
+		addrs[chainId] = types.EthAddress(chainCfg.QueryContract)
+	}
+
 	return addrs
 }

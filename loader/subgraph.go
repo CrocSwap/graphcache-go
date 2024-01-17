@@ -52,6 +52,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	req, err := http.NewRequest(http.MethodPost, cfg.Subgraph, bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "close")
+	req.Header.Set("User-Agent", "crocswap-indexer/1.0")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
