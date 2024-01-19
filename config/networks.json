@@ -2,7 +2,7 @@
   "mainnet": {
     "chain_id": 1,
     "rpc": "https://mainnet.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
-    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-mainnet/v0.10",
+    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-mainnet/v0.11",
     "query_contract": "0xc2e1f740E11294C64adE66f69a1271C5B32004c8",
     "knockout_tick_width": 16
   }
