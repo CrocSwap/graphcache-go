@@ -1,12 +1,8 @@
 package views
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"sort"
-
-	"github.com/cnf/structhash"
 
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -48,7 +44,8 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	results := make([]UserPosition, 0)
 
 	for key, val := range positions {
-		element := UserPosition{key, *val, val.CalcAPR(key), formPositionId(key)}
+		// don't fill all the fields before sorting and truncating
+		element := UserPosition{PositionLocation: key, PositionTracker: *val, APRCalcResult: model.APRCalcResult{0, 0, 0, 0}, PositionId: ""}
 		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
 			results = append(results, element)
 		}
@@ -56,11 +53,16 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 
 	sort.Sort(byTime(results))
 
-	if len(results) < nResults {
-		return results
-	} else {
-		return results[0:nResults]
+	if len(results) > nResults {
+		results = results[0:nResults]
 	}
+
+	for i, pos := range results {
+		pos.APRCalcResult = pos.CalcAPR(pos.PositionLocation)
+		pos.PositionId = formPositionId(pos.PositionLocation)
+		results[i] = pos
+	}
+	return results
 }
 
 func (v *Views) QueryPoolApyLeaders(chainId types.ChainId,
@@ -114,8 +116,8 @@ func (v *Views) QuerySinglePosition(chainId types.ChainId, user types.EthAddress
 }
 
 func formPositionId(loc types.PositionLocation) string {
-	hash := sha256.Sum256(structhash.Dump(loc, 1))
-	return fmt.Sprintf("pos_%s", hex.EncodeToString(hash[:]))
+	hash := loc.Hash()
+	return "pos_" + hex.EncodeToString(hash[:])
 }
 
 type byTime []UserPosition

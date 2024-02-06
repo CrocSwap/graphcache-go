@@ -1,13 +1,10 @@
 package views
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"sort"
 
 	"github.com/CrocSwap/graphcache-go/types"
-	"github.com/cnf/structhash"
 )
 
 type UserTxHistory struct {
@@ -25,7 +22,7 @@ func (v *Views) QueryUserTxHist(chainId types.ChainId, user types.EthAddress, nR
 	}
 }
 
-func (v *Views) QueryUserPoolTxHist(chainId types.ChainId, user types.EthAddress,base types.EthAddress, quote types.EthAddress, poolIdx int) []UserTxHistory {
+func (v *Views) QueryUserPoolTxHist(chainId types.ChainId, user types.EthAddress, base types.EthAddress, quote types.EthAddress, poolIdx int) []UserTxHistory {
 	results := v.Cache.RetrieveUserTxs(chainId, user)
 	var filteredResults []types.PoolTxEvent
 	loc := types.PoolLocation{
@@ -94,8 +91,8 @@ func appendTags(txs []types.PoolTxEvent) []UserTxHistory {
 }
 
 func formTxId(loc types.PoolTxEvent) string {
-	hash := sha256.Sum256(structhash.Dump(loc, 1))
-	return fmt.Sprintf("tx_%s", hex.EncodeToString(hash[:]))
+	hash := loc.Hash()
+	return "tx_" + hex.EncodeToString(hash[:])
 }
 
 type byTimeTx []types.PoolTxEvent
