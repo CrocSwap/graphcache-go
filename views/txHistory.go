@@ -49,14 +49,8 @@ func (v *Views) QueryPoolTxHist(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	results := v.Cache.RetrivePoolTxs(loc)
-	sort.Sort(byTimeTx(results))
-
-	if len(results) < nResults {
-		return appendTags(results)
-	} else {
-		return appendTags(results[0:nResults])
-	}
+	results := v.Cache.RetriveLastNPoolTxs(loc, nResults)
+	return appendTags(results)
 }
 
 func (v *Views) QueryPoolTxHistFrom(chainId types.ChainId,
