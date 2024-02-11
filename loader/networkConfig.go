@@ -11,13 +11,17 @@ import (
 )
 
 type ChainConfig struct {
-	NetworkName       string
-	ChainID           int    `json:"chain_id"`
-	RPCEndpoint       string `json:"rpc"`
-	Subgraph          string `json:"subgraph"`
-	QueryContract     string `json:"query_contract"`
-	QueryContractABI  string `json:"query_contract_abi"`
-	KnockoutTickWidth int    `json:"knockout_tick_width"`
+	NetworkName         string
+	ChainID             int    `json:"chain_id"`
+	RPCEndpoint         string `json:"rpc"`
+	Subgraph            string `json:"subgraph"`
+	QueryContract       string `json:"query_contract"`
+	QueryContractABI    string `json:"query_contract_abi"`
+	KnockoutTickWidth   int    `json:"knockout_tick_width"`
+	MulticallDisabled   bool   `json:"multicall_disabled"`
+	MulticallContract   string `json:"multicall_contract"`
+	MulticallMaxBatch   int    `json:"multicall_max_batch"`
+	MulticallIntervalMs int    `json:"multicall_interval_ms"`
 }
 
 type NetworkConfig map[types.NetworkName]ChainConfig

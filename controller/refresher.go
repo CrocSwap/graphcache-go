@@ -26,7 +26,7 @@ const NUM_PARALLEL_QUERIES = 50
 const QUERY_CHANNEL_WINDOW = 100000
 const POSITION_CHANNEL_WINDOW = 10000
 const QUERY_WORKER_QUEUE = 10000
-const MAX_REQS_PER_SEC = 200
+const MAX_REQS_PER_SEC = 1000
 
 func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
 	workers := make([]chan IRefreshHandle, NUM_PARALLEL_QUERIES)

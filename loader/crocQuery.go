@@ -156,7 +156,7 @@ func (q *CrocQuery) callQueryResults(chainId types.ChainId,
 		return make([]interface{}, 0), err
 	}
 
-	return callContractFn(callData, methodName, contractAddr, client, q.queryAbi)
+	return q.chain.callContractFn(callData, methodName, contractAddr, client, chainId, q.queryAbi)
 }
 
 func (q *CrocQuery) callQueryFirstReturn(chainId types.ChainId,
