@@ -1,5 +1,11 @@
 package types
 
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+)
+
 type PoolLocation struct {
 	ChainId ChainId    `json:"chainId"`
 	Base    EthAddress `json:"base"`
@@ -70,6 +76,35 @@ func (l PositionLocation) ToBookLoc() BookLocation {
 		l.PoolLocation,
 		l.LiquidityLocation,
 	}
+}
+
+func (p PositionLocation) Hash() [32]byte {
+	buf := new(bytes.Buffer)
+	buf.Grow(160)
+	buf.WriteString(string(p.ChainId))
+	buf.WriteString(string(p.Base))
+	buf.WriteString(string(p.Quote))
+	binary.Write(buf, binary.BigEndian, int32(p.PoolIdx))
+	binary.Write(buf, binary.BigEndian, int32(p.BidTick))
+	binary.Write(buf, binary.BigEndian, int32(p.AskTick))
+	binary.Write(buf, binary.BigEndian, p.IsBid)
+	buf.WriteString(string(p.User))
+	return sha256.Sum256(buf.Bytes())
+}
+
+func (k KOClaimLocation) Hash() [32]byte {
+	buf := new(bytes.Buffer)
+	buf.Grow(160)
+	buf.WriteString(string(k.ChainId))
+	buf.WriteString(string(k.Base))
+	buf.WriteString(string(k.Quote))
+	binary.Write(buf, binary.BigEndian, int32(k.PoolIdx))
+	binary.Write(buf, binary.BigEndian, int32(k.BidTick))
+	binary.Write(buf, binary.BigEndian, int32(k.AskTick))
+	binary.Write(buf, binary.BigEndian, k.IsBid)
+	buf.WriteString(string(k.User))
+	binary.Write(buf, binary.BigEndian, int32(k.PivotTime))
+	return sha256.Sum256(buf.Bytes())
 }
 
 func (l BookLocation) ToPositionLocation(user EthAddress) PositionLocation {

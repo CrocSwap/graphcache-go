@@ -35,6 +35,11 @@ func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEven
 	return txs
 }
 
+func (m *MemoryCache) RetriveLastNPoolTxs(pool types.PoolLocation, lastN int) []types.PoolTxEvent {
+	txs, _ := m.poolTxs.lookupLastN(pool, lastN)
+	return txs
+}
+
 func (m *MemoryCache) RetrieveUserPositions(
 	chainId types.ChainId,
 	user types.EthAddress) map[types.PositionLocation]*model.PositionTracker {
@@ -188,7 +193,37 @@ func (m *MemoryCache) AddUserBalance(chainId types.ChainId, user types.EthAddres
 func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
 	userKey := chainAndAddr{tx.ChainId, tx.User}
 	m.userTxs.insert(userKey, tx)
-	m.poolTxs.insert(tx.PoolLocation, tx)
+	m.poolTxs.insertSorted(tx.PoolLocation, tx, func(i, j types.PoolTxEvent) bool {
+		if i.TxTime != j.TxTime {
+			return i.TxTime > j.TxTime
+		}
+
+		// Tie breakers if occurs at same time
+		if i.ChangeType != j.ChangeType {
+			return i.ChangeType > j.ChangeType
+		}
+
+		if i.PositionType != j.PositionType {
+			return i.PositionType > j.PositionType
+		}
+
+		if string(i.Base) != string(j.Base) {
+			return i.Base > j.Base
+		}
+
+		if string(i.Quote) != string(j.Quote) {
+			return i.Quote > j.Quote
+		}
+
+		if i.BidTick != j.BidTick {
+			return i.BidTick > j.BidTick
+		}
+
+		if i.AskTick != j.AskTick {
+			return i.BidTick > j.BidTick
+		}
+		return false
+	})
 }
 
 func (m *MemoryCache) MaterializePoolLiqCurve(loc types.PoolLocation) *model.LiquidityCurve {
