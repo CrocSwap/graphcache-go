@@ -188,7 +188,7 @@ func (c *Controller) resyncFullCycle(time int) {
 	}
 }
 
-const REFRESH_CYCLE_TIME = 10 * 60
+const REFRESH_CYCLE_TIME = 30 * 60
 
 func (c *Controller) runPeriodicRefresh() {
 	for true {

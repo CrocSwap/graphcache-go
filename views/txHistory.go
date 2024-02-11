@@ -25,6 +25,24 @@ func (v *Views) QueryUserTxHist(chainId types.ChainId, user types.EthAddress, nR
 	}
 }
 
+func (v *Views) QueryUserPoolTxHist(chainId types.ChainId, user types.EthAddress,base types.EthAddress, quote types.EthAddress, poolIdx int) []UserTxHistory {
+	results := v.Cache.RetrieveUserTxs(chainId, user)
+	var filteredResults []types.PoolTxEvent
+	loc := types.PoolLocation{
+		ChainId: chainId,
+		PoolIdx: poolIdx,
+		Base:    base,
+		Quote:   quote,
+	}
+	for _, tx := range results {
+		if tx.PoolLocation == loc {
+			filteredResults = append(filteredResults, tx)
+		}
+	}
+	sort.Sort(byTimeTx(filteredResults))
+	return appendTags(filteredResults)
+}
+
 func (v *Views) QueryPoolTxHist(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) []UserTxHistory {
 

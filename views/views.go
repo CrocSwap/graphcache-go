@@ -28,6 +28,9 @@ type IViews interface {
 	QueryUserPoolLimits(chainId types.ChainId, user types.EthAddress,
 		base types.EthAddress, quote types.EthAddress,
 		poolIdx int) []UserLimitOrder
+	QueryUserPoolTxHist(chainId types.ChainId, user types.EthAddress,
+		base types.EthAddress, quote types.EthAddress,
+		poolIdx int) []UserTxHistory
 	QuerySingleLimit(chainId types.ChainId, user types.EthAddress,
 		base types.EthAddress, quote types.EthAddress,
 		poolIdx int, bidTick int, askTick int, isBid bool, pivotTime int) *UserLimitOrder

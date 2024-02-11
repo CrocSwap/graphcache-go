@@ -65,10 +65,16 @@ func (m *RWLockMapArray[Key, Val]) lookupCopy(key Key) ([]Val, bool) {
 }
 
 func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val, bool) {
+	var retVal map[KeyInner]Val = make(map[KeyInner]Val, 0)
 	m.lock.RLock()
 	result, ok := m.entries[key]
+	if ok {
+		for k, v := range result {
+			retVal[k] = v
+		}
+	}
 	m.lock.RUnlock()
-	return result, ok
+	return retVal, ok
 }
 
 func (m *RWLockMap[Key, Val]) insert(key Key, val Val) {
