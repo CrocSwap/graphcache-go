@@ -1,14 +1,10 @@
 package views
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"math/big"
 	"sort"
-
-	"github.com/cnf/structhash"
 
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -138,8 +134,8 @@ func unrollSubplot(pos types.PositionLocation, subplot *model.KnockoutSubplot) [
 }
 
 func formLimitId(loc types.KOClaimLocation) string {
-	hash := sha256.Sum256(structhash.Dump(loc, 1))
-	return fmt.Sprintf("limit_%s", hex.EncodeToString(hash[:]))
+	hash := loc.Hash()
+	return "limit_" + hex.EncodeToString(hash[:])
 }
 
 type byTimeLO []UserLimitOrder

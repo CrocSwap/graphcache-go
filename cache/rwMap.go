@@ -1,6 +1,9 @@
 package cache
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 type RWLockMap[Key comparable, Val any] struct {
 	entries map[Key]Val
@@ -64,11 +67,33 @@ func (m *RWLockMapArray[Key, Val]) lookupCopy(key Key) ([]Val, bool) {
 	return retVal, ok
 }
 
-func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val, bool) {
+func (m *RWLockMapArray[Key, Val]) lookupLastN(key Key, lastN int) ([]Val, bool) {
+	var retVal []Val
 	m.lock.RLock()
 	result, ok := m.entries[key]
+	if ok {
+		if len(result) < lastN {
+			lastN = len(result)
+		}
+
+		retVal = append(retVal, result[len(result)-lastN:]...)
+	}
 	m.lock.RUnlock()
-	return result, ok
+	slices.Reverse(retVal)
+	return retVal, ok
+}
+
+func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val, bool) {
+	var retVal map[KeyInner]Val = make(map[KeyInner]Val, 0)
+	m.lock.RLock()
+	result, ok := m.entries[key]
+	if ok {
+		for k, v := range result {
+			retVal[k] = v
+		}
+	}
+	m.lock.RUnlock()
+	return retVal, ok
 }
 
 func (m *RWLockMap[Key, Val]) insert(key Key, val Val) {
@@ -79,11 +104,26 @@ func (m *RWLockMap[Key, Val]) insert(key Key, val Val) {
 
 func (m *RWLockMapArray[Key, Val]) insert(key Key, val Val) {
 	m.lock.Lock()
-	result, ok := m.entries[key]
-	if !ok {
-		m.entries[key] = make([]Val, 0)
+	m.entries[key] = append(m.entries[key], val)
+	m.lock.Unlock()
+}
+
+func (m *RWLockMapArray[Key, Val]) insertSorted(key Key, val Val, less func(i, j Val) bool) {
+	m.lock.Lock()
+	result := m.entries[key]
+	var i int
+	for i = len(result) - 1; i >= 0; i-- {
+		if less(val, result[i]) {
+			break
+		}
 	}
-	m.entries[key] = append(result, val)
+	i += 1
+
+	var zero Val
+	result = append(result, zero)
+	copy(result[i+1:], result[i:])
+	result[i] = val
+	m.entries[key] = result
 	m.lock.Unlock()
 }
 

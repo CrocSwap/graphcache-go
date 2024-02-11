@@ -18,6 +18,10 @@ type PositionRefreshHandle struct {
 	location types.PositionLocation
 	pos      *model.PositionTracker
 }
+type RewardsRefreshHandle struct {
+	location types.PositionLocation
+	pos      *model.PositionTracker
+}
 
 type KnockoutAliveHandle struct {
 	location types.PositionLocation
@@ -45,6 +49,16 @@ func (p *PositionRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
 		concLiq := tryQueryAttempt(liqFn, "rangeLiq")
 		rewardLiq := tryQueryAttempt(rewardFn, "rangeRewards")
 		p.pos.UpdateRange(*concLiq, *rewardLiq)
+	}
+}
+
+func (p *RewardsRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
+	posType := types.PositionTypeForLiq(p.location.LiquidityLocation)
+
+	if posType == "range" {
+		rewardFn := func() (*big.Int, error) { return (*query).QueryRangeRewardsLiq(p.location) }
+		rewardLiq := tryQueryAttempt(rewardFn, "rangeRewards")
+		p.pos.UpdateRangeRewards(*rewardLiq)
 	}
 }
 
@@ -84,6 +98,10 @@ func tryQueryAttempt[T any](queryFn func() (T, error), label string) T {
 
 func (p *PositionRefreshHandle) LabelTag() string {
 	return types.PositionTypeForLiq(p.location.LiquidityLocation)
+}
+
+func (p *RewardsRefreshHandle) LabelTag() string {
+	return "rewards-" + types.PositionTypeForLiq(p.location.LiquidityLocation)
 }
 
 func (p *KnockoutAliveHandle) LabelTag() string {

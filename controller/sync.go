@@ -100,11 +100,6 @@ func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
 }
 
 func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig) syncChannels {
-	cfg.Query = "./artifacts/graphQueries/balances.query"
-	tblBal := tables.BalanceTable{}
-	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
-		tblBal, cfg, cntr.IngestBalance)
-
 	cfg.Query = "./artifacts/graphQueries/liqchanges.query"
 	tblLiq := tables.LiqChangeTable{}
 	syncLiq := loader.NewSyncChannel[tables.LiqChange, tables.LiqChangeSubGraph](
@@ -130,6 +125,11 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	syncAgg := loader.NewSyncChannel[tables.AggEvent, tables.AggEventSubGraph](
 		tblAgg, cfg, cntr.IngestAggEvent)
 
+	cfg.Query = "./artifacts/graphQueries/balances.query"
+	tblBal := tables.BalanceTable{}
+	syncBal := loader.NewSyncChannel[tables.Balance, tables.BalanceSubGraph](
+		tblBal, cfg, cntr.IngestBalance)
+
 	return syncChannels{
 		bal:   syncBal,
 		liq:   syncLiq,
@@ -147,10 +147,7 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	// first pass on the block
 	startTime := s.lookbackTime + 1
 
-	nRows, _ := s.channels.bal.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("User Balances", nRows)
-
-	nRows, _ = s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
+	nRows, _ := s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("LiqChanges", nRows)
 
 	nRows, _ = s.channels.swaps.SyncTableToSubgraph(startTime, syncTime)
@@ -158,6 +155,9 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 
 	nRows, _ = s.channels.ko.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Knockout crosses", nRows)
+
+	nRows, _ = s.channels.bal.SyncTableToSubgraph(startTime, syncTime)
+	s.logSyncCycle("User Balances", nRows)
 
 	nRows, _ = s.channels.fees.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Fee Changes", nRows)
