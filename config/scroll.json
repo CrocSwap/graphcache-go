@@ -7,7 +7,7 @@
       "knockout_tick_width": 4,
       "multicall_disabled": false,
       "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
-      "multicall_max_batch": 40,
+      "multicall_max_batch": 50,
       "multicall_interval_ms": 500
     }
   }
