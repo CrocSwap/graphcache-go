@@ -147,11 +147,11 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	// first pass on the block
 	startTime := s.lookbackTime + 1
 
-	nRows, _ := s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("LiqChanges", nRows)
-
-	nRows, _ = s.channels.swaps.SyncTableToSubgraph(startTime, syncTime)
+	nRows, _ := s.channels.swaps.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Swaps", nRows)
+
+	nRows, _ = s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
+	s.logSyncCycle("LiqChanges", nRows)
 
 	nRows, _ = s.channels.ko.SyncTableToSubgraph(startTime, syncTime)
 	s.logSyncCycle("Knockout crosses", nRows)
