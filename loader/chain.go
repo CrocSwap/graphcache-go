@@ -45,7 +45,7 @@ func NewOnChainLoader(cfg NetworkConfig) *OnChainLoader {
 		multicallAbi: multicallAbi(),
 	}
 	for key, chain := range cfg {
-		if !chain.MulticallDisabled {
+		if !chain.MulticallDisabled && chain.MulticallContract != "" {
 			c.jobChans[chain.ChainID] = make(chan CallJob)
 			go c.multicallWorker(chain.ChainID, key)
 		}
