@@ -17,7 +17,7 @@
     "sepolia": {
         "chain_id": 11155111,
         "rpc": "https://sepolia.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
-        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-sepolia/v0.1.0",
+        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-sepolia/version/latest",
         "query_contract": "0xDB182F4687708D0F5798c77b4d02ad3425f4B672",
         "knockout_tick_width": 16
     }
