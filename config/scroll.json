@@ -2,7 +2,7 @@
     "scroll": {
       "chain_id": 534352,
       "rpc": "https://rpc.scroll.io",
-      "subgraph": "https://api.studio.thegraph.com/query/47610/croc-scroll/version/latest",
+      "subgraph": "https://api.studio.thegraph.com/query/47610/croc-scroll/v0.0.3",
       "query_contract": "0x62223e90605845Cf5CC6DAE6E0de4CDA130d6DDf",
       "knockout_tick_width": 4,
       "multicall_disabled": false,
