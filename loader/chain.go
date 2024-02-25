@@ -113,6 +113,8 @@ func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
 	return unparsed, nil
 }
 
+const MULTICALL_TIMEOUT_MS = 5000
+
 func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
 	chainIdInt, _ := strconv.ParseInt(string(chainId)[2:], 16, 32)
 	jobChan := c.jobChans[int(chainIdInt)]
@@ -134,7 +136,7 @@ func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types
 			return []byte{}, fmt.Errorf("empty result from multicall, error")
 		}
 		return result, nil
-	case <-time.After(2000 * time.Millisecond):
+	case <-time.After(MULTICALL_TIMEOUT_MS * time.Millisecond):
 		log.Println("Multicall timed out, calling manually")
 		return c.singleContractDataCall(client, chainId, contract, data)
 	}

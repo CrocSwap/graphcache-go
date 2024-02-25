@@ -3,6 +3,7 @@ package loader
 import (
 	"encoding/json"
 	"log"
+	"sync"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -45,7 +46,13 @@ func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return result.Block.Time, nil
+
+	if result.Block.Time == 0 {
+		log.Println("Warning subgraph latest block time is 0. Retrying")
+		return LatestSubgraphTime(cfg)
+	} else {
+		return result.Block.Time, nil
+	}
 }
 
 type metaEntry struct {
@@ -72,6 +79,11 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 		return nil, err
 	}
 	return &parsed.Data.Entry, nil
+}
+
+func (s *SyncChannel[R, S]) SyncTableToSubgraphWG(startTime int, endTime int, wg *sync.WaitGroup) (int, error) {
+	defer wg.Done()
+	return s.SyncTableToSubgraph(startTime, endTime)
 }
 
 func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int, error) {

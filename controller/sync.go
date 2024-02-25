@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
@@ -82,7 +83,7 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 func (s *SubgraphSyncer) syncStart(notif chan bool) {
 	syncTime, err := loader.LatestSubgraphTime(s.cfg)
 
-	if err != nil {
+	if err != nil || syncTime == 0 {
 		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
 	}
 
@@ -147,25 +148,20 @@ func (s *SubgraphSyncer) syncStep(syncTime int) {
 	// first pass on the block
 	startTime := s.lookbackTime + 1
 
-	nRows, _ := s.channels.swaps.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("Swaps", nRows)
+	var wg sync.WaitGroup
 
-	nRows, _ = s.channels.liq.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("LiqChanges", nRows)
+	const N_CHANNELS = 6
+	wg.Add(N_CHANNELS)
 
-	nRows, _ = s.channels.ko.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("Knockout crosses", nRows)
+	go s.channels.swaps.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.liq.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.ko.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.bal.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.fees.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.aggs.SyncTableToSubgraphWG(startTime, syncTime, &wg)
 
-	nRows, _ = s.channels.bal.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("User Balances", nRows)
+	wg.Wait()
 
-	nRows, _ = s.channels.fees.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("Fee Changes", nRows)
-
-	nRows, _ = s.channels.aggs.SyncTableToSubgraph(startTime, syncTime)
-	s.logSyncCycle("Poll Agg Events", nRows)
-
-	s.cntr.FlushSyncCycle(syncTime)
 	s.lookbackTime = s.lastSyncTime
 	s.lastSyncTime = syncTime
 }
