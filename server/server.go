@@ -96,12 +96,13 @@ func (s *APIWebServer) queryPoolPositions(c *gin.Context) {
 	quote := parseAddrParam(c, "quote")
 	poolIdx := parseIntParam(c, "poolIdx")
 	n := parseIntMaxParam(c, "n", 200)
+	omitEmpty := parseBoolOptional(c, "omitEmpty", false)
 
 	if len(c.Errors) > 0 {
 		return
 	}
 
-	resp := s.Views.QueryPoolPositions(chainId, base, quote, poolIdx, n, false)
+	resp := s.Views.QueryPoolPositions(chainId, base, quote, poolIdx, n, omitEmpty)
 	wrapDataErrResp(c, resp, nil)
 }
 

@@ -91,3 +91,14 @@ func parseBoolParam(c *gin.Context, paramName string) bool {
 	}
 	return result
 }
+
+func parseBoolOptional(c *gin.Context, paramName string, dflt bool) bool {
+	arg := c.Query(paramName)
+	if arg == "" {
+		return dflt
+	} else if arg == "true" {
+		return true
+	} else {
+		return false
+	}
+}
