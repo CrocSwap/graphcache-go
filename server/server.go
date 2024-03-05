@@ -101,7 +101,7 @@ func (s *APIWebServer) queryPoolPositions(c *gin.Context) {
 		return
 	}
 
-	resp := s.Views.QueryPoolPositions(chainId, base, quote, poolIdx, n, true)
+	resp := s.Views.QueryPoolPositions(chainId, base, quote, poolIdx, n, false)
 	wrapDataErrResp(c, resp, nil)
 }
 
