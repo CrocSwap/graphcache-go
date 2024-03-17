@@ -83,6 +83,17 @@ func (m *RWLockMapArray[Key, Val]) lookupLastN(key Key, lastN int) ([]Val, bool)
 	return retVal, ok
 }
 
+// Note this function locks the map and returns a reference to map entry. It's very important
+// for the caller to unlock when complete, otherwise the map will be locked indefinitely.
+func (m *RWLockMapMap[Key, KeyInner, Val]) lockSet(key Key) (map[KeyInner]Val, *sync.RWMutex) {
+	m.lock.RLock()
+	result, ok := m.entries[key]
+	if !ok {
+		return make(map[KeyInner]Val, 0), nil
+	}
+	return result, &m.lock
+}
+
 func (m *RWLockMapMap[Key, KeyInner, Val]) lookupSet(key Key) (map[KeyInner]Val, bool) {
 	var retVal map[KeyInner]Val = make(map[KeyInner]Val, 0)
 	m.lock.RLock()

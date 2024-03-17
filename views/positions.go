@@ -39,16 +39,22 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	positions := v.Cache.RetrievePoolPositions(loc)
+	positions, lock := v.Cache.BorrowPoolPositions(loc)
 
 	results := make([]UserPosition, 0)
 
 	for key, val := range positions {
-		// don't fill all the fields before sorting and truncating
-		element := UserPosition{PositionLocation: key, PositionTracker: *val, APRCalcResult: model.APRCalcResult{0, 0, 0, 0}, PositionId: ""}
 		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
+			// don't fill all the fields before sorting and truncating
+			element := UserPosition{PositionLocation: key, PositionTracker: *val,
+				APRCalcResult: model.APRCalcResult{0, 0, 0, 0}, PositionId: ""}
+
 			results = append(results, element)
 		}
+	}
+
+	if lock != nil {
+		lock.Unlock()
 	}
 
 	sort.Sort(byTime(results))

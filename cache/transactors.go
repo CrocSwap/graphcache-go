@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sync"
+
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -84,6 +86,16 @@ func (m *MemoryCache) RetrievePoolPositions(loc types.PoolLocation) map[types.Po
 	} else {
 		return make(map[types.PositionLocation]*model.PositionTracker)
 	}
+}
+
+// Caller has responsibility of unlocking the result when complete, otherwise will deadlock
+func (m *MemoryCache) BorrowPoolLimits(loc types.PoolLocation) (map[types.PositionLocation]*model.KnockoutSubplot, *sync.RWMutex) {
+	return m.poolKnockouts.lockSet(loc)
+}
+
+// Caller has responsibility of unlocking the result when complete, otherwise will deadlock
+func (m *MemoryCache) BorrowPoolPositions(loc types.PoolLocation) (map[types.PositionLocation]*model.PositionTracker, *sync.RWMutex) {
+	return m.poolPositions.lockSet(loc)
 }
 
 func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*model.LiquidityBump) {

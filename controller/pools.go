@@ -20,11 +20,15 @@ func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 			Base:    types.RequireEthAddr(l.Base),
 			Quote:   types.RequireEthAddr(l.Quote),
 		}
-		positions := c.ctrl.cache.RetrievePoolPositions(loc)
+		positions, lock := c.ctrl.cache.BorrowPoolPositions(loc)
 
 		hotPos := c.subsetRecent(positions)
 		for loc, pos := range hotPos {
 			msgs = append(msgs, posImpactMsg{loc, pos, l.Time})
+		}
+
+		if lock != nil {
+			lock.Unlock()
 		}
 	}
 	return msgs
