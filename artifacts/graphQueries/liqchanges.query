@@ -21,7 +21,6 @@ query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
     liq
     baseFlow
     quoteFlow
-    callSource
     pivotTime
   }
 }

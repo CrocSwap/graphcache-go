@@ -41,7 +41,6 @@ type LiqChange struct {
 	Liq          *float64 `json:"liq" db:"liq"`
 	BaseFlow     *float64 `json:"baseFlow" db:"baseFlow"`
 	QuoteFlow    *float64 `json:"quoteFlow" db:"quoteFlow"`
-	CallSource   string   `json:"callSource" db:"callSource"`
 	Source       string   `json:"source" db:"source"`
 	PivotTime    *int     `json:"pivotTime" db:"pivotTime"`
 }
@@ -67,7 +66,6 @@ type LiqChangeSubGraph struct {
 	Liq          string `json:"liq"`
 	BaseFlow     string `json:"baseFlow"`
 	QuoteFlow    string `json:"quoteFlow"`
-	CallSource   string `json:"callSource"`
 	PivotTime    string `json:"pivotTime"`
 }
 
@@ -110,7 +108,6 @@ func (tbl LiqChangeTable) ConvertSubGraphRow(r LiqChangeSubGraph, network string
 		Liq:          parseNullableFloat64(r.Liq),
 		BaseFlow:     baseFlow,
 		QuoteFlow:    quoteFlow,
-		CallSource:   r.CallSource,
 		Source:       "graph",
 		PivotTime:    parseNullableInt(r.PivotTime),
 	}
@@ -140,7 +137,6 @@ func (tbl LiqChangeTable) ReadSqlRow(rows *sql.Rows) LiqChange {
 		&liqChange.Liq,
 		&liqChange.BaseFlow,
 		&liqChange.QuoteFlow,
-		&liqChange.CallSource,
 		&liqChange.Source,
 		&liqChange.PivotTime,
 	)
