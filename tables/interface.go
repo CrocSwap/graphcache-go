@@ -10,6 +10,7 @@ import (
 type ITable[Row any, SubGraphRow any] interface {
 	GetID(r Row) string
 	GetTime(r Row) int
+	GetBlock(r Row) int
 	ConvertSubGraphRow(SubGraphRow, string) Row
 	SqlTableName() string
 	ParseSubGraphResp(body []byte) ([]SubGraphRow, error)

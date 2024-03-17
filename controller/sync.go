@@ -11,11 +11,11 @@ import (
 )
 
 type SubgraphSyncer struct {
-	cntr         *ControllerOverNetwork
-	cfg          loader.SyncChannelConfig
-	lastSyncTime int
-	lookbackTime int
-	channels     syncChannels
+	cntr           *ControllerOverNetwork
+	cfg            loader.SyncChannelConfig
+	lastSyncBlock  int
+	lookbackBlocks int
+	channels       syncChannels
 }
 type syncChannels struct {
 	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
@@ -60,34 +60,34 @@ func (s *SubgraphSyncer) pollSubgraphUpdates() {
 		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
-			log.Printf("New subgraph time %d", s.lastSyncTime)
+			log.Printf("New subgraph time %d", s.lastSyncBlock)
 		}
 	}
 }
 
 func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
-	metaTime, err := loader.LatestSubgraphTime(s.cfg)
+	metaBlock, err := loader.LatestSubgraphBlock(s.cfg)
 	if err != nil {
 		log.Println("Warning unable to sync subgraph meta query " + err.Error())
 		return false, err
 	}
 
-	if metaTime > s.lastSyncTime {
+	if metaBlock > s.lastSyncBlock {
 		time.Sleep(SUBGRAPH_SYNC_DELAY * time.Second)
-		s.syncStep(metaTime)
+		s.syncStep(metaBlock)
 		return true, nil
 	}
 	return false, nil
 }
 
 func (s *SubgraphSyncer) syncStart(notif chan bool) {
-	syncTime, err := loader.LatestSubgraphTime(s.cfg)
+	syncBlock, err := loader.LatestSubgraphBlock(s.cfg)
 
-	if err != nil || syncTime == 0 {
+	if err != nil || syncBlock == 0 {
 		log.Fatalf("Subgraph not responding from %s", s.cntr.chainCfg.Subgraph)
 	}
 
-	s.syncStep(syncTime)
+	s.syncStep(syncBlock)
 	log.Printf("Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
 	notif <- true
 
@@ -141,27 +141,27 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	}
 }
 
-func (s *SubgraphSyncer) syncStep(syncTime int) {
+func (s *SubgraphSyncer) syncStep(syncBlock int) {
 	// We use the second to last previous sync time. This makes sure that every time
 	// window is sycn'd for a second time on the next block. This is necessary to prevent
 	// table synchronization issues where a window isn't fully synced on a table during the
 	// first pass on the block
-	startTime := s.lookbackTime + 1
+	startBlock := s.lookbackBlocks + 1
 
 	var wg sync.WaitGroup
 
 	const N_CHANNELS = 6
 	wg.Add(N_CHANNELS)
 
-	go s.channels.swaps.SyncTableToSubgraphWG(startTime, syncTime, &wg)
-	go s.channels.liq.SyncTableToSubgraphWG(startTime, syncTime, &wg)
-	go s.channels.ko.SyncTableToSubgraphWG(startTime, syncTime, &wg)
-	go s.channels.bal.SyncTableToSubgraphWG(startTime, syncTime, &wg)
-	go s.channels.fees.SyncTableToSubgraphWG(startTime, syncTime, &wg)
-	go s.channels.aggs.SyncTableToSubgraphWG(startTime, syncTime, &wg)
+	go s.channels.swaps.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.liq.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.ko.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.bal.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.fees.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.aggs.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
 
 	wg.Wait()
 
-	s.lookbackTime = s.lastSyncTime
-	s.lastSyncTime = syncTime
+	s.lookbackBlocks = s.lastSyncBlock
+	s.lastSyncBlock = syncBlock
 }

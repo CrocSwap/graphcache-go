@@ -15,6 +15,10 @@ func (tbl AggEventsTable) GetTime(r AggEvent) int {
 	return r.Time
 }
 
+func (tbl AggEventsTable) GetBlock(r AggEvent) int {
+	return r.Block
+}
+
 type AggEvent struct {
 	ID            string  `json:"id" db:"id"`
 	EventIndex    int     `json:"eventIndex" db:"eventIndex"`

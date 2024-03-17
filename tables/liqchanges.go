@@ -17,6 +17,10 @@ func (tbl LiqChangeTable) GetTime(r LiqChange) int {
 	return r.Time
 }
 
+func (tbl LiqChangeTable) GetBlock(r LiqChange) int {
+	return r.Block
+}
+
 type LiqChange struct {
 	ID           string   `json:"id" db:"id"`
 	CallIndex    int      `json:"callIndex" db:"callIndex"`

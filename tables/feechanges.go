@@ -17,6 +17,10 @@ func (tbl FeeTable) GetTime(r FeeChange) int {
 	return r.Time
 }
 
+func (tbl FeeTable) GetBlock(r FeeChange) int {
+	return r.Block
+}
+
 type FeeChange struct {
 	ID        string `json:"id" db:"id"`
 	CallIndex int    `json:"callIndex" db:"callIndex"`

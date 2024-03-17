@@ -33,7 +33,7 @@ func NewSyncChannel[R any, S any](tbl tables.ITable[R, S], config SyncChannelCon
 	}
 }
 
-func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
+func LatestSubgraphBlock(cfg SyncChannelConfig) (int, error) {
 	cfg.Query = "./artifacts/graphQueries/meta.query"
 	metaQuery := readQueryPath(cfg.Query)
 
@@ -47,11 +47,11 @@ func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
 		return 0, err
 	}
 
-	if result.Block.Time == 0 {
-		log.Println("Warning subgraph latest block time is 0. Retrying")
-		return LatestSubgraphTime(cfg)
+	if result.Block.Number == 0 {
+		log.Println("Warning subgraph latest block number is 0. Retrying")
+		return LatestSubgraphBlock(cfg)
 	} else {
-		return result.Block.Time, nil
+		return result.Block.Number, nil
 	}
 }
 
@@ -81,15 +81,15 @@ func parseSubGraphMeta(body []byte) (*metaEntry, error) {
 	return &parsed.Data.Entry, nil
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraphWG(startTime int, endTime int, wg *sync.WaitGroup) (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToSubgraphWG(startBlock int, endBlock int, wg *sync.WaitGroup) (int, error) {
 	defer wg.Done()
-	return s.SyncTableToSubgraph(startTime, endTime)
+	return s.SyncTableToSubgraph(startBlock, endBlock)
 }
 
-func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int, error) {
+func (s *SyncChannel[R, S]) SyncTableToSubgraph(startBlock int, endBlock int) (int, error) {
 	query := readQueryPath(s.config.Query)
 
-	lastObs := startTime
+	lastObs := startBlock
 
 	hasMore := true
 	nIngested := 0
@@ -97,10 +97,10 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 	for hasMore {
 		hasMore = false
 
-		queryStartTime := lastObs
-		queryEndTime := endTime
+		queryStartBlock := lastObs
+		queryEndBlock := endBlock
 
-		resp, err := queryFromSubgraph(s.config.Chain, query, queryStartTime, queryEndTime, true)
+		resp, err := queryFromSubgraph(s.config.Chain, query, queryStartBlock, queryEndBlock, true)
 
 		if err != nil {
 			log.Println("Warning subgraph request error " + err.Error())
@@ -115,21 +115,21 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 
 		for _, entry := range entries {
 			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
-			isFreshPoint, eventTime := s.ingestEntry(row)
+			isFreshPoint, eventBlock := s.ingestEntry(row)
 
 			if isFreshPoint {
 				nIngested += 1
 				hasMore = true
 
-				if eventTime > lastObs {
-					lastObs = eventTime
+				if eventBlock > lastObs {
+					lastObs = eventBlock
 				}
 			}
 		}
 
 		if nIngested > 0 {
 			log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
-				nIngested, s.config.Query, queryStartTime, queryEndTime)
+				nIngested, s.config.Query, queryStartBlock, queryEndBlock)
 		}
 	}
 	return nIngested, nil
@@ -141,7 +141,7 @@ func (s *SyncChannel[R, S]) ingestEntry(r R) (bool, int) {
 	if !hasEntry {
 		s.idsObserved[s.tbl.GetID(r)] = true
 		s.consumeFn(r)
-		return true, s.tbl.GetTime(r)
+		return true, s.tbl.GetBlock(r)
 	} else {
 		return false, -1
 	}

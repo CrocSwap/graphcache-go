@@ -16,6 +16,10 @@ func (tbl BalanceTable) GetTime(r Balance) int {
 	return r.Time
 }
 
+func (tbl BalanceTable) GetBlock(r Balance) int {
+	return r.Block
+}
+
 type Balance struct {
 	ID      string `db:"id"`
 	Network string `db:"network"`

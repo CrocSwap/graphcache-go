@@ -17,6 +17,10 @@ func (tbl SwapsTable) GetTime(r Swap) int {
 	return r.Time
 }
 
+func (tbl SwapsTable) GetBlock(r Swap) int {
+	return r.Block
+}
+
 type Swap struct {
 	ID               string   `json:"id" db:"id"`
 	CallIndex        int      `json:"callIndex" db:"callIndex"`

@@ -17,6 +17,10 @@ func (tbl KnockoutTable) GetTime(r KnockoutCross) int {
 	return r.Time
 }
 
+func (tbl KnockoutTable) GetBlock(r KnockoutCross) int {
+	return r.Block
+}
+
 type KnockoutCross struct {
 	ID         string  `json:"id" db:"id"`
 	Network    string  `json:"network" db:"network"`
