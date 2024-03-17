@@ -2,6 +2,8 @@ package controller
 
 import (
 	"log"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -48,7 +50,7 @@ func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, 
 	}
 }
 
-const SUBGRAPH_POLL_SECS = 1
+const SUBGRAPH_POLL_SECS_DEFAULT = 1
 
 // Used because subgraph synchronization is not observed to be non-atomic
 // between meta latest time and updating individual tables. Gives the subraph
@@ -56,8 +58,18 @@ const SUBGRAPH_POLL_SECS = 1
 const SUBGRAPH_SYNC_DELAY = 1
 
 func (s *SubgraphSyncer) pollSubgraphUpdates() {
+	poll_secs := SUBGRAPH_POLL_SECS_DEFAULT
+	poll_secs_override := os.Getenv("SUBGRAPH_POLL_SECS")
+	if poll_secs_override != "" {
+		var err error
+		if poll_secs, err = strconv.Atoi(poll_secs_override); err != nil {
+			poll_secs = SUBGRAPH_POLL_SECS_DEFAULT
+			log.Printf("Invalid SUBGRAPH_POLL_SECS value %s, falling back to default %d", poll_secs_override, poll_secs)
+		}
+	}
+
 	for true {
-		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
+		time.Sleep(time.Duration(poll_secs) * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
 			log.Printf("New subgraph time %d", s.lastSyncTime)

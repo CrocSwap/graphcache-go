@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -49,6 +50,7 @@ func LatestSubgraphTime(cfg SyncChannelConfig) (int, error) {
 
 	if result.Block.Time == 0 {
 		log.Println("Warning subgraph latest block time is 0. Retrying")
+		time.Sleep(1 * time.Second)
 		return LatestSubgraphTime(cfg)
 	} else {
 		return result.Block.Time, nil
@@ -86,6 +88,8 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraphWG(startTime int, endTime int, wg
 	return s.SyncTableToSubgraph(startTime, endTime)
 }
 
+const MAX_SYNC_ATTMEPTS = 500
+
 func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int, error) {
 	query := readQueryPath(s.config.Query)
 
@@ -93,9 +97,14 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 
 	hasMore := true
 	nIngested := 0
+	attempt := 0
 
 	for hasMore {
-		hasMore = false
+		if attempt > MAX_SYNC_ATTMEPTS {
+			log.Fatalln("Error subgraph request retry limit exceeded")
+		} else if attempt > 0 {
+			time.Sleep(time.Second * time.Duration(attempt))
+		}
 
 		queryStartTime := lastObs
 		queryEndTime := endTime
@@ -103,16 +112,19 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 		resp, err := queryFromSubgraph(s.config.Chain, query, queryStartTime, queryEndTime, true)
 
 		if err != nil {
-			log.Println("Warning subgraph request error " + err.Error())
-			return nIngested, err
+			attempt += 1
+			log.Printf("Warning subgraph request error: \"%s\" (attempt #%d)", err, attempt)
+			continue
 		}
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
 		if err != nil {
-			log.Println("Warning subgraph request decode error " + err.Error())
-			return nIngested, err
+			attempt += 1
+			log.Printf("Warning subgraph request decode error: \"%s\" (attempt #%d)", err, attempt)
+			continue
 		}
 
+		hasMore = false
 		for _, entry := range entries {
 			row := s.tbl.ConvertSubGraphRow(entry, string(s.config.Network))
 			isFreshPoint, eventTime := s.ingestEntry(row)
@@ -131,6 +143,7 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startTime int, endTime int) (int
 			log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
 				nIngested, s.config.Query, queryStartTime, queryEndTime)
 		}
+		attempt = 0
 	}
 	return nIngested, nil
 }
