@@ -42,7 +42,6 @@ type FeeChangeSubGraph struct {
 	Block           string `json:"block"`
 	Time            string `json:"time"`
 	Pool            struct {
-		ID      string `json:"id"`
 		Base    string `json:"base"`
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`

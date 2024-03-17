@@ -41,7 +41,6 @@ type KnockoutCrossSubGraph struct {
 	ID              string `json:"id"`
 	TransactionHash string `json:"transactionHash"`
 	Pool            struct {
-		ID      string `json:"id"`
 		Base    string `json:"base"`
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`

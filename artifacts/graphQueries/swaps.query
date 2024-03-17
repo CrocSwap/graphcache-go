@@ -1,13 +1,11 @@
 query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
   swaps(first: 1000, where: { block_gte: $minTime, block_lte: $maxTime }, 
-    orderBy: time, orderDirection: $orderDir) {
+    orderBy: block, orderDirection: $orderDir) {
     id
     transactionHash
     callIndex
-    transactionIndex
     user
     pool {
-      id
       base
       quote
       poolIdx

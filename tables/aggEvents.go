@@ -21,9 +21,7 @@ func (tbl AggEventsTable) GetBlock(r AggEvent) int {
 
 type AggEvent struct {
 	ID            string  `json:"id" db:"id"`
-	EventIndex    int     `json:"eventIndex" db:"eventIndex"`
 	Network       string  `json:"network" db:"network"`
-	TX            string  `json:"tx" db:"tx"`
 	Base          string  `json:"base" db:"base"`
 	Quote         string  `json:"quote" db:"quote"`
 	PoolIdx       int     `json:"poolIdx" db:"poolIdx"`
@@ -47,11 +45,8 @@ type AggEvent struct {
 }
 
 type AggEventSubGraph struct {
-	ID              string `json:"id"`
-	TransactionHash string `json:"transactionHash"`
-	EventIndex      int    `json:"eventIndex"`
-	Pool            struct {
-		ID      string `json:"id"`
+	ID   string `json:"id"`
+	Pool struct {
 		Base    string `json:"base"`
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`
@@ -93,9 +88,7 @@ func (tbl AggEventsTable) ConvertSubGraphRow(r AggEventSubGraph, network string)
 
 	return AggEvent{
 		ID:            network + r.ID,
-		EventIndex:    r.EventIndex,
 		Network:       network,
-		TX:            r.TransactionHash,
 		Base:          base,
 		Quote:         quote,
 		PoolIdx:       parseInt(r.Pool.PoolIdx),

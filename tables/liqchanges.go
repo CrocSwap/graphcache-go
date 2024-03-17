@@ -51,7 +51,6 @@ type LiqChangeSubGraph struct {
 	CallIndex       int    `json:"callIndex"`
 	User            string `json:"user"`
 	Pool            struct {
-		ID      string `json:"id"`
 		Base    string `json:"base"`
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`
