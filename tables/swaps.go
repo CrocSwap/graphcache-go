@@ -37,9 +37,6 @@ type Swap struct {
 	MinOut           *float64 `json:"minOut" db:"minOut"`
 	BaseFlow         float64  `json:"baseFlow" db:"baseFlow"`
 	QuoteFlow        float64  `json:"quoteFlow" db:"quoteFlow"`
-	CallSource       string   `json:"callSource" db:"callSource"`
-	Source           string   `json:"source" db:"source"`
-	Dex              string   `json:"dex" db:"dex"`
 }
 
 type SwapSubGraph struct {
@@ -63,8 +60,6 @@ type SwapSubGraph struct {
 	MinOut     string `json:"minOut"`
 	BaseFlow   string `json:"baseFlow"`
 	QuoteFlow  string `json:"quoteFlow"`
-	CallSource string `json:"callSource"`
-	Dex        string `json:"dex"`
 }
 
 type SwapSubGraphData struct {
@@ -106,9 +101,6 @@ func (tbl SwapsTable) ConvertSubGraphRow(r SwapSubGraph, network string) Swap {
 		MinOut:           parseNullableFloat64(r.MinOut),
 		BaseFlow:         *baseFlow,
 		QuoteFlow:        *quoteFlow,
-		CallSource:       r.CallSource,
-		Source:           "graph",
-		Dex:              r.Dex,
 	}
 }
 
@@ -136,9 +128,6 @@ func (tbl SwapsTable) ReadSqlRow(rows *sql.Rows) Swap {
 		&swap.MinOut,
 		&swap.BaseFlow,
 		&swap.QuoteFlow,
-		&swap.CallSource,
-		&swap.Source,
-		&swap.Dex,
 	)
 	if err != nil {
 		log.Fatal(err.Error())

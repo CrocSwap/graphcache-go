@@ -1,5 +1,5 @@
 query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
-  swaps(first: 1000, where: { time_gte: $minTime, time_lte: $maxTime }, 
+  swaps(first: 1000, where: { time_gte: $minTime, time_lte: $maxTime, block_gte: 4000000 }, 
     orderBy: time, orderDirection: $orderDir) {
     id
     transactionHash
@@ -21,7 +21,5 @@ query($minTime: BigInt, $maxTime: BigInt, $orderDir: OrderDirection) {
     minOut
     baseFlow
     quoteFlow
-    callSource
-    dex
   }
 }
