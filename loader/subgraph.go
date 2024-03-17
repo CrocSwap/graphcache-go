@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 type GraphRequest struct {
@@ -37,7 +38,28 @@ func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	}
 }
 
+const SUBGRAPH_RETRY_TIME_LIMIT = 256
+
 func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
+	result, err := queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
+
+	retrySecs := 1
+	for err != nil {
+		log.Println("Subgraph queried failed. Retrying in", retrySecs, "seconds. Error: ", err)
+
+		time.Sleep(time.Duration(retrySecs) * time.Second)
+		result, err = queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
+
+		retrySecs = retrySecs * 2
+		if retrySecs >= SUBGRAPH_RETRY_TIME_LIMIT {
+			log.Fatal("Subgraph query failed for 180 seconds. Exiting.")
+		}
+	}
+
+	return result, err
+}
+
+func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	request := GraphRequest{
 		Query:     query,
 		Variables: makeSubgraphVars(isAsc, startTime, endTime),
@@ -45,7 +67,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 
 	jsonBody, err := json.Marshal(request)
 	if err != nil {
-		log.Println("Subgraph Query Request Error: " + err.Error())
+		log.Println("Subgraph Query Request Error:" + err.Error())
 		return nil, err
 	}
 
