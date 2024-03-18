@@ -40,7 +40,7 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 		Quote:   quote,
 	}
 
-	// Retrieve 10x the number of results to make it likely we have enough after filtering empty
+	// Retrieve X times the number of results to make it likely we have enough after filtering empty
 	const EMPTY_MULT = 5
 
 	positions := v.Cache.RetriveLastNPoolPos(loc, nResults*EMPTY_MULT)
@@ -152,35 +152,4 @@ func (a byApr) Less(i, j int) bool {
 	} else {
 		return a[i].FirstMintTx > a[j].FirstMintTx
 	}
-}
-
-type userPosLoc struct {
-	Loc types.PositionLocation
-	Pos *model.PositionTracker
-}
-
-// UserPositionHeap implements heap.Interface and holds UserPositions.
-type userPosTimeHeap []userPosLoc
-
-func (h userPosTimeHeap) Len() int { return len(h) }
-
-// This ensures that the "largest" element, based on time, is at the front.
-func (h userPosTimeHeap) Less(i, j int) bool {
-	if h[i].Pos.LatestUpdateTime == h[j].Pos.LatestUpdateTime {
-		return h[i].Pos.FirstMintTx < h[j].Pos.FirstMintTx
-	}
-	return h[i].Pos.LatestUpdateTime < h[j].Pos.LatestUpdateTime
-}
-func (h userPosTimeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
-
-func (h *userPosTimeHeap) Push(x interface{}) {
-	*h = append(*h, x.(userPosLoc))
-}
-
-func (h *userPosTimeHeap) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
 }
