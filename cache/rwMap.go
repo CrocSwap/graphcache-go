@@ -89,6 +89,7 @@ func (m *RWLockMapMap[Key, KeyInner, Val]) lockSet(key Key) (map[KeyInner]Val, *
 	m.lock.RLock()
 	result, ok := m.entries[key]
 	if !ok {
+		m.lock.RUnlock()
 		return make(map[KeyInner]Val, 0), nil
 	}
 	return result, &m.lock
