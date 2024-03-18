@@ -1,6 +1,7 @@
 package views
 
 import (
+	"container/heap"
 	"encoding/hex"
 	"sort"
 
@@ -41,34 +42,40 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	}
 	positions, lock := v.Cache.BorrowPoolPositions(loc)
 
-	results := make([]UserPosition, 0)
+	positionsHeap := &userPosTimeHeap{}
+	heap.Init(positionsHeap)
 
-	for key, val := range positions {
+	for loc, val := range positions {
 		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
-			// don't fill all the fields before sorting and truncating
-			element := UserPosition{PositionLocation: key, PositionTracker: *val,
-				APRCalcResult: model.APRCalcResult{0, 0, 0, 0}, PositionId: ""}
 
-			results = append(results, element)
+			heap.Push(positionsHeap, userPosLoc{loc, val})
+
+			// Limit to size N by popping the lowest time result
+			if positionsHeap.Len() > nResults {
+				heap.Pop(positionsHeap)
+			}
 		}
 	}
 
 	if lock != nil {
-		lock.Unlock()
+		lock.RUnlock()
+	}
+
+	results := make([]UserPosition, 0)
+
+	for _, val := range *positionsHeap {
+		element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
+			APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
+		results = append(results, element)
 	}
 
 	sort.Sort(byTime(results))
 
 	if len(results) > nResults {
-		results = results[0:nResults]
+		return results[0:nResults]
+	} else {
+		return results
 	}
-
-	for i, pos := range results {
-		pos.APRCalcResult = pos.CalcAPR(pos.PositionLocation)
-		pos.PositionId = formPositionId(pos.PositionLocation)
-		results[i] = pos
-	}
-	return results
 }
 
 func (v *Views) QueryPoolApyLeaders(chainId types.ChainId,
@@ -154,4 +161,35 @@ func (a byApr) Less(i, j int) bool {
 	} else {
 		return a[i].FirstMintTx > a[j].FirstMintTx
 	}
+}
+
+type userPosLoc struct {
+	Loc types.PositionLocation
+	Pos *model.PositionTracker
+}
+
+// UserPositionHeap implements heap.Interface and holds UserPositions.
+type userPosTimeHeap []userPosLoc
+
+func (h userPosTimeHeap) Len() int { return len(h) }
+
+// This ensures that the "largest" element, based on time, is at the front.
+func (h userPosTimeHeap) Less(i, j int) bool {
+	if h[i].Pos.LatestUpdateTime == h[j].Pos.LatestUpdateTime {
+		return h[i].Pos.FirstMintTx < h[j].Pos.FirstMintTx
+	}
+	return h[i].Pos.LatestUpdateTime < h[j].Pos.LatestUpdateTime
+}
+func (h userPosTimeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+func (h *userPosTimeHeap) Push(x interface{}) {
+	*h = append(*h, x.(userPosLoc))
+}
+
+func (h *userPosTimeHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }
