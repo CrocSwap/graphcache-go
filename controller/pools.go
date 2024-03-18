@@ -1,9 +1,6 @@
 package controller
 
 import (
-	"sort"
-
-	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -20,21 +17,18 @@ func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 			Base:    types.RequireEthAddr(l.Base),
 			Quote:   types.RequireEthAddr(l.Quote),
 		}
-		positions, lock := c.ctrl.cache.BorrowPoolPositions(loc)
+		positions := c.ctrl.cache.RetriveLastNPoolPos(loc, N_POSITIONS_REFRESH_ON_SWAP)
 
-		hotPos := c.subsetRecent(positions)
-		for loc, pos := range hotPos {
-			msgs = append(msgs, posImpactMsg{loc, pos, l.Time})
-		}
-
-		if lock != nil {
-			lock.RUnlock()
+		for _, pos := range positions {
+			if !pos.Pos.IsEmpty() {
+				msgs = append(msgs, posImpactMsg{pos.Loc, pos.Pos, l.Time})
+			}
 		}
 	}
 	return msgs
 }
 
-type posMap = map[types.PositionLocation]*model.PositionTracker
+/*type posMap = map[types.PositionLocation]*model.PositionTracker
 
 func (c *ControllerOverNetwork) subsetRecent(poolPositions posMap) posMap {
 	var times []int
@@ -58,4 +52,4 @@ func (c *ControllerOverNetwork) subsetRecent(poolPositions posMap) posMap {
 	}
 
 	return ret
-}
+}*/

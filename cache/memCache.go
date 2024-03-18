@@ -22,8 +22,10 @@ type MemoryCache struct {
 
 	knockoutSagas RWLockMap[types.BookLocation, *model.KnockoutSaga]
 
-	userTxs RWLockMapArray[chainAndAddr, types.PoolTxEvent]
-	poolTxs RWLockMapArray[types.PoolLocation, types.PoolTxEvent]
+	userTxs        RWLockMapArray[chainAndAddr, types.PoolTxEvent]
+	poolTxs        RWLockMapArray[types.PoolLocation, types.PoolTxEvent]
+	poolPosUpdates RWLockMapArray[types.PoolLocation, posAndLocPair]
+	poolKoUpdates  RWLockMapArray[types.PoolLocation, koAndLocPair]
 
 	poolLiqCurve       RWLockMap[types.PoolLocation, *model.LiquidityCurve]
 	poolTradingHistory RWLockMap[types.PoolLocation, *model.PoolTradingHistory]
@@ -47,8 +49,10 @@ func New() *MemoryCache {
 
 		knockoutSagas: newRwLockMap[types.BookLocation, *model.KnockoutSaga](),
 
-		userTxs: newRwLockMapArray[chainAndAddr, types.PoolTxEvent](),
-		poolTxs: newRwLockMapArray[types.PoolLocation, types.PoolTxEvent](),
+		userTxs:        newRwLockMapArray[chainAndAddr, types.PoolTxEvent](),
+		poolTxs:        newRwLockMapArray[types.PoolLocation, types.PoolTxEvent](),
+		poolPosUpdates: newRwLockMapArray[types.PoolLocation, posAndLocPair](),
+		poolKoUpdates:  newRwLockMapArray[types.PoolLocation, koAndLocPair](),
 
 		poolLiqCurve:       newRwLockMap[types.PoolLocation, *model.LiquidityCurve](),
 		poolTradingHistory: newRwLockMap[types.PoolLocation, *model.PoolTradingHistory](),
@@ -65,8 +69,12 @@ type chainUserAndPool struct {
 	types.PoolLocation
 }
 
-type chainAndUserTokenAddr struct {
-	types.ChainId
-	user  types.EthAddress
-	token types.EthAddress
+type posAndLocPair struct {
+	Loc types.PositionLocation
+	Pos *model.PositionTracker
+}
+
+type koAndLocPair struct {
+	Loc types.PositionLocation
+	Ko  *model.KnockoutSubplot
 }

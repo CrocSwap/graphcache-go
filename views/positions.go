@@ -1,7 +1,6 @@
 package views
 
 import (
-	"container/heap"
 	"encoding/hex"
 	"sort"
 
@@ -40,33 +39,25 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	positions, lock := v.Cache.BorrowPoolPositions(loc)
 
-	positionsHeap := &userPosTimeHeap{}
-	heap.Init(positionsHeap)
+	// Retrieve 10x the number of results to make it likely we have enough after filtering empty
+	const EMPTY_MULT = 10
 
-	for loc, val := range positions {
-		if !omitEmpty || !val.PositionLiquidity.IsEmpty() {
+	positions := v.Cache.RetriveLastNPoolPos(loc, nResults*EMPTY_MULT)
 
-			heap.Push(positionsHeap, userPosLoc{loc, val})
+	resultSet := make(map[types.PositionLocation]UserPosition, 0)
+	results := make([]UserPosition, 0)
 
-			// Limit to size N by popping the lowest time result
-			if positionsHeap.Len() > nResults {
-				heap.Pop(positionsHeap)
-			}
+	for _, val := range positions {
+		if !omitEmpty || val.Pos.PositionLiquidity.IsEmpty() {
+			element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
+				APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
+			resultSet[val.Loc] = element
 		}
 	}
 
-	if lock != nil {
-		lock.RUnlock()
-	}
-
-	results := make([]UserPosition, 0)
-
-	for _, val := range *positionsHeap {
-		element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
-			APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
-		results = append(results, element)
+	for _, val := range resultSet {
+		results = append(results, val)
 	}
 
 	sort.Sort(byTime(results))

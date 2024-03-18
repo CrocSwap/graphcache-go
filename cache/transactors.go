@@ -42,6 +42,16 @@ func (m *MemoryCache) RetriveLastNPoolTxs(pool types.PoolLocation, lastN int) []
 	return txs
 }
 
+func (m *MemoryCache) RetriveLastNPoolPos(pool types.PoolLocation, lastN int) []posAndLocPair {
+	txs, _ := m.poolPosUpdates.lookupLastN(pool, lastN)
+	return txs
+}
+
+func (m *MemoryCache) RetriveLastNPoolKo(pool types.PoolLocation, lastN int) []koAndLocPair {
+	txs, _ := m.poolKoUpdates.lookupLastN(pool, lastN)
+	return txs
+}
+
 func (m *MemoryCache) RetrieveUserPositions(
 	chainId types.ChainId,
 	user types.EthAddress) map[types.PositionLocation]*model.PositionTracker {
@@ -266,6 +276,8 @@ func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.Pos
 		m.userAndPoolPositions.insert(
 			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
 	}
+
+	m.poolPosUpdates.insert(loc.PoolLocation, posAndLocPair{loc, val})
 	return val
 }
 
@@ -289,5 +301,7 @@ func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.
 		m.userAndPoolKnockouts.insert(
 			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
 	}
+
+	m.poolKoUpdates.insert(loc.PoolLocation, koAndLocPair{loc, val})
 	return val
 }

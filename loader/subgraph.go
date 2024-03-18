@@ -47,7 +47,7 @@ const SUBGRAPH_RETRY_SECS = 5
 func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	result, err := queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
 
-	for err == nil {
+	for err != nil {
 		log.Println("Subgraph queried failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
 
 		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
