@@ -143,7 +143,6 @@ func (r *LiquidityRefresher) watchPending() {
 		}
 
 		totalCnt += 1
-		r.lastRefreshSec = nowSec
 	}
 }
 
@@ -183,6 +182,7 @@ func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
 		}
 
 		totalCnt += 1
+		r.lastRefreshSec = nowSec
 	}
 }
 

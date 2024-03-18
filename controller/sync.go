@@ -33,7 +33,7 @@ type syncChannels struct {
 	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *SubgraphSyncer {
 	start := SubgraphStartBlocks{
 		Bal:   0,
 		Swaps: 0,
@@ -42,13 +42,13 @@ func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, n
 	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start)
 }
 
-func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) SubgraphSyncer {
+func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	sync.startBlocks = startBlocks
 	syncNotif := make(chan bool, 1)
 	go sync.syncStart(syncNotif)
 	<-syncNotif
-	return sync
+	return &sync
 }
 
 func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
@@ -72,7 +72,7 @@ const SUBGRAPH_POLL_SECS = 1
 // indexer time to index the incremental rows
 const SUBGRAPH_SYNC_DELAY = 1
 
-func (s *SubgraphSyncer) pollSubgraphUpdates() {
+func (s *SubgraphSyncer) PollSubgraphUpdates() {
 	for {
 		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
@@ -107,8 +107,6 @@ func (s *SubgraphSyncer) syncStart(notif chan bool) {
 	s.syncStep(syncBlock)
 	log.Printf("Startup subgraph sync done on chainId=%d", s.cntr.chainCfg.ChainID)
 	notif <- true
-
-	s.pollSubgraphUpdates()
 }
 
 func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig) syncChannels {

@@ -31,16 +31,22 @@ func main() {
 		cntrl = controller.NewOnQuery(netCfg, cache, &nonQuery)
 	}
 
+	syncs := make([]*controller.SubgraphSyncer, 0)
+
 	for network, chainCfg := range netCfg {
 		startBlocks := controller.SubgraphStartBlocks{
 			Swaps: *swapStart,
 			Aggs:  *aggStart,
 			Bal:   *balStart,
 		}
-		controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
+		syncer := controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
+		syncs = append(syncs, syncer)
 	}
 
 	cntrl.SpinUntilLiqSync()
+	for _, syncer := range syncs {
+		go syncer.PollSubgraphUpdates()
+	}
 
 	views := views.Views{Cache: cache, OnChain: onChain}
 	apiServer := server.APIWebServer{Views: &views}

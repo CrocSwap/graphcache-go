@@ -42,16 +42,16 @@ func NewOnQuery(netCfg loader.NetworkConfig, cache *cache.MemoryCache, query loa
 }
 
 func (c *Controller) SpinUntilLiqSync() {
-	const REFRESH_PAUSE_SECS = 2
+	const REFRESH_PAUSE_SECS = 5
 	for {
 		nowTime := time.Now().Unix()
 		syncSec := c.refresher.lastRefreshSec
 		if nowTime < syncSec+REFRESH_PAUSE_SECS {
-			log.Println("Waiting for liquidity sync pause. Last refresh: ", syncSec, " now: ", nowTime)
+			log.Println("Waiting for liquidity sync pause. Last refresh:", syncSec, "now:", nowTime)
 		} else {
 			return
 		}
-		time.Sleep(time.Microsecond * 500)
+		time.Sleep(time.Second * 1)
 	}
 }
 
