@@ -5,7 +5,7 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-const N_POSITIONS_REFRESH_ON_SWAP = 50
+const N_POSITIONS_REFRESH_ON_SWAP = 100
 
 func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 	var msgs []posImpactMsg

@@ -47,16 +47,26 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 		Quote:   quote,
 	}
 
-	for pos, subplot := range v.Cache.RetrievePoolLimits(loc) {
-		results = append(results, unrollSubplot(pos, subplot)...)
+	// Retrieve X times the number of results to make it likely we have enough after filtering empty
+	const EMPTY_MULT = 7
+
+	positions := v.Cache.RetriveLastNPoolKo(loc, nResults*EMPTY_MULT)
+
+	hasSeen := make(map[types.PositionLocation]bool, 0)
+
+	for _, val := range positions {
+		if !hasSeen[val.Loc] {
+			hasSeen[val.Loc] = true
+			results = append(results, unrollSubplot(val.Loc, val.Ko)...)
+		}
 	}
 
 	sort.Sort(byTimeLO(results))
 
-	if len(results) < nResults {
-		return results
-	} else {
+	if len(results) > nResults {
 		return results[0:nResults]
+	} else {
+		return results
 	}
 }
 
