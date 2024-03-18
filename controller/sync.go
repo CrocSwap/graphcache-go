@@ -16,6 +16,13 @@ type SubgraphSyncer struct {
 	lastSyncBlock  int
 	lookbackBlocks int
 	channels       syncChannels
+	startBlocks    SubgraphStartBlocks
+}
+
+type SubgraphStartBlocks struct {
+	Bal   int
+	Swaps int
+	Aggs  int
 }
 type syncChannels struct {
 	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
@@ -27,7 +34,17 @@ type syncChannels struct {
 }
 
 func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+	start := SubgraphStartBlocks{
+		Bal:   0,
+		Swaps: 0,
+		Aggs:  0,
+	}
+	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start)
+}
+
+func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) SubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
+	sync.startBlocks = startBlocks
 	syncNotif := make(chan bool, 1)
 	go sync.syncStart(syncNotif)
 	<-syncNotif
@@ -147,15 +164,23 @@ func (s *SubgraphSyncer) syncStep(syncBlock int) {
 	const N_CHANNELS = 6
 	wg.Add(N_CHANNELS)
 
-	go s.channels.swaps.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.swaps.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Swaps), syncBlock, &wg)
+	go s.channels.aggs.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Aggs), syncBlock, &wg)
+	go s.channels.bal.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Bal), syncBlock, &wg)
+
 	go s.channels.liq.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
 	go s.channels.ko.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.bal.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
 	go s.channels.fees.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.aggs.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
 
 	wg.Wait()
 
 	s.lookbackBlocks = s.lastSyncBlock
 	s.lastSyncBlock = syncBlock
+}
+
+func maxBlock(startBlock int, laterBlock int) int {
+	if startBlock > laterBlock {
+		return startBlock
+	}
+	return laterBlock
 }

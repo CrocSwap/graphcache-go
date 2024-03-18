@@ -14,6 +14,10 @@ func main() {
 	var netCfgPath = flag.String("netCfg", "./config/networks.json", "network config file")
 	var apiPath = flag.String("apiPath", "gcgo", "API server root path")
 	var noRpcMode = flag.Bool("noRpcMode", false, "Run in mode with no RPC calls")
+	var swapStart = flag.Int("swapStart", 0, "Block number to start swap event processing")
+	var aggStart = flag.Int("aggStart", 0, "Block number to start aggregate event processing")
+	var balStart = flag.Int("balStart", 0, "Block number to start user balance processing")
+
 	flag.Parse()
 
 	netCfg := loader.LoadNetworkConfig(*netCfgPath)
@@ -28,7 +32,12 @@ func main() {
 	}
 
 	for network, chainCfg := range netCfg {
-		controller.NewSubgraphSyncer(cntrl, chainCfg, network)
+		startBlocks := controller.SubgraphStartBlocks{
+			Swaps: *swapStart,
+			Aggs:  *aggStart,
+			Bal:   *balStart,
+		}
+		controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
 	}
 
 	views := views.Views{Cache: cache, OnChain: onChain}
