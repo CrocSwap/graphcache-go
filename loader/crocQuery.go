@@ -175,7 +175,7 @@ func (q *CrocQuery) getQueryContractAddr(chain types.ChainId) (types.EthAddress,
 
 	if !ok {
 		log.Printf("No CrocQuery contract foudn for %s", chain)
-		err := fmt.Errorf("No CrocQuery contract foudn for %s", chain)
+		err := fmt.Errorf("no CrocQuery contract foudn for %s", chain)
 		return "", err
 	}
 

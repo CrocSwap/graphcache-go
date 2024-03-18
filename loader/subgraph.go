@@ -3,9 +3,10 @@ package loader
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -76,6 +77,11 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", "crocswap-indexer/1.0")
 
+	if err != nil {
+		log.Println("Subgraph New Request Error: " + err.Error())
+		return nil, err
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -84,7 +90,7 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Subgraph Query Read Error: " + err.Error())
 		return nil, err
@@ -93,7 +99,7 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 }
 
 func readQueryPath(filename string) SubgraphQuery {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal("Unable to read file: " + filename)
 	}

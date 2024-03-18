@@ -14,7 +14,7 @@ type workers struct {
 	liqRefresher *LiquidityRefresher
 }
 
-func initWorkers(netCfg loader.NetworkConfig, query *loader.ICrocQuery) *workers {
+func initWorkers(_ loader.NetworkConfig, query *loader.ICrocQuery) *workers {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{
@@ -40,7 +40,7 @@ func watchUpdateSeq(liq *LiquidityRefresher) chan IMsgType {
 	}
 
 	go func() {
-		for true {
+		for {
 			msg := <-sink
 			msg.processUpdate(accum, liq)
 		}

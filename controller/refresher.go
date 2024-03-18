@@ -104,7 +104,7 @@ func (r *HandleRefresher) pushFollowup() {
 func (r *HandleRefresher) watchPending() {
 	prevLatest := int64(0)
 
-	for true {
+	for {
 		latestWindow := <-r.requests
 		if latestWindow > prevLatest {
 			r.pendingQueue <- r.hndl
@@ -118,7 +118,7 @@ func (r *LiquidityRefresher) watchPending() {
 	callCnt := 0
 	totalCnt := 0
 
-	for true {
+	for {
 		nowSec := time.Now().Unix()
 		if nowSec == lastSec {
 			callCnt += 1
@@ -162,7 +162,7 @@ func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
 	callCnt := 0
 	totalCnt := 0
 
-	for true {
+	for {
 		hndl := <-workQueue
 		hndl.RefreshQuery(r.query)
 		r.postProcess <- hndl.LabelTag()
@@ -186,7 +186,7 @@ func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
 
 func (r *LiquidityRefresher) watchPostProcess() {
 	pendingCount := 0
-	for true {
+	for {
 		tag := <-r.postProcess
 		pendingCount += 1
 		if pendingCount%100 == 0 {

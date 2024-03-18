@@ -56,7 +56,7 @@ const SUBGRAPH_POLL_SECS = 1
 const SUBGRAPH_SYNC_DELAY = 1
 
 func (s *SubgraphSyncer) pollSubgraphUpdates() {
-	for true {
+	for {
 		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
@@ -92,12 +92,6 @@ func (s *SubgraphSyncer) syncStart(notif chan bool) {
 	notif <- true
 
 	s.pollSubgraphUpdates()
-}
-
-func (s *SubgraphSyncer) logSyncCycle(table string, nRows int) {
-	if nRows > 0 {
-		log.Printf("Sync %s subgraph on chainId=%d with rows=%d", table, s.cntr.chainCfg.ChainID, nRows)
-	}
 }
 
 func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig) syncChannels {

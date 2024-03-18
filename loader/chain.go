@@ -74,7 +74,7 @@ func (c *OnChainLoader) ethClientForChain(chainId types.ChainId) (*ethclient.Cli
 
 	if !okay {
 		log.Println("Warning no chain configuration for " + chainId)
-		return nil, fmt.Errorf("Chain configuration missing")
+		return nil, fmt.Errorf("chain configuration missing")
 	}
 
 	rpcUrl := cfg.RPCEndpoint
@@ -85,15 +85,6 @@ func (c *OnChainLoader) ethClientForChain(chainId types.ChainId) (*ethclient.Cli
 	}
 
 	return client, err
-}
-
-func (c *OnChainLoader) callContractKey(methodName string, token types.EthAddress, client *ethclient.Client, chainId types.ChainId, abi abi.ABI) (interface{}, error) {
-	callData, err := abi.Pack(methodName)
-	if err != nil {
-		log.Fatalf("Failed to parse method %s on ABI", methodName)
-	}
-	result, err := c.callContractFn(callData, methodName, token, client, chainId, abi)
-	return result[0], err
 }
 
 func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
@@ -143,7 +134,7 @@ func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types
 }
 
 // Call a contract directly
-func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, chainId types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
+func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, _ types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
 	addr := common.HexToAddress(string(contract))
 
 	msg := ethereum.CallMsg{

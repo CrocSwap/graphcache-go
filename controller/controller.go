@@ -142,7 +142,7 @@ func (c *ControllerOverNetwork) IngestAggEvent(r tables.AggEvent) {
 }
 
 func (c *ControllerOverNetwork) IngestKnockout(r tables.KnockoutCross) {
-	liq := types.KnockoutTickLocation(r.Tick, r.IsBid > 0, c.chainCfg.KnockoutTickWidth)
+	liq := types.KnockoutTickLocation(r.Tick, r.IsBid > 0, c.knockoutTickWidth())
 	pool := types.PoolLocation{
 		ChainId: c.chainId,
 		PoolIdx: r.PoolIdx,
@@ -191,7 +191,7 @@ func (c *Controller) resyncFullCycle(time int) {
 const REFRESH_CYCLE_TIME = 30 * 60
 
 func (c *Controller) runPeriodicRefresh() {
-	for true {
+	for {
 		time.Sleep(time.Second * REFRESH_CYCLE_TIME)
 		refreshTime := time.Now().Unix()
 		c.resyncFullCycle(int(refreshTime))

@@ -28,14 +28,13 @@ func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 		}
 
 		if lock != nil {
-			lock.Unlock()
+			lock.RUnlock()
 		}
 	}
 	return msgs
 }
 
 type posMap = map[types.PositionLocation]*model.PositionTracker
-type koMap = map[types.PositionLocation]*model.KnockoutSubplot
 
 func (c *ControllerOverNetwork) subsetRecent(poolPositions posMap) posMap {
 	var times []int
@@ -59,12 +58,4 @@ func (c *ControllerOverNetwork) subsetRecent(poolPositions posMap) posMap {
 	}
 
 	return ret
-}
-
-type posByTime []*model.PositionTracker
-
-func (a posByTime) Len() int      { return len(a) }
-func (a posByTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a posByTime) Less(i, j int) bool {
-	return a[i].LatestUpdateTime > a[j].LatestUpdateTime
 }

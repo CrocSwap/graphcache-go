@@ -29,9 +29,8 @@ type KnockoutAliveHandle struct {
 }
 
 type KnockoutPostHandle struct {
-	location   types.KOClaimLocation
-	pos        *model.KnockoutSubplot
-	hasQueried bool
+	location types.KOClaimLocation
+	pos      *model.KnockoutSubplot
 }
 
 func (p *PositionRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
