@@ -12,10 +12,11 @@ import (
 )
 
 type Controller struct {
-	netCfg  loader.NetworkConfig
-	cache   *cache.MemoryCache
-	history *model.HistoryWriter
-	workers *workers
+	netCfg    loader.NetworkConfig
+	cache     *cache.MemoryCache
+	history   *model.HistoryWriter
+	workers   *workers
+	refresher *LiquidityRefresher
 }
 
 func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache, chain *loader.OnChainLoader) *Controller {
@@ -26,16 +27,32 @@ func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache, chain *loader.On
 
 func NewOnQuery(netCfg loader.NetworkConfig, cache *cache.MemoryCache, query loader.ICrocQuery) *Controller {
 	history := model.NewHistoryWriter(netCfg, cache.AddPoolEvent)
+	workers, refresher := initWorkers(netCfg, &query)
 
 	ctrl := &Controller{
-		netCfg:  netCfg,
-		cache:   cache,
-		workers: initWorkers(netCfg, &query),
-		history: history,
+		netCfg:    netCfg,
+		cache:     cache,
+		workers:   workers,
+		refresher: refresher,
+		history:   history,
 	}
 	go ctrl.runPeriodicRefresh()
 
 	return ctrl
+}
+
+func (c *Controller) SpinUntilLiqSync() {
+	const REFRESH_PAUSE_SECS = 2
+	for {
+		nowTime := time.Now().Unix()
+		syncSec := c.refresher.lastRefreshSec
+		if nowTime < syncSec+REFRESH_PAUSE_SECS {
+			log.Println("Waiting for liquidity sync pause. Last refresh: ", syncSec, " now: ", nowTime)
+		} else {
+			return
+		}
+		time.Sleep(time.Microsecond * 500)
+	}
 }
 
 type ControllerOverNetwork struct {

@@ -15,11 +15,12 @@ type HandleRefresher struct {
 }
 
 type LiquidityRefresher struct {
-	pending     chan IRefreshHandle
-	postProcess chan string
-	query       *loader.ICrocQuery
-	workers     []chan IRefreshHandle
-	nextWorker  int
+	pending        chan IRefreshHandle
+	postProcess    chan string
+	query          *loader.ICrocQuery
+	workers        []chan IRefreshHandle
+	nextWorker     int
+	lastRefreshSec int64
 }
 
 const NUM_PARALLEL_QUERIES = 50
@@ -142,6 +143,7 @@ func (r *LiquidityRefresher) watchPending() {
 		}
 
 		totalCnt += 1
+		r.lastRefreshSec = nowSec
 	}
 }
 

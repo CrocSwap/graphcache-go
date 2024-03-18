@@ -40,6 +40,8 @@ func main() {
 		controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
 	}
 
+	cntrl.SpinUntilLiqSync()
+
 	views := views.Views{Cache: cache, OnChain: onChain}
 	apiServer := server.APIWebServer{Views: &views}
 	apiServer.Serve(*apiPath)

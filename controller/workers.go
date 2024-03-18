@@ -14,13 +14,13 @@ type workers struct {
 	liqRefresher *LiquidityRefresher
 }
 
-func initWorkers(_ loader.NetworkConfig, query *loader.ICrocQuery) *workers {
+func initWorkers(_ loader.NetworkConfig, query *loader.ICrocQuery) (*workers, *LiquidityRefresher) {
 	liqRefresher := NewLiquidityRefresher(query)
 
 	return &workers{
 		omniUpdates:  watchUpdateSeq(liqRefresher),
 		liqRefresher: NewLiquidityRefresher(query),
-	}
+	}, liqRefresher
 }
 
 type RefreshAccumulator struct {
