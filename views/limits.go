@@ -48,7 +48,7 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 	}
 
 	// Retrieve X times the number of results to make it likely we have enough after filtering empty
-	const EMPTY_MULT = 7
+	const EMPTY_MULT = 12
 
 	positions := v.Cache.RetriveLastNPoolKo(loc, nResults*EMPTY_MULT)
 
