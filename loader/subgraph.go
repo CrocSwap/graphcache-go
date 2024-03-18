@@ -39,22 +39,20 @@ func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	}
 }
 
-const SUBGRAPH_RETRY_TIME_LIMIT = 256
+const SUBGRAPH_RETRY_SECS = 5
 
+/* Retry subgraph query forever, because 99% of the time it's an issue with the subgraph endpoint
+ * or subgraph rate limiting. Crashign and restarting won't fix the process and will result in loss
+ * of state. But be aware that pods may still look health even if subgraph isn't working. */
 func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
 	result, err := queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
 
-	retrySecs := 1
-	for err != nil {
-		log.Println("Subgraph queried failed. Retrying in", retrySecs, "seconds. Error: ", err)
+	// Retry subgraph query forever, because 99% of
+	for err == nil {
+		log.Println("Subgraph queried failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
 
-		time.Sleep(time.Duration(retrySecs) * time.Second)
+		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
 		result, err = queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
-
-		retrySecs = retrySecs * 2
-		if retrySecs >= SUBGRAPH_RETRY_TIME_LIMIT {
-			log.Fatal("Subgraph query failed for 180 seconds. Exiting.")
-		}
 	}
 
 	return result, err
