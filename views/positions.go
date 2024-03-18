@@ -41,23 +41,23 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 	}
 
 	// Retrieve 10x the number of results to make it likely we have enough after filtering empty
-	const EMPTY_MULT = 10
+	const EMPTY_MULT = 5
 
 	positions := v.Cache.RetriveLastNPoolPos(loc, nResults*EMPTY_MULT)
 
-	resultSet := make(map[types.PositionLocation]UserPosition, 0)
+	hasSeen := make(map[types.PositionLocation]bool, 0)
 	results := make([]UserPosition, 0)
 
 	for _, val := range positions {
-		if !omitEmpty || val.Pos.PositionLiquidity.IsEmpty() {
-			element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
-				APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
-			resultSet[val.Loc] = element
-		}
-	}
+		if !hasSeen[val.Loc] {
+			hasSeen[val.Loc] = true
 
-	for _, val := range resultSet {
-		results = append(results, val)
+			if !omitEmpty || val.Pos.PositionLiquidity.IsEmpty() {
+				element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
+					APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
+				results = append(results, element)
+			}
+		}
 	}
 
 	sort.Sort(byTime(results))
