@@ -52,7 +52,7 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 		if !hasSeen[val.Loc] {
 			hasSeen[val.Loc] = true
 
-			if !omitEmpty || val.Pos.PositionLiquidity.IsEmpty() {
+			if !omitEmpty || !val.Pos.PositionLiquidity.IsEmpty() {
 				element := UserPosition{PositionLocation: val.Loc, PositionTracker: *val.Pos,
 					APRCalcResult: val.Pos.CalcAPR(val.Loc), PositionId: formPositionId(val.Loc)}
 				results = append(results, element)
