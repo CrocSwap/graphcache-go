@@ -72,7 +72,10 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 func (v *Views) QueryPoolApyLeaders(chainId types.ChainId,
 	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int,
 	omitEmpty bool) []UserPosition {
-	results := v.QueryPoolPositions(chainId, base, quote, poolIdx, 1000000, true)
+
+	const LAST_N_ELIGIBLE = 2000
+
+	results := v.QueryPoolPositions(chainId, base, quote, poolIdx, LAST_N_ELIGIBLE, true)
 
 	sort.Sort(byApr(results))
 
