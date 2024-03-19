@@ -17,7 +17,7 @@ func (s *APIWebServer) Serve(prefix string) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(CORSMiddleware())
-	r.Use(gzip.Gzip(gzip.BestCompression))
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET(prefix+"/", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET(prefix+"/user_balance_tokens", s.queryUserTokens)
