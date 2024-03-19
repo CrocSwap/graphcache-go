@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -109,8 +110,9 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startBlock int, endBlock int) (i
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
 		if err != nil {
-			log.Println("Warning subgraph request decode error " + err.Error())
-			return nIngested, err
+			log.Println("Warning subgraph request decode error (trying again)" + err.Error())
+			time.Sleep(3 * time.Second)
+			continue
 		}
 
 		for _, entry := range entries {
