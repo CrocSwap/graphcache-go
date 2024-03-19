@@ -60,6 +60,12 @@ func (c *ChainConfig) envVarOverride(netName types.NetworkName) {
 	if envVal != "" {
 		c.RPCEndpoint = envVal
 	}
+
+	envVar = "SUBGRAPH_" + strings.ToUpper(string(netName))
+	envVal = os.Getenv(string(envVar))
+	if envVal != "" {
+		c.Subgraph = envVal
+	}
 }
 
 func (c *NetworkConfig) NetworkForChainID(chainId types.ChainId) (types.NetworkName, bool) {
