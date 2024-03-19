@@ -110,8 +110,9 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startBlock int, endBlock int) (i
 
 		entries, err := s.tbl.ParseSubGraphResp(resp)
 		if err != nil {
+			log.Println("Warning subgraph request decode error (trying again) " + err.Error())
 			time.Sleep(3 * time.Second)
-			hasMore = false
+			hasMore = true
 			continue
 		}
 
