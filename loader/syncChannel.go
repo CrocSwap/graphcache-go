@@ -49,7 +49,7 @@ func LatestSubgraphBlock(cfg SyncChannelConfig) (int, error) {
 	}
 
 	if result.Block.Number == 0 {
-		log.Println("Warning subgraph latest block number is 0. Retrying")
+		log.Println("Warning subgraph latest block number is 0. Retrying ", cfg.Network)
 		return LatestSubgraphBlock(cfg)
 	} else {
 		return result.Block.Number, nil

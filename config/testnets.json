@@ -1,12 +1,4 @@
 {
-
-    "scrollSepolia": {
-        "chain_id": 534351,
-        "rpc": "https://sepolia-rpc.scroll.io",
-        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-scroll-sepolia/version/latest",
-        "query_contract": "0x43eC1302FE3587862e15B2D52AD9653575FD79e9",
-        "knockout_tick_width": 1
-    },
     
     "sepolia": {
         "chain_id": 11155111,
