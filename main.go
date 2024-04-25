@@ -17,6 +17,7 @@ func main() {
 	var swapStart = flag.Int("swapStart", 0, "Block number to start swap event processing")
 	var aggStart = flag.Int("aggStart", 0, "Block number to start aggregate event processing")
 	var balStart = flag.Int("balStart", 0, "Block number to start user balance processing")
+	var extendedApi = flag.Bool("extendedApi", false, "Expose additional methods in the API")
 
 	flag.Parse()
 
@@ -50,5 +51,5 @@ func main() {
 
 	views := views.Views{Cache: cache, OnChain: onChain}
 	apiServer := server.APIWebServer{Views: &views}
-	apiServer.Serve(*apiPath)
+	apiServer.Serve(*apiPath, *extendedApi)
 }

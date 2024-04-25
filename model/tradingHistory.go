@@ -100,7 +100,7 @@ func (a *AccumPoolStats) accumSwapType(e tables.AggEvent) {
 	}
 
 	if isStable {
-		price := derivePriceFromAmbientFlow(math.Abs(e.BaseFlow), math.Abs(e.QuoteFlow))
+		price := derivePriceFromSwapFlow(math.Abs(e.BaseFlow), math.Abs(e.QuoteFlow), a.FeeRate, e.BaseFlow < 0)
 		a.LastPriceSwap = price
 		a.LastPriceIndic = price
 	}

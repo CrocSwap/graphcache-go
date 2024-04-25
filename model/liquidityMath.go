@@ -2,6 +2,7 @@ package model
 
 import (
 	"math"
+	"math/big"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 )
@@ -14,8 +15,12 @@ func derivePriceFromAmbientFlow(baseFlow float64, quoteFlow float64) float64 {
 	return math.Abs(baseFlow / quoteFlow)
 }
 
-func derivePriceFromSwapFlow(baseFlow float64, quoteFlow float64) float64 {
-	return math.Abs(baseFlow / quoteFlow)
+func derivePriceFromSwapFlow(baseFlow float64, quoteFlow float64, feeRate float64, isBuy bool) float64 {
+	if isBuy {
+		return math.Abs(baseFlow/quoteFlow) * (1 + feeRate)
+	} else {
+		return math.Abs(baseFlow/quoteFlow) * (1 - feeRate)
+	}
 }
 
 func deriveLiquidityFromConcFlow(baseFlow float64, quoteFlow float64,
@@ -74,6 +79,44 @@ func deriveRootFromInRange(baseFlow float64, quoteFlow float64,
 	} else {
 		return solutionNeg
 	}
+}
+
+func DeriveTokensFromConcLiquidity(liquidity float64, bidTick int, askTick int, price float64) (baseTokens *big.Int, quoteTokens *big.Int) {
+	if price == 0 {
+		return nil, nil
+	}
+	bidPriceBig := big.NewFloat(tickToPrice(bidTick))
+	askPriceBig := big.NewFloat(tickToPrice(askTick))
+	liquidityBig := big.NewFloat(liquidity)
+	clampedPriceBig := big.NewFloat(price)
+	if big.NewFloat(price).Cmp(askPriceBig) == 1 {
+		clampedPriceBig = askPriceBig
+	} else if big.NewFloat(price).Cmp(bidPriceBig) == -1 {
+		clampedPriceBig = bidPriceBig
+	}
+	sqrtClampedPriceBig := new(big.Float).Sqrt(clampedPriceBig)
+	sqrtBidPriceBig := new(big.Float).Sqrt(bidPriceBig)
+	sqrtAskPriceBig := new(big.Float).Sqrt(askPriceBig)
+
+	baseTokensBig := new(big.Float).Sub(sqrtClampedPriceBig, sqrtBidPriceBig)
+	baseTokensBig.Mul(baseTokensBig, liquidityBig)
+
+	quoteTokensBig := new(big.Float).Sub(sqrtAskPriceBig, sqrtClampedPriceBig)
+	quoteTokensBig.Quo(quoteTokensBig, new(big.Float).Mul(sqrtClampedPriceBig, sqrtAskPriceBig))
+	quoteTokensBig.Mul(quoteTokensBig, liquidityBig)
+	baseTokens, _ = baseTokensBig.Int(nil)
+	quoteTokens, _ = quoteTokensBig.Int(nil)
+	return
+}
+
+func DeriveTokensFromAmbLiquidity(liquidity float64, price float64) (baseTokens *big.Int, quoteTokens *big.Int) {
+	if price == 0 {
+		return nil, nil
+	}
+	price = math.Sqrt(price)
+	baseTokens, _ = big.NewFloat(0).Mul(big.NewFloat(liquidity), big.NewFloat(price)).Int(nil)
+	quoteTokens, _ = big.NewFloat(0).Quo(big.NewFloat(liquidity), big.NewFloat(price)).Int(nil)
+	return
 }
 
 func estLiqAmplification(bidTick int, askTick int) float64 {

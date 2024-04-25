@@ -2,6 +2,7 @@ package views
 
 import (
 	"encoding/hex"
+	"math/big"
 	"sort"
 
 	"github.com/CrocSwap/graphcache-go/model"
@@ -13,6 +14,19 @@ type UserPosition struct {
 	model.PositionTracker
 	model.APRCalcResult
 	PositionId string `json:"positionId"`
+}
+
+type HistoricUserPosition struct {
+	types.PositionLocation
+	PositionType  string                   `json:"positionType"`
+	TimeFirstMint int                      `json:"timeFirstMint"`
+	FirstMintTx   string                   `json:"firstMintTx"`
+	PositionId    string                   `json:"positionId"`
+	Liq           *big.Int                 `json:"liq"`
+	BaseTokens    *big.Int                 `json:"baseTokens"`
+	QuoteTokens   *big.Int                 `json:"quoteTokens"`
+	PoolPrice     float64                  `json:"poolPrice"`
+	LiqHist       model.LiquidityDeltaHist `json:"liqHist"`
 }
 
 func (v *Views) QueryUserPositions(chainId types.ChainId, user types.EthAddress) []UserPosition {
@@ -120,6 +134,68 @@ func (v *Views) QuerySinglePosition(chainId types.ChainId, user types.EthAddress
 	}
 
 	return nil
+}
+
+func (v *Views) QueryHistoricPositions(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+	poolIdx int, time int, user types.EthAddress, omitEmpty bool) []HistoricUserPosition {
+	livePositions := make([]HistoricUserPosition, 0)
+
+	pools := v.Cache.RetrievePoolSet()
+	for _, loc := range pools {
+		if (chainId != "" && loc.ChainId != chainId) || (base != "" && loc.Base != base) || (quote != "" && loc.Quote != quote) || (poolIdx != 0 && loc.PoolIdx != poolIdx) {
+			continue
+		}
+		positions := v.Cache.RetrievePoolPositions(loc)
+
+		poolHistPos := make([]HistoricUserPosition, 0)
+
+		for key, val := range positions {
+			if user != "" && user != key.User {
+				continue
+			}
+			histPos := HistoricUserPosition{
+				PositionLocation: key,
+				PositionId:       formPositionId(key),
+				TimeFirstMint:    val.TimeFirstMint,
+				FirstMintTx:      val.FirstMintTx,
+				PositionType:     val.PositionType,
+				LiqHist:          val.LiqHist,
+			}
+			poolHistPos = append(poolHistPos, histPos)
+		}
+
+		lastTrade := v.Cache.RetrievePoolAccumBefore(loc, time)
+		poolPrice := lastTrade.LastPriceIndic
+		for _, position := range poolHistPos {
+			var liqSum float64
+			for _, liqChange := range position.LiqHist.Hist {
+				if liqChange.Time <= time {
+					liqSum += liqChange.LiqChange
+				}
+			}
+			if liqSum <= 0 {
+				liqSum = 0
+				if omitEmpty {
+					continue
+				}
+			}
+			if position.TimeFirstMint > time {
+				continue
+			}
+			if position.PositionType == "concentrated" {
+				liqSumBig, _ := big.NewFloat(liqSum).Int(nil)
+				position.Liq = liqSumBig
+				position.BaseTokens, position.QuoteTokens = model.DeriveTokensFromConcLiquidity(liqSum, position.BidTick, position.AskTick, poolPrice)
+			} else if position.PositionType == "ambient" {
+				liqSumBig, _ := big.NewFloat(liqSum).Int(nil)
+				position.Liq = liqSumBig
+				position.BaseTokens, position.QuoteTokens = model.DeriveTokensFromAmbLiquidity(liqSum, poolPrice)
+			}
+			position.PoolPrice = poolPrice
+			livePositions = append(livePositions, position)
+		}
+	}
+	return livePositions
 }
 
 func formPositionId(loc types.PositionLocation) string {
