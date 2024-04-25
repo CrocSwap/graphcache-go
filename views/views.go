@@ -21,6 +21,8 @@ type IViews interface {
 	QuerySinglePosition(chainId types.ChainId, user types.EthAddress,
 		base types.EthAddress, quote types.EthAddress,
 		poolIdx int, bidTick int, askTick int) *UserPosition
+	QueryHistoricPositions(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
+		poolIdx int, time int, user types.EthAddress, omitEmpty bool) []HistoricUserPosition
 
 	QueryUserLimits(chainId types.ChainId, user types.EthAddress) []UserLimitOrder
 	QueryPoolLimits(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
