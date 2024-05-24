@@ -8,20 +8,20 @@ import (
 )
 
 type LiquidityDeltaHist struct {
-	hist []LiquidityDelta
+	Hist []LiquidityDelta `json:"hist"`
 }
 
 type LiquidityDelta struct {
-	time         int
-	liqChange    float64
+	Time         int
+	LiqChange    float64
 	resetRewards bool
 }
 
 func (l *LiquidityDeltaHist) netCumulativeLiquidity() float64 {
 	totalLiq := 0.0
 
-	for _, delta := range l.hist {
-		totalLiq += delta.liqChange
+	for _, delta := range l.Hist {
+		totalLiq += delta.LiqChange
 	}
 
 	if totalLiq < MIN_NUMERIC_STABLE_FLOW {
@@ -40,25 +40,25 @@ func (l *LiquidityDeltaHist) weightedAverageTime() int {
 	openLiq := 0.0
 	openTime := 0.0
 
-	for _, delta := range l.hist {
+	for _, delta := range l.Hist {
 		if delta.resetRewards == true {
-			openTime = float64(delta.time)
+			openTime = float64(delta.Time)
 		}
 
-		if delta.liqChange < 0 {
-			openLiq = openLiq + delta.liqChange
+		if delta.LiqChange < 0 {
+			openLiq = openLiq + delta.LiqChange
 			if openLiq < 0 || openLiq < MIN_NUMERIC_STABLE_FLOW {
 				openLiq = 0
 			}
 		}
 
-		if delta.liqChange > 0 {
-			weight := openLiq / (openLiq + delta.liqChange)
-			openTime = openTime*weight + float64(delta.time)*(1.0-weight)
+		if delta.LiqChange > 0 {
+			weight := openLiq / (openLiq + delta.LiqChange)
+			openTime = openTime*weight + float64(delta.Time)*(1.0-weight)
 		}
 
-		if delta.liqChange == 0 && openLiq == 0 {
-			openTime = float64(delta.time)
+		if delta.LiqChange == 0 && openLiq == 0 {
+			openTime = float64(delta.Time)
 		}
 	}
 	return int(openTime)
@@ -69,8 +69,8 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 	l.assertTimeForward(r.Time)
 
 	if r.ChangeType == "harvest" {
-		l.hist = append(l.hist, LiquidityDelta{
-			time:         r.Time,
+		l.Hist = append(l.Hist, LiquidityDelta{
+			Time:         r.Time,
 			resetRewards: true,
 		})
 
@@ -78,29 +78,29 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 		liqMagn := determineLiquidityMagn(r)
 
 		if r.ChangeType == "mint" {
-			l.hist = append(l.hist, LiquidityDelta{
-				time:      r.Time,
-				liqChange: liqMagn})
+			l.Hist = append(l.Hist, LiquidityDelta{
+				Time:      r.Time,
+				LiqChange: liqMagn})
 
 		} else if r.ChangeType == "burn" {
-			l.hist = append(l.hist, LiquidityDelta{
-				time:      r.Time,
-				liqChange: -liqMagn})
+			l.Hist = append(l.Hist, LiquidityDelta{
+				Time:      r.Time,
+				LiqChange: -liqMagn})
 		}
 	}
 }
 
 func (l *LiquidityDeltaHist) initHist() {
-	if l.hist == nil {
-		l.hist = make([]LiquidityDelta, 0)
+	if l.Hist == nil {
+		l.Hist = make([]LiquidityDelta, 0)
 	}
 }
 
 func (l *LiquidityDeltaHist) assertTimeForward(time int) {
-	if len(l.hist) == 0 {
+	if len(l.Hist) == 0 {
 		return
 	}
-	lastTime := l.hist[0].time
+	lastTime := l.Hist[0].Time
 
 	if time < lastTime {
 		log.Fatalf("Liquidity delta history has backward time step %d->%d", lastTime, time)

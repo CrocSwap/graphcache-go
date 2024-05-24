@@ -21,7 +21,7 @@ func (p *PositionTracker) CalcAPR(loc types.PositionLocation) APRCalcResult {
 
 	numerator := p.aprNumerator(loc)
 	denom := p.aprDenominator()
-	time := p.liqHist.weightedAverageDuration()
+	time := p.LiqHist.weightedAverageDuration()
 
 	apy := normalizeApr(numerator, denom, time)
 	return APRCalcResult{
@@ -45,7 +45,7 @@ func (p *PositionTracker) aprDenominator() float64 {
 	if p.IsConcentrated() {
 		return castBigToFloat(&p.ConcLiq)
 	} else {
-		return p.liqHist.netCumulativeLiquidity()
+		return p.LiqHist.netCumulativeLiquidity()
 	}
 }
 

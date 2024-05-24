@@ -3,7 +3,9 @@ package server
 import (
 	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/CrocSwap/graphcache-go/types"
 	"github.com/CrocSwap/graphcache-go/views"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -13,7 +15,7 @@ type APIWebServer struct {
 	Views views.IViews
 }
 
-func (s *APIWebServer) Serve(prefix string) {
+func (s *APIWebServer) Serve(prefix string, extendedApi bool) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(CORSMiddleware())
@@ -38,6 +40,10 @@ func (s *APIWebServer) Serve(prefix string) {
 	r.GET(prefix+"/pool_candles", s.queryPoolCandles)
 	r.GET(prefix+"/pool_list", s.queryPoolList)
 	r.GET(prefix+"/chain_stats", s.queryChainStats)
+
+	if extendedApi {
+		r.GET(prefix+"/historic_positions", s.queryHistoricPositions)
+	}
 
 	log.Println("API Serving at", prefix)
 	r.Run()
@@ -143,6 +149,25 @@ func (s *APIWebServer) queryPoolTxHist(c *gin.Context) {
 		resp := s.Views.QueryPoolTxHist(chainId, base, quote, poolIdx, n)
 		wrapDataErrResp(c, resp, nil)
 	}
+}
+
+func (s *APIWebServer) queryHistoricPositions(c *gin.Context) {
+	// time of the liquidity snapshot
+	time := parseIntParam(c, "time")
+	// all pool filters are optional
+	chainId := types.ValidateChainId(c.Query("chainId"))
+	base := types.ValidateEthAddr(c.Query("base"))
+	quote := types.ValidateEthAddr(c.Query("quote"))
+	poolIdx, _ := strconv.Atoi(c.Query("poolIdx"))
+	user := types.ValidateEthAddr(c.Query("user"))
+	omitEmpty := parseBoolOptional(c, "omitEmpty", true)
+
+	if len(c.Errors) > 0 {
+		return
+	}
+
+	resp := s.Views.QueryHistoricPositions(chainId, base, quote, poolIdx, time, user, omitEmpty)
+	wrapDataErrResp(c, resp, nil)
 }
 
 func (s *APIWebServer) queryPoolLimits(c *gin.Context) {
