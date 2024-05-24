@@ -54,7 +54,7 @@ func (tbl BalanceTable) ConvertSubGraphRow(r BalanceSubGraph, network string) Ba
 		Tx:      r.TransactionHash,
 		Block:   parseInt(r.Block),
 		Time:    parseInt(r.Time),
-		User:    r.User,
+		User:    translateUser(r.User),
 		Token:   r.Token,
 	}
 }

@@ -96,7 +96,7 @@ func (tbl LiqChangeTable) ConvertSubGraphRow(r LiqChangeSubGraph, network string
 		Quote:        quote,
 		PoolIdx:      parseInt(r.Pool.PoolIdx),
 		PoolHash:     hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
-		User:         r.User,
+		User:         translateUser(r.User),
 		Block:        parseInt(r.Block),
 		Time:         parseInt(r.Time),
 		PositionType: r.PositionType,

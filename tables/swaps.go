@@ -87,7 +87,7 @@ func (tbl SwapsTable) ConvertSubGraphRow(r SwapSubGraph, network string) Swap {
 		CallIndex:  r.CallIndex,
 		Network:    network,
 		TX:         r.TransactionHash,
-		User:       r.User,
+		User:       translateUser(r.User),
 		Block:      parseInt(r.Block),
 		Time:       parseInt(r.Time),
 		Base:       base,
