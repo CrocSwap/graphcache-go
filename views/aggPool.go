@@ -7,8 +7,13 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
+type PoolStats struct {
+	InitTime int `json:"initTime"`
+	model.AccumPoolStats
+}
+
 func (v *Views) QueryPoolStats(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int) model.AccumPoolStats {
+	base types.EthAddress, quote types.EthAddress, poolIdx int) PoolStats {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -16,11 +21,18 @@ func (v *Views) QueryPoolStats(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	return v.Cache.RetrievePoolAccum(loc)
+
+	accum := v.Cache.RetrievePoolAccum(loc)
+	firstAccum := v.Cache.RetrievePoolAccumFirst(loc)
+
+	return PoolStats{
+		InitTime:       firstAccum.LatestTime,
+		AccumPoolStats: accum,
+	}
 }
 
 func (v *Views) QueryPoolStatsFrom(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int, histTime int) model.AccumPoolStats {
+	base types.EthAddress, quote types.EthAddress, poolIdx int, histTime int) PoolStats {
 
 	loc := types.PoolLocation{
 		ChainId: chainId,
@@ -28,7 +40,13 @@ func (v *Views) QueryPoolStatsFrom(chainId types.ChainId,
 		Base:    base,
 		Quote:   quote,
 	}
-	return v.Cache.RetrievePoolAccumBefore(loc, histTime)
+	accum := v.Cache.RetrievePoolAccumBefore(loc, histTime)
+	firstAccum := v.Cache.RetrievePoolAccumFirst(loc)
+
+	return PoolStats{
+		InitTime:       firstAccum.LatestTime,
+		AccumPoolStats: accum,
+	}
 }
 
 type CandleRangeArgs struct {

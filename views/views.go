@@ -47,9 +47,9 @@ type IViews interface {
 		poolIdx int) PoolLiqCurve
 
 	QueryPoolStats(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
-		poolIdx int) model.AccumPoolStats
+		poolIdx int) PoolStats
 	QueryPoolStatsFrom(chainId types.ChainId, base types.EthAddress, quote types.EthAddress,
-		poolIdx int, histTime int) model.AccumPoolStats
+		poolIdx int, histTime int) PoolStats
 	QueryChainStats(chainId types.ChainId, nResults int) []TokenDexAgg
 
 	QueryPoolCandles(chainId types.ChainId, base types.EthAddress, quote types.EthAddress, poolIdx int,

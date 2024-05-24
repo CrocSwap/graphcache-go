@@ -30,7 +30,7 @@ func NewPoolTradingHistory() *PoolTradingHistory {
 }
 
 func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
-	if r.Time != h.StatsCounter.LatestTime {
+	if r.Time != h.StatsCounter.LatestTime && h.StatsCounter.LatestTime != 0 {
 		h.TimeSnaps = append(h.TimeSnaps, h.StatsCounter)
 	}
 	h.StatsCounter.Accumulate(r)

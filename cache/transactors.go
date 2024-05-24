@@ -132,6 +132,18 @@ func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolS
 	return pos.StatsCounter
 }
 
+func (m *MemoryCache) RetrievePoolAccumFirst(loc types.PoolLocation) model.AccumPoolStats {
+	pos, okay := m.poolTradingHistory.lookup(loc)
+	if !okay {
+		return model.AccumPoolStats{}
+	}
+	if len(pos.TimeSnaps) == 0 {
+		return pos.StatsCounter
+	} else {
+		return pos.TimeSnaps[0]
+	}
+}
+
 type AccumTagged struct {
 	model.AccumPoolStats
 	types.PoolLocation
