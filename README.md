@@ -14,7 +14,7 @@ After building to run, from the project root directory call
 
 ## Network options
 
-By default the instance uses the network config at `./config/networks.json`. To use a different configuration file run with
+By default the instance uses the network config at `./config/ethereum.json`. To use a different configuration file run with
 
 `./graphcache-go -netCfg [NETWORK_CONFIG_PATH]`
 

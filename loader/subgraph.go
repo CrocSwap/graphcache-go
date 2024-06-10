@@ -3,10 +3,12 @@ package loader
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -22,6 +24,13 @@ type GraphReqVars struct {
 }
 
 type SubgraphQuery string
+
+type SubgraphError struct {
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+	Data json.RawMessage `json:"data"`
+}
 
 func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
 	if isAsc {
@@ -48,7 +57,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	result, err := queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
 
 	for err != nil {
-		log.Println("Subgraph queried failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
+		log.Println("Subgraph query failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
 
 		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
 		result, err = queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
@@ -69,7 +78,8 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, cfg.Subgraph, bytes.NewBuffer(jsonBody))
+	url := strings.Replace(cfg.Subgraph, "[api-key]", os.Getenv("GRAPH_API_KEY"), 1)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", "crocswap-indexer/1.0")
@@ -80,6 +90,7 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 	}
 
 	client := &http.Client{}
+	client.Timeout = 20 * time.Second
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Subgraph Query Connection Error: " + err.Error())
@@ -91,6 +102,17 @@ func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, e
 	if err != nil {
 		log.Println("Subgraph Query Read Error: " + err.Error())
 		return nil, err
+	}
+
+	var subgraphErr SubgraphError
+	err = json.Unmarshal(body, &subgraphErr)
+	if err == nil && len(subgraphErr.Errors) > 0 {
+		log.Println("Subgraph Query Error(s): ", subgraphErr.Errors)
+		return nil, fmt.Errorf(subgraphErr.Errors[0].Message)
+	}
+	if subgraphErr.Data == nil {
+		log.Println("Subgraph Query Error: Subgraph response has no data field:", string(body))
+		return nil, fmt.Errorf("subgraph response has no data field")
 	}
 	return body, nil
 }
