@@ -2,7 +2,7 @@
     "blast": {
       "chain_id": 81457,
       "rpc": "",
-      "subgraph": "https://api.studio.thegraph.com/query/47610/croc-blast-spare/v0.2.13",
+      "subgraph": "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/6zckS6hnNXpUcyZ4Jk9aQZcJ9UvWUFy8Mfhm6xPEPac3",
       "query_contract": "0xA3BD3bE19012De72190c885FB270beb93e36a8A7",
       "knockout_tick_width": 4,
       "multicall_disabled": false,
