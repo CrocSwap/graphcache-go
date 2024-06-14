@@ -1,0 +1,118 @@
+query($swapMinBlock: BigInt, $swapMaxBlock: BigInt, $aggMinBlock: BigInt, $aggMaxBlock: BigInt,
+      $liqMinBlock: BigInt, $liqMaxBlock: BigInt, $koMinBlock: BigInt, $koMaxBlock: BigInt,
+      $feeMinBlock: BigInt, $feeMaxBlock: BigInt, $balMinBlock: BigInt, $balMaxBlock: BigInt,
+      $orderDir: OrderDirection) {
+  _meta {
+    block {
+      hash
+      number
+      timestamp
+    }
+  },
+  swaps(first: 1000, where: { block_gte: $swapMinBlock, block_lte: $swapMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    transactionHash
+    callIndex
+    user
+    pool {
+      base
+      quote
+      poolIdx
+    }
+    block
+    time
+    isBuy
+    inBaseQty
+    qty
+    limitPrice
+    minOut
+    baseFlow
+    quoteFlow
+  },
+  aggEvents(first: 1000, where: { block_gte: $aggMinBlock, block_lte: $aggMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    pool {
+      base
+      quote
+      poolIdx
+    }
+    block
+    time
+    bidTick
+    askTick
+    swapPrice
+    inBaseQty
+    isSwap
+    isLiq
+    isFeeChange
+    baseFlow
+    quoteFlow
+    feeRate
+    isTickSkewed
+    flowsAtMarket
+  },
+  liquidityChanges(first: 1000, where: { block_gte: $liqMinBlock, block_lte: $liqMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    transactionHash
+    callIndex
+    user
+    pool {
+      base
+      quote
+      poolIdx
+    }
+    block
+    time
+    positionType
+    changeType
+    bidTick
+    askTick
+    isBid
+    liq
+    baseFlow
+    quoteFlow
+    pivotTime
+  },
+  knockoutCrosses(first: 1000, where: { block_gte: $koMinBlock, block_lte: $koMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    transactionHash
+    pool {
+      base
+      quote
+      poolIdx
+    }
+    block
+    time
+    tick
+    isBid
+    pivotTime
+    feeMileage
+  },
+  feeChanges(first: 1000, where:  { block_gte: $feeMinBlock, block_lte: $feeMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    transactionHash
+    callIndex
+    block
+    time
+    pool {
+      base
+      quote
+      poolIdx
+    }
+    feeRate
+  },
+  userBalances(first: 1000, where: { block_gte: $balMinBlock, block_lte: $balMaxBlock },
+    orderBy: block, orderDirection: $orderDir) {
+    id
+    transactionHash
+    block
+    time
+    user
+    token
+  }
+}

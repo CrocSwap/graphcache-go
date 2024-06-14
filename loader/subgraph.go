@@ -12,15 +12,31 @@ import (
 	"time"
 )
 
-type GraphRequest struct {
+type GraphRequest[V GraphReqVars | CombinedGraphReqVars] struct {
 	Query     SubgraphQuery `json:"query"`
-	Variables GraphReqVars  `json:"variables"`
+	Variables V             `json:"variables"`
 }
 
 type GraphReqVars struct {
 	Order   string `json:"orderDir"`
 	MinTime int    `json:"minTime"`
 	MaxTime int    `json:"maxTime"`
+}
+
+type CombinedGraphReqVars struct {
+	Order             string `json:"orderDir"`
+	SwapMinBlock      int    `json:"swapMinBlock"`
+	SwapMaxBlock      int    `json:"swapMaxBlock"`
+	LiquidityMinBlock int    `json:"liqMinBlock"`
+	LiquidityMaxBlock int    `json:"liqMaxBlock"`
+	AggMinBlock       int    `json:"aggMinBlock"`
+	AggMaxBlock       int    `json:"aggMaxBlock"`
+	BalMinBlock       int    `json:"balMinBlock"`
+	BalMaxBlock       int    `json:"balMaxBlock"`
+	FeeMinBlock       int    `json:"feeMinBlock"`
+	FeeMaxBlock       int    `json:"feeMaxBlock"`
+	KoMinBlock        int    `json:"koMinBlock"`
+	KoMaxBlock        int    `json:"koMaxBlock"`
 }
 
 type SubgraphQuery string
@@ -33,18 +49,36 @@ type SubgraphError struct {
 }
 
 func makeSubgraphVars(isAsc bool, startTime, endTime int) GraphReqVars {
+	order := "desc"
 	if isAsc {
-		return GraphReqVars{
-			Order:   "asc",
-			MinTime: startTime,
-			MaxTime: endTime,
-		}
-	} else {
-		return GraphReqVars{
-			Order:   "desc",
-			MinTime: startTime,
-			MaxTime: endTime,
-		}
+		order = "asc"
+	}
+	return GraphReqVars{
+		Order:   order,
+		MinTime: startTime,
+		MaxTime: endTime,
+	}
+}
+
+func makeCombinedSubgraphVars(isAsc bool, swapMinBlock, swapMaxBlock, liqMinBlock, liqMaxBlock, aggMinBlock, aggMaxBlock, balMinBlock, balMaxBlock, feeMinBlock, feeMaxBlock, koMinBlock, koMaxBlock int) CombinedGraphReqVars {
+	order := "desc"
+	if isAsc {
+		order = "asc"
+	}
+	return CombinedGraphReqVars{
+		Order:             order,
+		SwapMinBlock:      swapMinBlock,
+		SwapMaxBlock:      swapMaxBlock,
+		LiquidityMinBlock: liqMinBlock,
+		LiquidityMaxBlock: liqMaxBlock,
+		AggMinBlock:       aggMinBlock,
+		AggMaxBlock:       aggMaxBlock,
+		BalMinBlock:       balMinBlock,
+		BalMaxBlock:       balMaxBlock,
+		FeeMinBlock:       feeMinBlock,
+		FeeMaxBlock:       feeMaxBlock,
+		KoMinBlock:        koMinBlock,
+		KoMaxBlock:        koMaxBlock,
 	}
 }
 
@@ -54,24 +88,40 @@ const SUBGRAPH_RETRY_SECS = 5
  * or subgraph rate limiting. Crashign and restarting won't fix the process and will result in loss
  * of state. But be aware that pods may still look health even if subgraph isn't working. */
 func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
-	result, err := queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
+	req := GraphRequest[GraphReqVars]{
+		Query:     query,
+		Variables: makeSubgraphVars(isAsc, startTime, endTime),
+	}
+	result, err := queryFromSubgraphTry(cfg, req)
 
 	for err != nil {
 		log.Println("Subgraph query failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
 
 		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
-		result, err = queryFromSubgraphTry(cfg, query, startTime, endTime, isAsc)
+		result, err = queryFromSubgraphTry(cfg, req)
 	}
 
 	return result, err
 }
 
-func queryFromSubgraphTry(cfg ChainConfig, query SubgraphQuery, startTime int, endTime int, isAsc bool) ([]byte, error) {
-	request := GraphRequest{
+func queryFromSubgraphCombined(cfg ChainConfig, query SubgraphQuery, isAsc bool, minBlocks CombinedStartBlocks, maxBlock int) ([]byte, error) {
+	req := GraphRequest[CombinedGraphReqVars]{
 		Query:     query,
-		Variables: makeSubgraphVars(isAsc, startTime, endTime),
+		Variables: makeCombinedSubgraphVars(isAsc, minBlocks.Swap, maxBlock, minBlocks.Liq, maxBlock, minBlocks.Agg, maxBlock, minBlocks.Bal, maxBlock, minBlocks.Fee, maxBlock, minBlocks.Ko, maxBlock),
+	}
+	result, err := queryFromSubgraphTry(cfg, req)
+
+	for err != nil {
+		log.Println("Subgraph combined query failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
+
+		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
+		result, err = queryFromSubgraphTry(cfg, req)
 	}
 
+	return result, err
+}
+
+func queryFromSubgraphTry[V GraphReqVars | CombinedGraphReqVars](cfg ChainConfig, request GraphRequest[V]) ([]byte, error) {
 	jsonBody, err := json.Marshal(request)
 	if err != nil {
 		log.Println("Subgraph Query Request Error:" + err.Error())

@@ -10,7 +10,11 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-type SubgraphSyncer struct {
+type SubgraphSyncer interface {
+	PollSubgraphUpdates()
+}
+
+type NormalSubgraphSyncer struct {
 	cntr           *ControllerOverNetwork
 	cfg            loader.SyncChannelConfig
 	lastSyncBlock  int
@@ -33,7 +37,7 @@ type syncChannels struct {
 	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *SubgraphSyncer {
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *NormalSubgraphSyncer {
 	start := SubgraphStartBlocks{
 		Bal:   0,
 		Swaps: 0,
@@ -42,7 +46,7 @@ func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, n
 	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start)
 }
 
-func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *SubgraphSyncer {
+func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *NormalSubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	sync.startBlocks = startBlocks
 	syncNotif := make(chan bool, 1)
@@ -51,28 +55,28 @@ func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainCo
 	return &sync
 }
 
-func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) NormalSubgraphSyncer {
 	cfg := loader.SyncChannelConfig{
 		Chain:   chainConfig,
 		Network: network,
 	}
 	netCntr := controller.OnNetwork(network)
 
-	return SubgraphSyncer{
+	return NormalSubgraphSyncer{
 		cntr:     netCntr,
 		cfg:      cfg,
 		channels: makeSyncChannels(netCntr, cfg),
 	}
 }
 
-const SUBGRAPH_POLL_SECS = 1
+const SUBGRAPH_POLL_SECS = 3
 
 // Used because subgraph synchronization is not observed to be non-atomic
 // between meta latest time and updating individual tables. Gives the subraph
 // indexer time to index the incremental rows
 const SUBGRAPH_SYNC_DELAY = 1
 
-func (s *SubgraphSyncer) PollSubgraphUpdates() {
+func (s *NormalSubgraphSyncer) PollSubgraphUpdates() {
 	for {
 		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
@@ -82,7 +86,7 @@ func (s *SubgraphSyncer) PollSubgraphUpdates() {
 	}
 }
 
-func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
+func (s *NormalSubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	metaBlock, err := loader.LatestSubgraphBlock(s.cfg)
 	if err != nil {
 		log.Println("Warning unable to sync subgraph meta query " + err.Error())
@@ -97,7 +101,7 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
-func (s *SubgraphSyncer) syncStart(notif chan bool) {
+func (s *NormalSubgraphSyncer) syncStart(notif chan bool) {
 	syncBlock, err := loader.LatestSubgraphBlock(s.cfg)
 
 	if err != nil || syncBlock == 0 {
@@ -150,7 +154,7 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	}
 }
 
-func (s *SubgraphSyncer) syncStep(syncBlock int) {
+func (s *NormalSubgraphSyncer) syncStep(syncBlock int) {
 	// We use the second to last previous sync time. This makes sure that every time
 	// window is sycn'd for a second time on the next block. This is necessary to prevent
 	// table synchronization issues where a window isn't fully synced on a table during the

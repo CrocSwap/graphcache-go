@@ -14,6 +14,7 @@ type ITable[Row any, SubGraphRow any] interface {
 	ConvertSubGraphRow(SubGraphRow, string) Row
 	SqlTableName() string
 	ParseSubGraphResp(body []byte) ([]SubGraphRow, error)
+	ParseSubGraphRespUnwrapped(body []byte) ([]SubGraphRow, error)
 }
 
 func parseNullableInt(s string) *int {

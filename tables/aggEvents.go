@@ -126,4 +126,19 @@ func (tbl AggEventsTable) ParseSubGraphResp(body []byte) ([]AggEventSubGraph, er
 	return ret, nil
 }
 
+func (tbl AggEventsTable) ParseSubGraphRespUnwrapped(body []byte) ([]AggEventSubGraph, error) {
+	var parsed AggEventSubGraphData
+
+	err := json.Unmarshal(body, &parsed.AggEvents)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]AggEventSubGraph, 0)
+	for _, entry := range parsed.AggEvents {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}
+
 func (tbl AggEventsTable) SqlTableName() string { return "aggevents" }
