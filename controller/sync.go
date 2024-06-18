@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -11,7 +12,10 @@ import (
 )
 
 type SubgraphSyncer interface {
+	ChainId() types.ChainId
 	PollSubgraphUpdates()
+	SetStartBlocks(startBlocks loader.SubgraphStartBlocks)
+	IngestEntries(table string, entriesData []byte, startBlock, endBlock int) (lastObs int, hasMore bool, err error)
 }
 
 type NormalSubgraphSyncer struct {
@@ -20,14 +24,9 @@ type NormalSubgraphSyncer struct {
 	lastSyncBlock  int
 	lookbackBlocks int
 	channels       syncChannels
-	startBlocks    SubgraphStartBlocks
+	startBlocks    loader.SubgraphStartBlocks
 }
 
-type SubgraphStartBlocks struct {
-	Bal   int
-	Swaps int
-	Aggs  int
-}
 type syncChannels struct {
 	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
 	liq   loader.SyncChannel[tables.LiqChange, tables.LiqChangeSubGraph]
@@ -37,18 +36,17 @@ type syncChannels struct {
 	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *NormalSubgraphSyncer {
-	start := SubgraphStartBlocks{
-		Bal:   0,
-		Swaps: 0,
-		Aggs:  0,
-	}
-	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start)
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startupCache string) *NormalSubgraphSyncer {
+	start := loader.SubgraphStartBlocks{}
+	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start, startupCache)
 }
 
-func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *NormalSubgraphSyncer {
+func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks loader.SubgraphStartBlocks, startupCache string) *NormalSubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	sync.startBlocks = startBlocks
+	if startupCache != "" {
+		LoadStartupCache(startupCache, &sync)
+	}
 	syncNotif := make(chan bool, 1)
 	go sync.syncStart(syncNotif)
 	<-syncNotif
@@ -170,14 +168,42 @@ func (s *NormalSubgraphSyncer) syncStep(syncBlock int) {
 	go s.channels.aggs.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Aggs), syncBlock, &wg)
 	go s.channels.bal.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Bal), syncBlock, &wg)
 
-	go s.channels.liq.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.ko.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.fees.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.liq.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Liq), syncBlock, &wg)
+	go s.channels.ko.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Ko), syncBlock, &wg)
+	go s.channels.fees.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Fee), syncBlock, &wg)
 
 	wg.Wait()
 
 	s.lookbackBlocks = s.lastSyncBlock
 	s.lastSyncBlock = syncBlock
+}
+
+func (s *NormalSubgraphSyncer) SetStartBlocks(startBlocks loader.SubgraphStartBlocks) {
+	s.startBlocks = startBlocks
+}
+
+func (s *NormalSubgraphSyncer) IngestEntries(table string, entriesData []byte, startBlock, endBlock int) (int, bool, error) {
+	switch table {
+	case "swaps":
+		return s.channels.swaps.IngestEntries(entriesData, startBlock, endBlock)
+	case "aggEvents":
+		return s.channels.aggs.IngestEntries(entriesData, startBlock, endBlock)
+	case "liquidityChanges":
+		return s.channels.liq.IngestEntries(entriesData, startBlock, endBlock)
+	case "knockoutCrosses":
+		return s.channels.ko.IngestEntries(entriesData, startBlock, endBlock)
+	case "feeChanges":
+		return s.channels.fees.IngestEntries(entriesData, startBlock, endBlock)
+	case "userBalances":
+		return s.channels.bal.IngestEntries(entriesData, startBlock, endBlock)
+	default:
+		log.Fatal("Warning: unknown table name in subgraph ingest", table)
+	}
+	return 0, false, fmt.Errorf("unknown table name in subgraph ingest")
+}
+
+func (s *NormalSubgraphSyncer) ChainId() types.ChainId {
+	return types.IntToChainId(s.cfg.Chain.ChainID)
 }
 
 func maxBlock(startBlock int, laterBlock int) int {

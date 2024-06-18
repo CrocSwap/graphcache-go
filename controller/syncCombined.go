@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -12,23 +13,22 @@ type CombinedSubgraphSyncer struct {
 	cntr       *ControllerOverNetwork
 	cfg        loader.SyncChannelConfig
 	channels   syncChannels
-	lastBlocks loader.CombinedStartBlocks
+	lastBlocks loader.SubgraphStartBlocks
 }
 
-func NewCombinedSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *CombinedSubgraphSyncer {
-	start := SubgraphStartBlocks{
-		Bal:   0,
-		Swaps: 0,
-		Aggs:  0,
-	}
-	return NewCombinedSubgraphSyncerAtStart(controller, chainConfig, network, start)
+func NewCombinedSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startupCacheDir string, startupCache string) *CombinedSubgraphSyncer {
+	start := loader.SubgraphStartBlocks{}
+	return NewCombinedSubgraphSyncerAtStart(controller, chainConfig, network, start, startupCache)
 }
 
-func NewCombinedSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *CombinedSubgraphSyncer {
+func NewCombinedSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks loader.SubgraphStartBlocks, startupCache string) *CombinedSubgraphSyncer {
 	sync := makeCombinedSubgraphSyncer(controller, chainConfig, network)
 	sync.lastBlocks.Bal = startBlocks.Bal
-	sync.lastBlocks.Swap = startBlocks.Swaps
-	sync.lastBlocks.Agg = startBlocks.Aggs
+	sync.lastBlocks.Swaps = startBlocks.Swaps
+	sync.lastBlocks.Aggs = startBlocks.Aggs
+	if startupCache != "" {
+		LoadStartupCache(startupCache, &sync)
+	}
 	sync.syncStart()
 	return &sync
 }
@@ -71,8 +71,8 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 			continue
 		}
 
-		lastObsSwaps, hasMoreSwaps, errSwaps := s.channels.swaps.IngestEntries(comboData.Swaps, s.lastBlocks.Swap, syncBlock)
-		lastObsAgg, hasMoreAggs, errAggs := s.channels.aggs.IngestEntries(comboData.Aggs, s.lastBlocks.Agg, syncBlock)
+		lastObsSwaps, hasMoreSwaps, errSwaps := s.channels.swaps.IngestEntries(comboData.Swaps, s.lastBlocks.Swaps, syncBlock)
+		lastObsAgg, hasMoreAggs, errAggs := s.channels.aggs.IngestEntries(comboData.Aggs, s.lastBlocks.Aggs, syncBlock)
 		lastObsBal, hasMoreBals, errBals := s.channels.bal.IngestEntries(comboData.Bals, s.lastBlocks.Bal, syncBlock)
 
 		lastObsLiq, hasMoreLiqs, errLiqs := s.channels.liq.IngestEntries(comboData.Liqs, s.lastBlocks.Liq, syncBlock)
@@ -85,14 +85,21 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 			continue
 		}
 
-		if lastObsSwaps > s.lastBlocks.Swap || lastObsAgg > s.lastBlocks.Agg || lastObsBal > s.lastBlocks.Bal || lastObsLiq > s.lastBlocks.Liq || lastObsKo > s.lastBlocks.Ko || lastObsFees > s.lastBlocks.Fee {
+		if lastObsSwaps > s.lastBlocks.Swaps || lastObsAgg > s.lastBlocks.Aggs || lastObsBal > s.lastBlocks.Bal || lastObsLiq > s.lastBlocks.Liq || lastObsKo > s.lastBlocks.Ko || lastObsFees > s.lastBlocks.Fee {
 			newRows = true
 		}
-		if lastObsSwaps > s.lastBlocks.Swap {
-			s.lastBlocks.Swap = lastObsSwaps
+		// Abnormal case, should sleep it off. But also if this happens during non-startup sync, not sleeping
+		// would repeat the quuery immediately (because `hasMore` needs to be true) which might lead to spam.
+		if lastObsSwaps == 0 || lastObsAgg == 0 || lastObsBal == 0 || lastObsLiq == 0 || lastObsKo == 0 || lastObsFees == 0 {
+			log.Println("Warning: subgraph returned no rows for one or more tables")
+			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
 		}
-		if lastObsAgg > s.lastBlocks.Agg {
-			s.lastBlocks.Agg = lastObsAgg
+
+		if lastObsSwaps > s.lastBlocks.Swaps {
+			s.lastBlocks.Swaps = lastObsSwaps
+		}
+		if lastObsAgg > s.lastBlocks.Aggs {
+			s.lastBlocks.Aggs = lastObsAgg
 		}
 		if lastObsBal > s.lastBlocks.Bal {
 			s.lastBlocks.Bal = lastObsBal
@@ -108,7 +115,7 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 		}
 
 		if newRows {
-			log.Printf("Sync step. Swap: %d Agg: %d Bal: %d Liq: %d Ko: %d Fee: %d", s.lastBlocks.Swap, s.lastBlocks.Agg, s.lastBlocks.Bal, s.lastBlocks.Liq, s.lastBlocks.Ko, s.lastBlocks.Fee)
+			log.Printf("Sync step. Swap: %d Agg: %d Bal: %d Liq: %d Ko: %d Fee: %d", s.lastBlocks.Swaps, s.lastBlocks.Aggs, s.lastBlocks.Bal, s.lastBlocks.Liq, s.lastBlocks.Ko, s.lastBlocks.Fee)
 		}
 
 		// If no more data to backfill, either sleep or exit if it's a startup sync.
@@ -123,4 +130,32 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
 		}
 	}
+}
+
+func (s *CombinedSubgraphSyncer) SetStartBlocks(startBlocks loader.SubgraphStartBlocks) {
+	s.lastBlocks = startBlocks
+}
+
+func (s *CombinedSubgraphSyncer) IngestEntries(table string, entriesData []byte, startBlock, endBlock int) (int, bool, error) {
+	switch table {
+	case "swaps":
+		return s.channels.swaps.IngestEntries(entriesData, startBlock, endBlock)
+	case "aggEvents":
+		return s.channels.aggs.IngestEntries(entriesData, startBlock, endBlock)
+	case "liquidityChanges":
+		return s.channels.liq.IngestEntries(entriesData, startBlock, endBlock)
+	case "knockoutCrosses":
+		return s.channels.ko.IngestEntries(entriesData, startBlock, endBlock)
+	case "feeChanges":
+		return s.channels.fees.IngestEntries(entriesData, startBlock, endBlock)
+	case "userBalances":
+		return s.channels.bal.IngestEntries(entriesData, startBlock, endBlock)
+	default:
+		log.Fatal("Warning: unknown table name in subgraph ingest", table)
+	}
+	return 0, false, fmt.Errorf("unknown table name in subgraph ingest")
+}
+
+func (s *CombinedSubgraphSyncer) ChainId() types.ChainId {
+	return types.IntToChainId(s.cfg.Chain.ChainID)
 }

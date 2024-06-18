@@ -13,6 +13,15 @@ type combinedEntry struct {
 	} `json:"block"`
 }
 
+type SubgraphStartBlocks struct {
+	Swaps int `json:"swap"`
+	Aggs  int `json:"agg"`
+	Bal   int `json:"bal"`
+	Fee   int `json:"fee"`
+	Ko    int `json:"ko"`
+	Liq   int `json:"liq"`
+}
+
 type CombinedData struct {
 	Meta  combinedEntry   `json:"_meta"`
 	Swaps json.RawMessage `json:"swaps"`
@@ -27,16 +36,7 @@ type combinedWrapper struct {
 	Data CombinedData `json:"data"`
 }
 
-type CombinedStartBlocks struct {
-	Swap int
-	Agg  int
-	Bal  int
-	Fee  int
-	Ko   int
-	Liq  int
-}
-
-func CombinedQuery(cfg SyncChannelConfig, minBlocks CombinedStartBlocks, maxBlock int) (metaBlock int, combinedData *CombinedData, err error) {
+func CombinedQuery(cfg SyncChannelConfig, minBlocks SubgraphStartBlocks, maxBlock int) (metaBlock int, combinedData *CombinedData, err error) {
 	cfg.Query = "./artifacts/graphQueries/combined.query"
 	combinedQuery := readQueryPath(cfg.Query)
 
@@ -68,6 +68,10 @@ func parseCombinedResp(body []byte) (*CombinedData, error) {
 	return &parsed.Data, nil
 }
 
+type Ingester interface {
+	IngestEntries(data []byte, queryStartBlock, queryEndBlock int) (lastObs int, hasMore bool, err error)
+}
+
 func (s *SyncChannel[R, S]) IngestEntries(data []byte, queryStartBlock, queryEndBlock int) (lastObs int, hasMore bool, err error) {
 	nIngested := 0
 	lastObs = queryStartBlock
@@ -80,6 +84,10 @@ func (s *SyncChannel[R, S]) IngestEntries(data []byte, queryStartBlock, queryEnd
 
 	if len(entries) == 0 {
 		log.Printf("Warning subgraph data for %s returned no entries while the last seen row was expected", s.config.Query)
+		// Returning `true` here doesn't change anything during startup sync,
+		// but returning `false` could potentially cause the sync to exit early.
+		// Returning `true` during normal runtime would cause the subgraph to
+		// be polled again immediately, which is not ideal.
 		return 0, true, nil
 	}
 

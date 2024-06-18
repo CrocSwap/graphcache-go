@@ -104,10 +104,10 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	return result, err
 }
 
-func queryFromSubgraphCombined(cfg ChainConfig, query SubgraphQuery, isAsc bool, minBlocks CombinedStartBlocks, maxBlock int) ([]byte, error) {
+func queryFromSubgraphCombined(cfg ChainConfig, query SubgraphQuery, isAsc bool, minBlocks SubgraphStartBlocks, maxBlock int) ([]byte, error) {
 	req := GraphRequest[CombinedGraphReqVars]{
 		Query:     query,
-		Variables: makeCombinedSubgraphVars(isAsc, minBlocks.Swap, maxBlock, minBlocks.Liq, maxBlock, minBlocks.Agg, maxBlock, minBlocks.Bal, maxBlock, minBlocks.Fee, maxBlock, minBlocks.Ko, maxBlock),
+		Variables: makeCombinedSubgraphVars(isAsc, minBlocks.Swaps, maxBlock, minBlocks.Liq, maxBlock, minBlocks.Aggs, maxBlock, minBlocks.Bal, maxBlock, minBlocks.Fee, maxBlock, minBlocks.Ko, maxBlock),
 	}
 	result, err := queryFromSubgraphTry(cfg, req)
 

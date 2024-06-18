@@ -20,6 +20,7 @@ func main() {
 	var balStart = flag.Int("balStart", 0, "Block number to start user balance processing")
 	var extendedApi = flag.Bool("extendedApi", false, "Expose additional methods in the API")
 	var combinedQuery = flag.Bool("combinedQuery", false, "Use the combined subgraph query instead of individual ones")
+	var startupCache = flag.String("startupCache", "", "Either directory or HTTP URL to load startup cache from")
 
 	flag.Parse()
 
@@ -37,16 +38,16 @@ func main() {
 	syncs := make([]controller.SubgraphSyncer, 0)
 
 	for network, chainCfg := range netCfg {
-		startBlocks := controller.SubgraphStartBlocks{
+		startBlocks := loader.SubgraphStartBlocks{
 			Swaps: *swapStart,
 			Aggs:  *aggStart,
 			Bal:   *balStart,
 		}
 		var syncer controller.SubgraphSyncer
 		if *combinedQuery {
-			syncer = controller.NewCombinedSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
+			syncer = controller.NewCombinedSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks, *startupCache)
 		} else {
-			syncer = controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks)
+			syncer = controller.NewSubgraphSyncerAtStart(cntrl, chainCfg, network, startBlocks, *startupCache)
 		}
 		syncs = append(syncs, syncer)
 	}
