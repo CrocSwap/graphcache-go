@@ -149,6 +149,8 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 		}
 	}
 
+	sanityCheck(tableStates)
+
 	saveChunks(&tableEntries, string(chainId), chainPath, true)
 
 	meta.MaxBlocks = *minBlocks
@@ -323,6 +325,20 @@ func parseEntryFields(entry Entry) (entryId string, entryTime time.Time, entryBl
 		panic(err)
 	}
 	return
+}
+
+func sanityCheck(states map[string]TableState) bool {
+	aggPartsSum := 0
+	for tableName, table := range states {
+		if tableName == "feeChanges" || tableName == "liquidityChanges" || tableName == "swaps" {
+			aggPartsSum += len(table.ObsIds)
+		}
+	}
+	if aggPartsSum != len(states["aggEvents"].ObsIds) {
+		log.Printf("Warning: lenght of liq+swap+fee tables %d is different than agg table %d, cache is likely corrupted!", aggPartsSum, len(states["aggEvents"].ObsIds))
+		return false
+	}
+	return true
 }
 
 func main() {

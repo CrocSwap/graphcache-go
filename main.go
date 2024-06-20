@@ -52,7 +52,7 @@ func main() {
 		syncs = append(syncs, syncer)
 	}
 
-	cntrl.SpinUntilLiqSync()
+	// cntrl.SpinUntilLiqSync()
 	for _, syncer := range syncs {
 		go syncer.PollSubgraphUpdates()
 	}
