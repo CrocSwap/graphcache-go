@@ -131,8 +131,8 @@ func (s *SyncChannel[R, S]) SyncTableToSubgraph(startBlock int, endBlock int) (i
 		}
 
 		if nIngested > 0 {
-			log.Printf("Loaded %d rows from subgraph from query %s on time=%d-%d",
-				nIngested, s.config.Query, queryStartBlock, queryEndBlock)
+			log.Printf("Loaded %d rows (total %d) from subgraph from query %s on time=%d-%d",
+				nIngested, s.RowsIngested, s.config.Query, queryStartBlock, queryEndBlock)
 		}
 	}
 	return nIngested, nil
@@ -144,6 +144,7 @@ func (s *SyncChannel[R, S]) ingestEntry(r R) (bool, int) {
 	if !hasEntry {
 		s.idsObserved[s.tbl.GetID(r)] = true
 		s.consumeFn(r)
+		s.RowsIngested += 1
 		return true, s.tbl.GetBlock(r)
 	} else {
 		return false, -1

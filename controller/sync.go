@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -10,20 +11,22 @@ import (
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
-type SubgraphSyncer struct {
+type SubgraphSyncer interface {
+	ChainId() types.ChainId
+	PollSubgraphUpdates()
+	SetStartBlocks(startBlocks loader.SubgraphStartBlocks)
+	IngestEntries(table string, entriesData []byte, startBlock, endBlock int) (lastObs int, hasMore bool, err error)
+}
+
+type NormalSubgraphSyncer struct {
 	cntr           *ControllerOverNetwork
 	cfg            loader.SyncChannelConfig
 	lastSyncBlock  int
 	lookbackBlocks int
 	channels       syncChannels
-	startBlocks    SubgraphStartBlocks
+	startBlocks    loader.SubgraphStartBlocks
 }
 
-type SubgraphStartBlocks struct {
-	Bal   int
-	Swaps int
-	Aggs  int
-}
 type syncChannels struct {
 	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
 	liq   loader.SyncChannel[tables.LiqChange, tables.LiqChangeSubGraph]
@@ -33,46 +36,45 @@ type syncChannels struct {
 	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
 }
 
-func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) *SubgraphSyncer {
-	start := SubgraphStartBlocks{
-		Bal:   0,
-		Swaps: 0,
-		Aggs:  0,
-	}
-	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start)
+func NewSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startupCache string) *NormalSubgraphSyncer {
+	start := loader.SubgraphStartBlocks{}
+	return NewSubgraphSyncerAtStart(controller, chainConfig, network, start, startupCache)
 }
 
-func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks SubgraphStartBlocks) *SubgraphSyncer {
+func NewSubgraphSyncerAtStart(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName, startBlocks loader.SubgraphStartBlocks, startupCache string) *NormalSubgraphSyncer {
 	sync := makeSubgraphSyncer(controller, chainConfig, network)
 	sync.startBlocks = startBlocks
+	if startupCache != "" {
+		LoadStartupCache(startupCache, &sync)
+	}
 	syncNotif := make(chan bool, 1)
 	go sync.syncStart(syncNotif)
 	<-syncNotif
 	return &sync
 }
 
-func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) SubgraphSyncer {
+func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, network types.NetworkName) NormalSubgraphSyncer {
 	cfg := loader.SyncChannelConfig{
 		Chain:   chainConfig,
 		Network: network,
 	}
 	netCntr := controller.OnNetwork(network)
 
-	return SubgraphSyncer{
+	return NormalSubgraphSyncer{
 		cntr:     netCntr,
 		cfg:      cfg,
 		channels: makeSyncChannels(netCntr, cfg),
 	}
 }
 
-const SUBGRAPH_POLL_SECS = 1
+const SUBGRAPH_POLL_SECS = 3
 
 // Used because subgraph synchronization is not observed to be non-atomic
 // between meta latest time and updating individual tables. Gives the subraph
 // indexer time to index the incremental rows
 const SUBGRAPH_SYNC_DELAY = 1
 
-func (s *SubgraphSyncer) PollSubgraphUpdates() {
+func (s *NormalSubgraphSyncer) PollSubgraphUpdates() {
 	for {
 		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
 		hasMore, _ := s.checkNewSubgraphSync()
@@ -82,7 +84,7 @@ func (s *SubgraphSyncer) PollSubgraphUpdates() {
 	}
 }
 
-func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
+func (s *NormalSubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	metaBlock, err := loader.LatestSubgraphBlock(s.cfg)
 	if err != nil {
 		log.Println("Warning unable to sync subgraph meta query " + err.Error())
@@ -97,7 +99,7 @@ func (s *SubgraphSyncer) checkNewSubgraphSync() (bool, error) {
 	return false, nil
 }
 
-func (s *SubgraphSyncer) syncStart(notif chan bool) {
+func (s *NormalSubgraphSyncer) syncStart(notif chan bool) {
 	syncBlock, err := loader.LatestSubgraphBlock(s.cfg)
 
 	if err != nil || syncBlock == 0 {
@@ -150,7 +152,7 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	}
 }
 
-func (s *SubgraphSyncer) syncStep(syncBlock int) {
+func (s *NormalSubgraphSyncer) syncStep(syncBlock int) {
 	// We use the second to last previous sync time. This makes sure that every time
 	// window is sycn'd for a second time on the next block. This is necessary to prevent
 	// table synchronization issues where a window isn't fully synced on a table during the
@@ -166,14 +168,42 @@ func (s *SubgraphSyncer) syncStep(syncBlock int) {
 	go s.channels.aggs.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Aggs), syncBlock, &wg)
 	go s.channels.bal.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Bal), syncBlock, &wg)
 
-	go s.channels.liq.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.ko.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
-	go s.channels.fees.SyncTableToSubgraphWG(startBlock, syncBlock, &wg)
+	go s.channels.liq.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Liq), syncBlock, &wg)
+	go s.channels.ko.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Ko), syncBlock, &wg)
+	go s.channels.fees.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Fee), syncBlock, &wg)
 
 	wg.Wait()
 
 	s.lookbackBlocks = s.lastSyncBlock
 	s.lastSyncBlock = syncBlock
+}
+
+func (s *NormalSubgraphSyncer) SetStartBlocks(startBlocks loader.SubgraphStartBlocks) {
+	s.startBlocks = startBlocks
+}
+
+func (s *NormalSubgraphSyncer) IngestEntries(table string, entriesData []byte, startBlock, endBlock int) (int, bool, error) {
+	switch table {
+	case "swaps":
+		return s.channels.swaps.IngestEntries(entriesData, startBlock, endBlock)
+	case "aggEvents":
+		return s.channels.aggs.IngestEntries(entriesData, startBlock, endBlock)
+	case "liquidityChanges":
+		return s.channels.liq.IngestEntries(entriesData, startBlock, endBlock)
+	case "knockoutCrosses":
+		return s.channels.ko.IngestEntries(entriesData, startBlock, endBlock)
+	case "feeChanges":
+		return s.channels.fees.IngestEntries(entriesData, startBlock, endBlock)
+	case "userBalances":
+		return s.channels.bal.IngestEntries(entriesData, startBlock, endBlock)
+	default:
+		log.Fatal("Warning: unknown table name in subgraph ingest", table)
+	}
+	return 0, false, fmt.Errorf("unknown table name in subgraph ingest")
+}
+
+func (s *NormalSubgraphSyncer) ChainId() types.ChainId {
+	return types.IntToChainId(s.cfg.Chain.ChainID)
 }
 
 func maxBlock(startBlock int, laterBlock int) int {

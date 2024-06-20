@@ -117,3 +117,18 @@ func (tbl FeeTable) ParseSubGraphResp(body []byte) ([]FeeChangeSubGraph, error) 
 	}
 	return ret, nil
 }
+
+func (tbl FeeTable) ParseSubGraphRespUnwrapped(body []byte) ([]FeeChangeSubGraph, error) {
+	var parsed FeeChangeSubGraphData
+
+	err := json.Unmarshal(body, &parsed.FeeChanges)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]FeeChangeSubGraph, 0)
+	for _, entry := range parsed.FeeChanges {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}
