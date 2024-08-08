@@ -92,3 +92,18 @@ func (tbl BalanceTable) ParseSubGraphResp(body []byte) ([]BalanceSubGraph, error
 	}
 	return ret, nil
 }
+
+func (tbl BalanceTable) ParseSubGraphRespUnwrapped(body []byte) ([]BalanceSubGraph, error) {
+	var parsed BalanceSubGrapData
+
+	err := json.Unmarshal(body, &parsed.UserBalances)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]BalanceSubGraph, 0)
+	for _, entry := range parsed.UserBalances {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}

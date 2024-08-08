@@ -3,10 +3,11 @@ FROM golang:1.22
 WORKDIR /app/
 
 COPY go.mod go.sum ./
-RUN go mod download 
+RUN go mod download
 
 COPY ./ /app/
 RUN go build
+RUN go build ./cmd/startupCacher
 
 EXPOSE 8080
 ENTRYPOINT ["/app/graphcache-go"]

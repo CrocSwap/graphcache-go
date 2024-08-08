@@ -148,3 +148,18 @@ func (tbl SwapsTable) ParseSubGraphResp(body []byte) ([]SwapSubGraph, error) {
 	}
 	return ret, nil
 }
+
+func (tbl SwapsTable) ParseSubGraphRespUnwrapped(body []byte) ([]SwapSubGraph, error) {
+	var parsed SwapSubGraphData
+
+	err := json.Unmarshal(body, &parsed.Swaps)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]SwapSubGraph, 0)
+	for _, entry := range parsed.Swaps {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}

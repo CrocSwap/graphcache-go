@@ -125,3 +125,18 @@ func (tbl KnockoutTable) ParseSubGraphResp(body []byte) ([]KnockoutCrossSubGraph
 	}
 	return ret, nil
 }
+
+func (tbl KnockoutTable) ParseSubGraphRespUnwrapped(body []byte) ([]KnockoutCrossSubGraph, error) {
+	var parsed KnockoutCrossSubGraphData
+
+	err := json.Unmarshal(body, &parsed.KnockoutCrosses)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]KnockoutCrossSubGraph, 0)
+	for _, entry := range parsed.KnockoutCrosses {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}

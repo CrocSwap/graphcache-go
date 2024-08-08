@@ -15,7 +15,7 @@ type APIWebServer struct {
 	Views views.IViews
 }
 
-func (s *APIWebServer) Serve(prefix string, extendedApi bool) {
+func (s *APIWebServer) Serve(prefix string, listenAddr string, extendedApi bool) {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.Use(CORSMiddleware())
@@ -46,7 +46,7 @@ func (s *APIWebServer) Serve(prefix string, extendedApi bool) {
 	}
 
 	log.Println("API Serving at", prefix)
-	r.Run()
+	r.Run(listenAddr)
 }
 
 func (s *APIWebServer) queryUserTokens(c *gin.Context) {

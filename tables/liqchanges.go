@@ -159,3 +159,18 @@ func (tbl LiqChangeTable) ParseSubGraphResp(body []byte) ([]LiqChangeSubGraph, e
 	}
 	return ret, nil
 }
+
+func (tbl LiqChangeTable) ParseSubGraphRespUnwrapped(body []byte) ([]LiqChangeSubGraph, error) {
+	var parsed LiqChangeSubGraphData
+
+	err := json.Unmarshal(body, &parsed.LiqChanges)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]LiqChangeSubGraph, 0)
+	for _, entry := range parsed.LiqChanges {
+		ret = append(ret, entry)
+	}
+	return ret, nil
+}
