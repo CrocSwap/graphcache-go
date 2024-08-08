@@ -31,7 +31,6 @@ func LoadStartupCache(startupCacheSource string, syncer SubgraphSyncer) {
 		"swaps":            &lastBlocks.Swaps,
 		"aggEvents":        &lastBlocks.Aggs,
 		"liquidityChanges": &lastBlocks.Liq,
-		"knockoutCrosses":  &lastBlocks.Ko,
 		"feeChanges":       &lastBlocks.Fee,
 		"userBalances":     &lastBlocks.Bal,
 	}

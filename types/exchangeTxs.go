@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+
+	"github.com/CrocSwap/graphcache-go/tables"
 )
 
 type PoolTxEvent struct {
@@ -27,9 +29,9 @@ type PoolEventFlow struct {
 }
 
 type PoolEventDescriptor struct {
-	EntityType   string `json:"entityType"`
-	ChangeType   string `json:"changeType"`
-	PositionType string `json:"positionType"`
+	EntityType   tables.EntityType `json:"entityType"`
+	ChangeType   tables.ChangeType `json:"changeType"`
+	PositionType tables.PosType    `json:"positionType"`
 }
 
 type PoolRangeFields struct {
@@ -52,9 +54,9 @@ func (p PoolTxEvent) Hash() [32]byte {
 	buf.WriteString(string(p.Quote))
 	binary.Write(buf, binary.BigEndian, int32(p.PoolIdx))
 
-	buf.WriteString(string(p.EntityType))
-	buf.WriteString(string(p.ChangeType))
-	buf.WriteString(string(p.PositionType))
+	binary.Write(buf, binary.BigEndian, int32(p.EntityType))
+	binary.Write(buf, binary.BigEndian, int32(p.ChangeType))
+	binary.Write(buf, binary.BigEndian, int32(p.PositionType))
 
 	binary.Write(buf, binary.BigEndian, int32(p.BidTick))
 	binary.Write(buf, binary.BigEndian, int32(p.AskTick))

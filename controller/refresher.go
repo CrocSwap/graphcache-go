@@ -1,148 +1,108 @@
 package controller
 
 import (
+	"encoding/hex"
 	"log"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 )
 
-type HandleRefresher struct {
-	hndl         IRefreshHandle
-	requests     chan int64
-	pendingQueue chan IRefreshHandle
-}
-
 type LiquidityRefresher struct {
-	pending        chan IRefreshHandle
+	// Priority queue to refresh new positions immediately.
+	workUrgent chan IRefreshHandle
+	// Slow queue to process periodic refreshes after urgent ones.
+	workSlow chan IRefreshHandle
+	// Map of hndl.Hash()->urgent, to prevent duplicate refreshes. If urgent is true that means the
+	// handle is either in the workUrgent queue or in both queues (in which case it will be skipped
+	// if it is read from the workSlow queue). If urgent wasn't stored then there could have been a
+	// situation where an urgent refresh would be ignored because there was a slow refresh pending.
+	pending        map[[32]byte]bool
+	pendingLock    sync.Mutex
 	postProcess    chan string
 	query          *loader.ICrocQuery
-	workers        []chan IRefreshHandle
-	nextWorker     int
 	lastRefreshSec int64
 }
 
-const NUM_PARALLEL_QUERIES = 50
-const QUERY_CHANNEL_WINDOW = 100000
-const POSITION_CHANNEL_WINDOW = 10000
-const QUERY_WORKER_QUEUE = 10000
+const NUM_PARALLEL_WORKERS = 200 // Should be higher than multicall_max_batch for the given chain
+const URGENT_QUEUE_SIZE = 10000
+const SLOW_QUEUE_SIZE = 1000000 // On Scroll about 500000 is needed for the startup refresh.
 const MAX_REQS_PER_SEC = 1000
 
 func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
-	workers := make([]chan IRefreshHandle, NUM_PARALLEL_QUERIES)
-	for idx := 0; idx < NUM_PARALLEL_QUERIES; idx += 1 {
-		workers[idx] = make(chan IRefreshHandle, QUERY_WORKER_QUEUE)
-	}
-
-	refresher := LiquidityRefresher{
-		pending:     make(chan IRefreshHandle, QUERY_CHANNEL_WINDOW),
+	liqRefresher := LiquidityRefresher{
+		workUrgent:  make(chan IRefreshHandle, URGENT_QUEUE_SIZE),
+		workSlow:    make(chan IRefreshHandle, SLOW_QUEUE_SIZE),
+		pending:     make(map[[32]byte]bool),
+		pendingLock: sync.Mutex{},
 		query:       query,
-		workers:     workers,
-		postProcess: make(chan string, QUERY_CHANNEL_WINDOW),
-		nextWorker:  0,
+		postProcess: make(chan string),
 	}
 
-	go refresher.watchPending()
-	go refresher.watchPostProcess()
-	for _, worker := range refresher.workers {
-		go refresher.watchWork(worker)
+	go liqRefresher.watchPostProcess()
+	for idx := 0; idx < NUM_PARALLEL_WORKERS; idx += 1 {
+		go liqRefresher.watchWork()
 	}
 
-	return &refresher
-}
-
-func NewHandleRefresher(hndl IRefreshHandle, queue chan IRefreshHandle) *HandleRefresher {
-	refresher := &HandleRefresher{
-		requests:     make(chan int64, POSITION_CHANNEL_WINDOW),
-		hndl:         hndl,
-		pendingQueue: queue,
-	}
-	go refresher.watchPending()
-	return refresher
-}
-
-const REFRESH_WINDOW = 15
-
-func (r *HandleRefresher) PushRefresh(eventTime int) {
-	r.requestRefresh()
-	if isRecentEvent(eventTime) {
-		go r.pushFollowup()
-	}
-}
-
-func (r *HandleRefresher) PushRefreshPoll(eventTime int) {
-	r.requestRefresh()
-	// Since these are periodic polls, no followup to force convergence on event
-	// state is necessary
-}
-
-func (r *HandleRefresher) requestRefresh() {
-	latestTime := time.Now().Unix()
-	windowTag := latestTime / REFRESH_WINDOW
-	r.requests <- windowTag
+	return &liqRefresher
 }
 
 /* Historical events won't require followup, because an RPC call should
  * be sync'd */
 const RECENT_EVENT_WINDOW = 60
+const SKIPPABLE_REFRESH_INTERVAL = 30 // Skippable requests (rewards) will only be refreshed this often per position
 
 func isRecentEvent(eventTime int) bool {
 	currentTime := time.Now().Unix()
 	return int(currentTime)-eventTime < RECENT_EVENT_WINDOW
 }
 
+func (lr *LiquidityRefresher) PushRefresh(hndl IRefreshHandle, eventTime int) {
+	urgent := isRecentEvent(eventTime)
+	lr.requestRefresh(hndl, urgent)
+	if urgent {
+		go lr.pushFollowup(hndl)
+	}
+}
+
+func (lr *LiquidityRefresher) PushRefreshPoll(hndl IRefreshHandle) {
+	lr.requestRefresh(hndl, false)
+	// Since these are periodic polls, no followup to force convergence on event
+	// state is necessary
+}
+
+func (lr *LiquidityRefresher) requestRefresh(hndl IRefreshHandle, urgent bool) {
+	if time.Now().Unix()-hndl.RefreshTime() < SKIPPABLE_REFRESH_INTERVAL && hndl.Skippable() {
+		return
+	}
+	hash := hndl.Hash()
+	lr.pendingLock.Lock()
+	defer lr.pendingLock.Unlock()
+	queuedUrgent, alreadyQueued := lr.pending[hash]
+	if !alreadyQueued || (urgent && !queuedUrgent) {
+		lr.pending[hash] = urgent
+		if urgent {
+			lr.workUrgent <- hndl
+		} else {
+			lr.workSlow <- hndl
+		}
+	}
+}
+
+const FOLLOWUP_WINDOW = 5 // Followup refreshes are grouped to be sent at this interval
+
 /* Followup after refresh, in case RPC node hasn't synced to last
  * block at first call. */
-func (r *HandleRefresher) pushFollowup() {
+func (lr *LiquidityRefresher) pushFollowup(hndl IRefreshHandle) {
 	REFRESH_FOLLOWUP_SECS := []time.Duration{2, 10, 30, 60}
 	for _, interval := range REFRESH_FOLLOWUP_SECS {
-		time.Sleep(interval * time.Second)
-		r.requestRefresh()
-	}
-}
-
-func (r *HandleRefresher) watchPending() {
-	prevLatest := int64(0)
-
-	for {
-		latestWindow := <-r.requests
-		if latestWindow > prevLatest {
-			r.pendingQueue <- r.hndl
-		}
-		prevLatest = latestWindow
-	}
-}
-
-func (r *LiquidityRefresher) watchPending() {
-	lastSec := time.Now().Unix()
-	callCnt := 0
-	totalCnt := 0
-
-	for {
-		nowSec := time.Now().Unix()
-		if nowSec == lastSec {
-			callCnt += 1
-		} else {
-			callCnt = 0
-			lastSec = nowSec
-		}
-
-		if callCnt > 100000 {
-			log.Println("Throttling liquidity refreshes per second")
-			time.Sleep(time.Second)
-
-		} else {
-			posRefresher := <-r.pending
-			r.workers[r.nextWorker] <- posRefresher
-
-			r.nextWorker = r.nextWorker + 1
-			if r.nextWorker == len(r.workers) {
-				r.nextWorker = 0
-			}
-		}
-
-		totalCnt += 1
+		refreshTime := time.Now().Add(interval * time.Second)
+		nextWindow := (refreshTime.Unix() - refreshTime.Unix()%FOLLOWUP_WINDOW) + FOLLOWUP_WINDOW
+		sleepUntilNextWindow := time.Until(time.Unix(nextWindow, 0))
+		time.Sleep(sleepUntilNextWindow)
+		lr.requestRefresh(hndl, true)
 	}
 }
 
@@ -158,15 +118,52 @@ func retryWaitRandom() {
 	time.Sleep(time.Duration(waitTime) * time.Second)
 }
 
-func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
+func (lr *LiquidityRefresher) watchWork() {
+	hndlPending := false
+	var hndl IRefreshHandle
+	defer func() {
+		if r := recover(); r != nil {
+			hash := hndl.Hash()
+			log.Println("Panic recovered in watchWork for id", hex.EncodeToString(hash[:]), r)
+			if hndlPending && hndl != nil {
+				lr.workUrgent <- hndl
+			}
+			go lr.watchWork()
+		}
+	}()
 	lastSec := time.Now().Unix()
 	callCnt := 0
 	totalCnt := 0
 
 	for {
-		hndl := <-workQueue
-		hndl.RefreshQuery(r.query)
-		r.postProcess <- hndl.LabelTag()
+		fromSlowQueue := false
+		// Try to read from workUrgent first, then from workSlow
+		select {
+		case hndl = <-lr.workUrgent:
+		default:
+			select {
+			case hndl = <-lr.workUrgent:
+			case hndl = <-lr.workSlow:
+				fromSlowQueue = true
+			}
+		}
+		// Check whether the request has been upgraded to urgent, and skip it if it was
+		hash := hndl.Hash()
+		lr.pendingLock.Lock()
+		urgent, queued := lr.pending[hash]
+		if (fromSlowQueue && urgent) || !queued {
+			lr.pendingLock.Unlock()
+			continue
+		}
+		lr.pendingLock.Unlock()
+
+		hndlPending = true
+		hndl.RefreshQuery(lr.query)
+		lr.pendingLock.Lock()
+		delete(lr.pending, hash)
+		hndlPending = false
+		lr.pendingLock.Unlock()
+		lr.postProcess <- hndl.LabelTag()
 
 		nowSec := time.Now().Unix()
 		if nowSec != lastSec {
@@ -182,17 +179,17 @@ func (r *LiquidityRefresher) watchWork(workQueue chan IRefreshHandle) {
 		}
 
 		totalCnt += 1
-		r.lastRefreshSec = nowSec
+		lr.lastRefreshSec = nowSec
 	}
 }
 
-func (r *LiquidityRefresher) watchPostProcess() {
+func (lr *LiquidityRefresher) watchPostProcess() {
 	pendingCount := 0
 	for {
-		tag := <-r.postProcess
+		tag := <-lr.postProcess
 		pendingCount += 1
 		if pendingCount%100 == 0 {
-			log.Printf("Processed %d liquidity refreshes since startup. Last type=%s", pendingCount, tag)
+			log.Printf("Processed %d total liq refreshes. Last=%s", pendingCount, tag)
 		}
 	}
 }

@@ -3,17 +3,18 @@ package model
 import (
 	"log"
 	"math/big"
+	"slices"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
 type KnockoutSubplot struct {
-	mints      []KnockoutSagaTx
-	burns      []KnockoutSagaTx
-	saga       *KnockoutSaga
-	Liq        KnockoutLiquiditySeries
-	LatestTime int
+	Mints            []KnockoutSagaTx
+	Burns            []KnockoutSagaTx
+	saga             *KnockoutSaga
+	Liq              KnockoutLiquiditySeries
+	LatestUpdateTime int
 }
 
 type KnockoutLiquiditySeries struct {
@@ -28,8 +29,9 @@ type KnockoutSaga struct {
 }
 
 type KnockoutSagaTx struct {
-	TxTime int
-	TxHash string
+	TxTime    int
+	TxHash    string
+	PivotTime int
 }
 
 type KnockoutSagaCross struct {
@@ -70,8 +72,8 @@ func (k *KnockoutSaga) ForUser(user types.EthAddress) *KnockoutSubplot {
 			KnockedOut: make(map[int]*PositionLiquidity, 0),
 		}
 		subplot = &KnockoutSubplot{
-			mints: make([]KnockoutSagaTx, 0),
-			burns: make([]KnockoutSagaTx, 0),
+			Mints: make([]KnockoutSagaTx, 0),
+			Burns: make([]KnockoutSagaTx, 0),
 			saga:  k,
 			Liq:   liq,
 		}
@@ -81,13 +83,8 @@ func (k *KnockoutSaga) ForUser(user types.EthAddress) *KnockoutSubplot {
 }
 
 func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) ([]KnockoutPivotCands, bool) {
-	event := KnockoutSagaTx{
-		TxTime: l.Time,
-		TxHash: l.TX,
-	}
-
-	if l.Time > k.LatestTime {
-		k.LatestTime = l.Time
+	if l.Time > k.LatestUpdateTime {
+		k.LatestUpdateTime = l.Time
 	}
 
 	// By definition, only mint can occur first, so no need to check to see if chnage is a mint
@@ -95,12 +92,10 @@ func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) ([]KnockoutPivotCa
 		k.Liq.TimeFirstMint = l.Time
 	}
 
-	if l.ChangeType == "mint" {
-		k.mints = append(k.mints, event)
+	if l.ChangeType == tables.ChangeTypeMint {
 		return k.scrapePivotsCandsOnMint(l.Time, types.RequireEthAddr(l.User)), true
 
-	} else if l.ChangeType == "burn" {
-		k.burns = append(k.burns, event)
+	} else if l.ChangeType == tables.ChangeTypeBurn {
 		return make([]KnockoutPivotCands, 0), true
 
 	} else if l.PivotTime != nil && *l.PivotTime > 0 {
@@ -116,19 +111,19 @@ func (k *KnockoutSubplot) UpdateLiqChange(l tables.LiqChange) ([]KnockoutPivotCa
 	}
 }
 
-func (k *KnockoutSaga) UpdateCross(l tables.KnockoutCross) []KnockoutPivotCands {
+func (k *KnockoutSaga) UpdateCross(l tables.LiqChange) []KnockoutPivotCands {
 	event := KnockoutSagaCross{
 		CrossTime: l.Time,
-		PivotTime: l.PivotTime,
+		PivotTime: *l.PivotTime,
 	}
 	k.crosses = append(k.crosses, event)
-	return k.scrapePivotsCandsOnCross(l.PivotTime, l.Time)
+	return k.scrapePivotsCandsOnCross(*l.PivotTime, l.Time)
 }
 
 func (k *KnockoutSubplot) scrapePivotsCandsOnMint(mintTime int, user types.EthAddress) []KnockoutPivotCands {
 	cands := make([]KnockoutPivotCands, 0)
 	for _, cross := range (*k.saga).crosses {
-		if isMintMaybeInPiovt(mintTime, cross.PivotTime, cross.CrossTime) {
+		if isMintMaybeInPivot(mintTime, cross.PivotTime, cross.CrossTime) {
 			cands = append(cands, KnockoutPivotCands{
 				PivotTime: cross.PivotTime,
 				User:      user,
@@ -141,12 +136,14 @@ func (k *KnockoutSubplot) scrapePivotsCandsOnMint(mintTime int, user types.EthAd
 func (k *KnockoutSaga) scrapePivotsCandsOnCross(pivotTime int, crossTime int) []KnockoutPivotCands {
 	cands := make([]KnockoutPivotCands, 0)
 	for userAddr, subplot := range k.users {
-		for _, mint := range subplot.mints {
-			if isMintMaybeInPiovt(mint.TxTime, pivotTime, crossTime) {
-				cands = append(cands, KnockoutPivotCands{
-					PivotTime: pivotTime,
-					User:      userAddr,
-				})
+		for _, mint := range subplot.Mints {
+			cand := KnockoutPivotCands{
+				PivotTime: pivotTime,
+				User:      userAddr,
+			}
+			// Checking if cands already contains cand to not double knock out orders with multiple mints
+			if (mint.PivotTime == pivotTime || isMintMaybeInPivot(mint.PivotTime, pivotTime, crossTime) || isMintMaybeInPivot(mint.TxTime, pivotTime, crossTime)) && !slices.Contains(cands, cand) {
+				cands = append(cands, cand)
 			}
 		}
 	}
@@ -155,19 +152,21 @@ func (k *KnockoutSaga) scrapePivotsCandsOnCross(pivotTime int, crossTime int) []
 
 /* Returns true if there's a possibility that the minted liquidity may be knocked out on the
  * the pivot cross event. */
-func isMintMaybeInPiovt(mintTime int, pivotTime int, knockoutTime int) bool {
+func isMintMaybeInPivot(mintTime int, pivotTime int, knockoutTime int) bool {
 	return mintTime >= pivotTime && mintTime <= knockoutTime
 }
 
-func (k *KnockoutLiquiditySeries) UpdateActiveLiq(liqQty big.Int) {
+func (k *KnockoutLiquiditySeries) UpdateActiveLiq(liqQty big.Int, refreshTime int64) {
 	k.Active.ConcLiq = liqQty
+	k.Active.RefreshTime = refreshTime
 }
 
-func (k *KnockoutLiquiditySeries) UpdatePostKOLiq(pivotTime int, liqQty big.Int) {
-	posLiq, ok := k.KnockedOut[pivotTime]
+func (k *KnockoutLiquiditySeries) UpdatePostKOLiq(pivotTime int, liqQty big.Int, refreshTime int64) {
+	posKoLiq, ok := k.KnockedOut[pivotTime]
 	if !ok {
-		posLiq = &PositionLiquidity{}
-		k.KnockedOut[pivotTime] = posLiq
+		posKoLiq = &PositionLiquidity{}
+		k.KnockedOut[pivotTime] = posKoLiq
 	}
-	posLiq.ConcLiq = liqQty
+	posKoLiq.ConcLiq = liqQty
+	k.Active.RefreshTime = refreshTime
 }

@@ -76,21 +76,20 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 		lastObsBal, hasMoreBals, errBals := s.channels.bal.IngestEntries(comboData.Bals, s.lastBlocks.Bal, syncBlock)
 
 		lastObsLiq, hasMoreLiqs, errLiqs := s.channels.liq.IngestEntries(comboData.Liqs, s.lastBlocks.Liq, syncBlock)
-		lastObsKo, hasMoreKos, errKos := s.channels.ko.IngestEntries(comboData.Kos, s.lastBlocks.Ko, syncBlock)
 		lastObsFees, hasMoreFees, errFees := s.channels.fees.IngestEntries(comboData.Fees, s.lastBlocks.Fee, syncBlock)
 
-		if errSwaps != nil || errAggs != nil || errBals != nil || errLiqs != nil || errKos != nil || errFees != nil {
-			log.Println("Warning unable to ingest entries:", errSwaps, errAggs, errBals, errLiqs, errKos, errFees)
+		if errSwaps != nil || errAggs != nil || errBals != nil || errLiqs != nil || errFees != nil {
+			log.Println("Warning unable to ingest entries:", errSwaps, errAggs, errBals, errLiqs, errFees)
 			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
 			continue
 		}
 
-		if lastObsSwaps > s.lastBlocks.Swaps || lastObsAgg > s.lastBlocks.Aggs || lastObsBal > s.lastBlocks.Bal || lastObsLiq > s.lastBlocks.Liq || lastObsKo > s.lastBlocks.Ko || lastObsFees > s.lastBlocks.Fee {
+		if lastObsSwaps > s.lastBlocks.Swaps || lastObsAgg > s.lastBlocks.Aggs || lastObsBal > s.lastBlocks.Bal || lastObsLiq > s.lastBlocks.Liq || lastObsFees > s.lastBlocks.Fee {
 			newRows = true
 		}
 		// Abnormal case, should sleep it off. But also if this happens during non-startup sync, not sleeping
 		// would repeat the quuery immediately (because `hasMore` needs to be true) which might lead to spam.
-		if lastObsSwaps == 0 || lastObsAgg == 0 || lastObsBal == 0 || lastObsLiq == 0 || lastObsKo == 0 || lastObsFees == 0 {
+		if lastObsSwaps == 0 || lastObsAgg == 0 || lastObsBal == 0 || lastObsLiq == 0 || lastObsFees == 0 {
 			log.Println("Warning: subgraph returned no rows for one or more tables")
 			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
 		}
@@ -107,19 +106,16 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 		if lastObsLiq > s.lastBlocks.Liq {
 			s.lastBlocks.Liq = lastObsLiq
 		}
-		if lastObsKo > s.lastBlocks.Ko {
-			s.lastBlocks.Ko = lastObsKo
-		}
 		if lastObsFees > s.lastBlocks.Fee {
 			s.lastBlocks.Fee = lastObsFees
 		}
 
 		if newRows {
-			log.Printf("Sync step. Swap: %d Agg: %d Bal: %d Liq: %d Ko: %d Fee: %d", s.lastBlocks.Swaps, s.lastBlocks.Aggs, s.lastBlocks.Bal, s.lastBlocks.Liq, s.lastBlocks.Ko, s.lastBlocks.Fee)
+			log.Printf("Sync step. Swap: %d Agg: %d Bal: %d Liq: %d Fee: %d", s.lastBlocks.Swaps, s.lastBlocks.Aggs, s.lastBlocks.Bal, s.lastBlocks.Liq, s.lastBlocks.Fee)
 		}
 
 		// If no more data to backfill, either sleep or exit if it's a startup sync.
-		if !hasMoreSwaps && !hasMoreAggs && !hasMoreBals && !hasMoreLiqs && !hasMoreKos && !hasMoreFees {
+		if !hasMoreSwaps && !hasMoreAggs && !hasMoreBals && !hasMoreLiqs && !hasMoreFees {
 			if startupSync {
 				break
 			}
@@ -144,8 +140,6 @@ func (s *CombinedSubgraphSyncer) IngestEntries(table string, entriesData []byte,
 		return s.channels.aggs.IngestEntries(entriesData, startBlock, endBlock)
 	case "liquidityChanges":
 		return s.channels.liq.IngestEntries(entriesData, startBlock, endBlock)
-	case "knockoutCrosses":
-		return s.channels.ko.IngestEntries(entriesData, startBlock, endBlock)
 	case "feeChanges":
 		return s.channels.fees.IngestEntries(entriesData, startBlock, endBlock)
 	case "userBalances":

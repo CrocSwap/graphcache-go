@@ -3,6 +3,7 @@ package controller
 import (
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/model"
@@ -10,6 +11,9 @@ import (
 )
 
 type IRefreshHandle interface {
+	Hash() [32]byte
+	RefreshTime() int64
+	Skippable() bool
 	RefreshQuery(query *loader.ICrocQuery)
 	LabelTag() string
 }
@@ -66,21 +70,22 @@ func (p *KnockoutAliveHandle) RefreshQuery(query *loader.ICrocQuery) {
 	pivotTime := int(tryQueryAttempt(pivotTimeFn, "pivotTimeLatest"))
 
 	if pivotTime == 0 {
-		p.pos.Liq.UpdateActiveLiq(*big.NewInt(0))
+		p.pos.Liq.UpdateActiveLiq(*big.NewInt(0), time.Now().Unix())
 
 	} else {
 		claimLoc := types.KOClaimLocation{PositionLocation: p.location, PivotTime: pivotTime}
-		liqFn := func() (*big.Int, error) { return (*query).QueryKnockoutLiq(claimLoc) }
-
-		knockoutLiq := tryQueryAttempt(liqFn, "knockoutLiq")
-		p.pos.Liq.UpdateActiveLiq(*knockoutLiq)
+		liqFn := func() (loader.KnockoutLiqResp, error) { return (*query).QueryKnockoutLiq(claimLoc) }
+		koLiqResp := tryQueryAttempt(liqFn, "knockoutLiq")
+		p.pos.Liq.UpdateActiveLiq(*koLiqResp.Liq, time.Now().Unix())
 	}
 }
 
 func (p *KnockoutPostHandle) RefreshQuery(query *loader.ICrocQuery) {
-	liqFn := func() (*big.Int, error) { return (*query).QueryKnockoutLiq(p.location) }
-	knockoutLiq := tryQueryAttempt(liqFn, "knockoutLiq")
-	p.pos.Liq.UpdatePostKOLiq(p.location.PivotTime, *knockoutLiq)
+	liqFn := func() (loader.KnockoutLiqResp, error) { return (*query).QueryKnockoutLiq(p.location) }
+	koLiqResp := tryQueryAttempt(liqFn, "knockoutLiq")
+	if koLiqResp.KnockedOut {
+		p.pos.Liq.UpdatePostKOLiq(p.location.PivotTime, *koLiqResp.Liq, time.Now().Unix())
+	}
 }
 
 func tryQueryAttempt[T any](queryFn func() (T, error), label string) T {
@@ -109,4 +114,52 @@ func (p *KnockoutAliveHandle) LabelTag() string {
 
 func (p *KnockoutPostHandle) LabelTag() string {
 	return "knockoutPost"
+}
+
+func (p *PositionRefreshHandle) RefreshTime() int64 {
+	return p.pos.RefreshTime
+}
+
+func (p *RewardsRefreshHandle) RefreshTime() int64 {
+	return p.pos.RefreshTime
+}
+
+func (p *KnockoutAliveHandle) RefreshTime() int64 {
+	return p.pos.Liq.Active.RefreshTime
+}
+
+func (p *KnockoutPostHandle) RefreshTime() int64 {
+	return p.pos.Liq.Active.RefreshTime
+}
+
+func (p *PositionRefreshHandle) Hash() [32]byte {
+	return p.location.Hash()
+}
+
+func (p *RewardsRefreshHandle) Hash() [32]byte {
+	return p.location.Hash()
+}
+
+func (p *KnockoutAliveHandle) Hash() [32]byte {
+	return p.location.Hash()
+}
+
+func (p *KnockoutPostHandle) Hash() [32]byte {
+	return p.location.Hash()
+}
+
+func (p *PositionRefreshHandle) Skippable() bool {
+	return false
+}
+
+func (p *RewardsRefreshHandle) Skippable() bool {
+	return true
+}
+
+func (p *KnockoutAliveHandle) Skippable() bool {
+	return false
+}
+
+func (p *KnockoutPostHandle) Skippable() bool {
+	return false
 }

@@ -293,7 +293,7 @@ func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.Pos
 	return val
 }
 
-func (m *MemoryCache) MaterializeKnockoutBook(loc types.BookLocation) *model.KnockoutSaga {
+func (m *MemoryCache) MaterializeKnockoutSaga(loc types.BookLocation) *model.KnockoutSaga {
 	val, ok := m.knockoutSagas.lookup(loc)
 	if !ok {
 		val = model.NewKnockoutSaga()
@@ -305,7 +305,7 @@ func (m *MemoryCache) MaterializeKnockoutBook(loc types.BookLocation) *model.Kno
 func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.KnockoutSubplot {
 	val, ok := m.liqKnockouts.lookup(loc)
 	if !ok {
-		saga := m.MaterializeKnockoutBook(loc.ToBookLoc())
+		saga := m.MaterializeKnockoutSaga(loc.ToBookLoc())
 		val = saga.ForUser(loc.User)
 		m.liqKnockouts.insert(loc, val)
 		m.userKnockouts.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
@@ -316,4 +316,17 @@ func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.
 
 	m.poolKoUpdates.insert(loc.PoolLocation, koAndLocPair{loc, val})
 	return val
+}
+
+func (m *MemoryCache) RetrievePivotTime(loc types.BookLocation) int {
+	pos, okay := m.knockoutPivotTimes.lookup(loc)
+	if okay {
+		return pos
+	} else {
+		return 0
+	}
+}
+
+func (m *MemoryCache) SetPivotTime(loc types.BookLocation, pivotTime int) {
+	m.knockoutPivotTimes.insert(loc, pivotTime)
 }
