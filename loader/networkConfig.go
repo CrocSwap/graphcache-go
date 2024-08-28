@@ -2,7 +2,6 @@ package loader
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -27,7 +26,7 @@ type ChainConfig struct {
 type NetworkConfig map[types.NetworkName]ChainConfig
 
 func LoadNetworkConfig(path string) NetworkConfig {
-	jsonData, err := ioutil.ReadFile(path)
+	jsonData, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
