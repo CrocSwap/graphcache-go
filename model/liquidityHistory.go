@@ -68,7 +68,7 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 	l.initHist()
 	l.assertTimeForward(r.Time)
 
-	if r.ChangeType == "harvest" {
+	if r.ChangeType == tables.ChangeTypeHarvest {
 		l.Hist = append(l.Hist, LiquidityDelta{
 			Time:         r.Time,
 			resetRewards: true,
@@ -77,12 +77,12 @@ func (l *LiquidityDeltaHist) appendChange(r tables.LiqChange) {
 	} else {
 		liqMagn := determineLiquidityMagn(r)
 
-		if r.ChangeType == "mint" {
+		if r.ChangeType == tables.ChangeTypeMint {
 			l.Hist = append(l.Hist, LiquidityDelta{
 				Time:      r.Time,
 				LiqChange: liqMagn})
 
-		} else if r.ChangeType == "burn" {
+		} else if r.ChangeType == tables.ChangeTypeBurn {
 			l.Hist = append(l.Hist, LiquidityDelta{
 				Time:      r.Time,
 				LiqChange: -liqMagn})

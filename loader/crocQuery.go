@@ -15,7 +15,7 @@ type ICrocQuery interface {
 	QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error)
 	QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error)
 	QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error)
-	QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error)
+	QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqResp, error)
 	QueryKnockoutPivot(pos types.PositionLocation) (uint32, error)
 }
 
@@ -33,8 +33,8 @@ func (q *NonCrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.In
 	return big.NewInt(0), nil
 }
 
-func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqResp, error) {
+	return KnockoutLiqResp{Liq: big.NewInt(0), KnockedOut: false}, nil
 }
 
 func (q *NonCrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
@@ -98,7 +98,13 @@ func (q *CrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, 
 	return q.callQueryFirstReturn(pos.ChainId, callData, "queryConcRewards")
 }
 
-func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error) {
+type KnockoutLiqResp struct {
+	Liq        *big.Int
+	KnockedOut bool
+}
+
+func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (resp KnockoutLiqResp, err error) {
+	resp = KnockoutLiqResp{Liq: big.NewInt(0), KnockedOut: false}
 	callData, err := q.queryAbi.Pack("queryKnockoutTokens",
 		common.HexToAddress(string(pos.User)),
 		common.HexToAddress(string(pos.Base)),
@@ -115,10 +121,12 @@ func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (*big.Int, error
 	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens")
 
 	if err != nil {
-		return big.NewInt(0), err
+		return
 	}
 
-	return result[0].(*big.Int), nil
+	resp.Liq = result[0].(*big.Int)
+	resp.KnockedOut = result[3].(bool)
+	return
 }
 
 func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {

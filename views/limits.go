@@ -107,13 +107,13 @@ func unrollSubplot(pos types.PositionLocation, subplot *model.KnockoutSubplot) [
 	unrolled := make([]UserLimitOrder, 0)
 
 	if !subplot.Liq.Active.IsEmpty() {
-		claimLoc := pos.ToClaimLoc(0)
+		claimLoc := pos.ToClaimLoc(subplot.Mints[len(subplot.Mints)-1].PivotTime)
 		unrolled = append(unrolled, UserLimitOrder{
 			claimLoc,
 			subplot.Liq.Active,
 			userLimitExtras{
 				LimitId:          formLimitId(claimLoc),
-				LatestUpdateTime: subplot.LatestTime,
+				LatestUpdateTime: subplot.LatestUpdateTime,
 				TimeFirstMint:    subplot.Liq.TimeFirstMint,
 			}})
 	}
@@ -129,12 +129,14 @@ func unrollSubplot(pos types.PositionLocation, subplot *model.KnockoutSubplot) [
 
 			unrolled = append(unrolled, UserLimitOrder{
 				claimLoc,
-				model.PositionLiquidity{},
+				model.PositionLiquidity{
+					RefreshTime: subplot.Liq.Active.RefreshTime,
+				},
 				userLimitExtras{
 					LimitId:          formLimitId(claimLoc),
 					CrossTime:        crossTime,
 					ClaimableLiq:     claim.ConcLiq,
-					LatestUpdateTime: subplot.LatestTime,
+					LatestUpdateTime: subplot.LatestUpdateTime,
 					TimeFirstMint:    subplot.Liq.TimeFirstMint,
 				}})
 		}

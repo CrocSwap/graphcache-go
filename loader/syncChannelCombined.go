@@ -83,7 +83,7 @@ func (s *SyncChannel[R, S]) IngestEntries(data []byte, queryStartBlock, queryEnd
 	}
 
 	if len(entries) == 0 {
-		log.Printf("Warning subgraph data for %s returned no entries while the last seen row was expected", s.config.Query)
+		log.Printf("Warning subgraph data for %s at %d-%d returned no rows, last seen row was expected", s.config.Query, queryStartBlock, queryEndBlock)
 		// Returning `true` here doesn't change anything during startup sync,
 		// but returning `false` could potentially cause the sync to exit early.
 		// Returning `true` during normal runtime would cause the subgraph to

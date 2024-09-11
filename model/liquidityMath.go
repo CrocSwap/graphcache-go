@@ -23,7 +23,7 @@ func derivePriceFromSwapFlow(baseFlow float64, quoteFlow float64, feeRate float6
 	}
 }
 
-func deriveLiquidityFromConcFlow(baseFlow float64, quoteFlow float64,
+func DeriveLiquidityFromConcFlow(baseFlow float64, quoteFlow float64,
 	bidTick int, askTick int) float64 {
 	bidPrice := math.Sqrt(tickToPrice(bidTick))
 	askPrice := math.Sqrt(tickToPrice(askTick))

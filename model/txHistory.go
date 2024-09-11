@@ -40,9 +40,9 @@ func (h *HistoryWriter) CommitSwap(s tables.Swap) {
 		},
 
 		PoolEventDescriptor: types.PoolEventDescriptor{
-			EntityType:   "swap",
-			ChangeType:   "swap",
-			PositionType: "swap",
+			EntityType:   tables.EntityTypeSwap,
+			ChangeType:   tables.ChangeTypeSwap,
+			PositionType: tables.PosTypeSwap,
 		},
 
 		PoolRangeFields: types.PoolRangeFields{
@@ -63,9 +63,9 @@ func (h *HistoryWriter) CommitLiqChange(s tables.LiqChange) {
 		quoteFlow = *s.QuoteFlow
 	}
 
-	entityType := "liqchange"
-	if s.PositionType == "knockout" {
-		entityType = "limitOrder"
+	entityType := tables.EntityTypeLiqChange
+	if s.PositionType == tables.PosTypeKnockout {
+		entityType = tables.EntityTypeLimit
 	}
 
 	h.commitEventFn(types.PoolTxEvent{

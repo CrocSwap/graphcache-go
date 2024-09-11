@@ -29,15 +29,15 @@ func NewLiquidityCurve() *LiquidityCurve {
 }
 
 func (c *LiquidityCurve) UpdateLiqChange(l tables.LiqChange) {
-	if l.PositionType == "ambient" {
+	if l.PositionType == tables.PosTypeAmbient {
 		c.AmbientLiq += determineLiquidityMagn(l)
 	}
 
-	if l.ChangeType == "mint" || l.ChangeType == "burn" {
+	if l.ChangeType == tables.ChangeTypeMint || l.ChangeType == tables.ChangeTypeBurn {
 		c.updateUserLiq(l)
 	}
 
-	if l.ChangeType == "cross" {
+	if l.ChangeType == tables.ChangeTypeCross {
 		c.updateKOCross(l)
 	}
 }
@@ -47,14 +47,14 @@ func (c *LiquidityCurve) updateUserLiq(l tables.LiqChange) {
 	askBump := c.materializeBump(l.AskTick)
 
 	liqMagn := determineLiquidityMagn(l)
-	if l.ChangeType == "burn" {
+	if l.ChangeType == tables.ChangeTypeBurn {
 		liqMagn = -liqMagn
 	}
 
 	bidBump.IncrLiquidity(liqMagn, l.Time)
 	askBump.IncrLiquidity(-liqMagn, l.Time)
 
-	if l.PositionType == "knockout" {
+	if l.PositionType == tables.PosTypeKnockout {
 		if l.IsBid > 0 {
 			bidBump.IncrKOBid(liqMagn, l.AskTick)
 		} else {
@@ -145,9 +145,9 @@ func determineLiquidityMagn(r tables.LiqChange) float64 {
 		return 0
 	}
 
-	if r.PositionType == "ambient" {
+	if r.PositionType == tables.PosTypeAmbient {
 		return deriveLiquidityFromAmbientFlow(baseFlow, quoteFlow)
 	} else {
-		return deriveLiquidityFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
+		return DeriveLiquidityFromConcFlow(baseFlow, quoteFlow, r.BidTick, r.AskTick)
 	}
 }
