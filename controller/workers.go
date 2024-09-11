@@ -54,7 +54,6 @@ func (msg *koPosUpdateMsg) processUpdate(lr *LiquidityRefresher) {
 	cands, isPossiblyLive := (msg.pos).UpdateLiqChange(msg.liq)
 
 	handle := KnockoutAliveHandle{location: msg.loc, pos: msg.pos}
-	// lr.PushRefresh(&handle, msg.liq.Time)
 
 	if isPossiblyLive {
 		lr.PushRefresh(&handle, msg.liq.Time)
@@ -73,7 +72,8 @@ func (msg *koCrossUpdateMsg) processUpdate(lr *LiquidityRefresher) {
 	for _, cand := range cands {
 		claimLoc := msg.loc.ToClaimLoc(cand.User, cand.PivotTime)
 		subPos := msg.pos.ForUser(cand.User)
-		subPos.Liq.UpdatePostKOLiq(cand.PivotTime, *big.NewInt(0).Set(&subPos.Liq.Active.ConcLiq), 0)
+		activeLiq := subPos.Liq.GetActiveLiq()
+		subPos.Liq.UpdatePostKOLiq(cand.PivotTime, *activeLiq, 0)
 		subPos.Liq.UpdateActiveLiq(*big.NewInt(0), 0)
 		handle := KnockoutPostHandle{location: claimLoc, pos: subPos}
 		lr.PushRefresh(&handle, msg.cross.Time)

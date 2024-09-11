@@ -27,8 +27,8 @@ type LiquidityRefresher struct {
 }
 
 const NUM_PARALLEL_WORKERS = 200 // Should be higher than multicall_max_batch for the given chain
-const URGENT_QUEUE_SIZE = 10000
-const SLOW_QUEUE_SIZE = 1000000 // On Scroll about 500000 is needed for the startup refresh.
+const URGENT_QUEUE_SIZE = 50000
+const SLOW_QUEUE_SIZE = 1200000 // On Scroll about 700000 is needed for the startup refresh.
 const MAX_REQS_PER_SEC = 1000
 
 func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
@@ -108,13 +108,15 @@ func (lr *LiquidityRefresher) pushFollowup(hndl IRefreshHandle) {
 
 const RETRY_QUERY_MIN_WAIT = 10
 const RETRY_QUERY_MAX_WAIT = 60
-const N_MAX_RETRIES = 5
+
+// Should be high because temporary RPC issues should not cause a crash,
+// especially since running without RPC data isn't that bad these days.
+const N_MAX_RETRIES = 500
 
 // Do this so that in case the problem is overloading the RPC, calls don't all spam again
 // at same deterministic time
 func retryWaitRandom() {
 	waitTime := rand.Intn(RETRY_QUERY_MAX_WAIT-RETRY_QUERY_MIN_WAIT) + RETRY_QUERY_MIN_WAIT
-	log.Printf("Query attempt failed. Retrying again in %d seconds", waitTime)
 	time.Sleep(time.Duration(waitTime) * time.Second)
 }
 
@@ -189,7 +191,7 @@ func (lr *LiquidityRefresher) watchPostProcess() {
 		tag := <-lr.postProcess
 		pendingCount += 1
 		if pendingCount%100 == 0 {
-			log.Printf("Processed %d total liq refreshes. Last=%s", pendingCount, tag)
+			log.Printf("Processed %d total liq refreshes. Last=%s. len(urgent)=%d, len(slow)=%d", pendingCount, tag, len(lr.workUrgent), len(lr.workSlow))
 		}
 	}
 }

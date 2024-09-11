@@ -91,11 +91,12 @@ func (p *KnockoutPostHandle) RefreshQuery(query *loader.ICrocQuery) {
 func tryQueryAttempt[T any](queryFn func() (T, error), label string) T {
 	result, err := queryFn()
 	for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
+		log.Printf("Query attempt %d/%d failed for \"%s\" with err: \"%s\"", retryCount, N_MAX_RETRIES, label, err)
 		retryWaitRandom()
 		result, err = queryFn()
 	}
 	if err != nil {
-		log.Fatal("Unable to query liquidity for " + label)
+		log.Fatalf("Unable to query \"%s\", err: %s", label, err)
 	}
 	return result
 }
@@ -141,7 +142,13 @@ func (p *RewardsRefreshHandle) Hash() [32]byte {
 }
 
 func (p *KnockoutAliveHandle) Hash() [32]byte {
-	return p.location.Hash()
+	h := p.location.Hash()
+	// Since PositionLocation for regular positions also has an IsBid bool, it's
+	// possible for the hash of a knockout order to collide with a position of
+	// the same user. To avoid this, we increment the first byte of the hash.
+	// Sure wish Go had a non-painful way to make fields optional/nullable.
+	h[0] = byte(h[0] + 1)
+	return h
 }
 
 func (p *KnockoutPostHandle) Hash() [32]byte {

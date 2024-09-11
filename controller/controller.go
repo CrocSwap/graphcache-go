@@ -149,9 +149,9 @@ func (c *ControllerOverNetwork) applyToKnockout(l tables.LiqChange, loc types.Po
 	}
 	pos := c.ctrl.cache.MaterializeKnockoutPos(loc)
 	if l.ChangeType == tables.ChangeTypeMint {
-		pos.Mints = append(pos.Mints, event)
+		pos.AppendMint(event)
 	} else if l.ChangeType == tables.ChangeTypeBurn {
-		pos.Burns = append(pos.Burns, event)
+		pos.AppendBurn(event)
 	}
 
 	c.ctrl.workers.omniUpdates <- &koPosUpdateMsg{liq: l, pos: pos, loc: loc}
@@ -165,22 +165,22 @@ func (c *ControllerOverNetwork) applyToKnockout(l tables.LiqChange, loc types.Po
 		}
 		liqBigInt, _ := big.NewFloat(liq).Int(nil)
 
-		activeLiq := big.NewInt(0).Set(&pos.Liq.Active.ConcLiq) // copy to avoid refresh overwrite races
+		activeLiq := pos.Liq.GetActiveLiq()
 		pos.Liq.UpdateActiveLiq(*big.NewInt(0).Add(activeLiq, liqBigInt), 0)
-		if pos.Liq.Active.ConcLiq.Cmp(big.NewInt(0)) < 0 {
-			pos.Liq.Active.ConcLiq.SetUint64(0)
+		afterLiq := pos.Liq.GetActiveLiq()
+		if afterLiq.Cmp(big.NewInt(0)) < 0 {
+			pos.Liq.UpdateActiveLiq(*big.NewInt(0), 0)
+			afterLiq = big.NewInt(0)
 		}
-		afterLiq, _ := big.NewInt(0).Set(&pos.Liq.Active.ConcLiq).Float64()
+		afterLiqFloat, _ := afterLiq.Float64()
 
 		// If it's a burn and the remaining liq is less than 10% of the liq change, set it to 0
-		if l.ChangeType == tables.ChangeTypeBurn && afterLiq > 0 && math.Abs(liq)*0.10 > math.Abs(afterLiq) {
-			pos.Liq.Active.ConcLiq.SetUint64(0)
+		if l.ChangeType == tables.ChangeTypeBurn && afterLiqFloat > 0 && math.Abs(liq)*0.10 > math.Abs(afterLiqFloat) {
+			pos.Liq.UpdateActiveLiq(*big.NewInt(0), 0)
 		}
 		if l.ChangeType == tables.ChangeTypeRecover || l.ChangeType == tables.ChangeTypeClaim {
-			pos.Liq.Active.ConcLiq.SetUint64(0)
-			if p, ok := pos.Liq.KnockedOut[*l.PivotTime]; ok {
-				p.ConcLiq.SetUint64(0)
-			}
+			pos.Liq.UpdateActiveLiq(*big.NewInt(0), 0)
+			pos.Liq.UpdatePostKOLiq(*l.PivotTime, *big.NewInt(0), 0)
 		}
 	}
 }

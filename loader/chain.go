@@ -92,7 +92,7 @@ func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
 
 	result, err := c.contractDataCall(client, chainId, contract, callData)
 	if err != nil {
-		log.Printf("Warning calling %s() on contract "+err.Error(), methodName)
+		log.Printf("Warning calling %s() on contract: %s", methodName, err.Error())
 		return nil, err
 	}
 
@@ -142,8 +142,11 @@ func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, _ types
 		Data: data,
 	}
 
-	result, err := client.CallContract(context.Background(), msg, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, err := client.CallContract(ctx, msg, nil)
 	if err != nil {
+		log.Println("Error calling the contract:", err)
 		return []byte{}, err
 	}
 	return result, nil
@@ -184,6 +187,7 @@ func (c *OnChainLoader) multicallWorker(chainId int, networkName types.NetworkNa
 		err := c.multicall(jobs, chainId, networkName)
 		// Cancel all jobs if the multicall fails
 		if err != nil {
+			log.Println("multicall error:", err)
 			for _, job := range jobs {
 				job.Result <- []byte{}
 			}
@@ -213,6 +217,7 @@ func (c *OnChainLoader) multicall(jobs []CallJob, chainId int, networkName types
 		}
 		inputs[i] = input
 	}
+	// log.Println("multicall", len(jobs), "jobs")
 	packed, err := c.multicallAbi.Pack("aggregate3", inputs)
 	if err != nil {
 		log.Println("failed to pack aggregate3", err)
