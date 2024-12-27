@@ -31,7 +31,7 @@ type Candle struct {
 
 func NewCandleBuilder(startTime int, period int, open AccumPoolStats) *CandleBuilder {
 	builder := &CandleBuilder{
-		series:      make([]Candle, 0),
+		series:      make([]Candle, 0, 1),
 		running:     RunningCandle{},
 		period:      period,
 		atValidHist: false,
@@ -74,6 +74,7 @@ func (c *CandleBuilder) closeCandle() {
 	c.atValidHist = c.atValidHist ||
 		c.running.candle.TvlBase >= MIN_VALID_LIQUIDITY ||
 		c.running.candle.TvlQuote >= MIN_VALID_LIQUIDITY
+	// c.atValidHist = true
 
 	if c.atValidHist {
 		c.series = append(c.series, c.running.candle)
@@ -103,4 +104,59 @@ func (c *CandleBuilder) Increment(accum AccumPoolStats) {
 
 	c.running.candle.FeeRateClose = accum.FeeRate
 	c.running.lastAccum = accum
+}
+
+// Given a list of hourly candles, combine them into a list of `n` candles with
+// `hours*3600` period from `startTime` to `endTime`.
+func CombineHourlyCandles(candles []Candle, hours int, startTime int, endTime int, n int) []Candle {
+	combined := make([]Candle, 0, max((endTime-startTime)/hours/3600, 1)) // max(1, ...) so that JSON is always an array
+	period := hours * 3600
+	startGroup := -1
+	if len(candles) > 0 {
+		// log.Println("got candles:", candles[0].Time, candles[len(candles)-1].Time)
+	}
+	for _, candle := range candles {
+		if candle.Time < startTime {
+			// log.Println("Skipping candle", candle.Time, startTime)
+			continue
+		}
+		if candle.Time >= endTime || len(combined) >= n {
+			// log.Println("Breaking at", candle.Time, endTime, len(combined), n)
+			break
+		}
+		if startGroup == -1 {
+			startGroup = (candle.Time - (candle.Time % period)) / period
+		}
+		ci := (candle.Time-(candle.Time%period))/period - startGroup
+
+		// log.Println("Processing candle", candle.Time, startTime, endTime, ci)
+		if ci >= len(combined) {
+			combined = append(combined, Candle{})
+		}
+		combCandle := &combined[ci]
+
+		if combCandle.Time == 0 {
+			combCandle.Time = candle.Time - candle.Time%period
+			combCandle.Period = period
+			combCandle.PriceOpen = candle.PriceOpen
+			combCandle.MinPrice = candle.MinPrice
+			combCandle.MaxPrice = candle.MaxPrice
+			combCandle.FeeRateOpen = candle.FeeRateOpen
+		}
+
+		combCandle.PriceClose = candle.PriceClose
+		combCandle.VolumeBase += candle.VolumeBase
+		combCandle.VolumeQuote += candle.VolumeQuote
+		combCandle.TvlBase = candle.TvlBase
+		combCandle.TvlQuote = candle.TvlQuote
+		combCandle.FeeRateClose = candle.FeeRateClose
+		if combCandle.MaxPrice < candle.MaxPrice {
+			combCandle.MaxPrice = candle.MaxPrice
+		}
+		if combCandle.MinPrice > candle.MinPrice {
+			combCandle.MinPrice = candle.MinPrice
+		}
+
+	}
+	return combined
 }

@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY ./ /app/
-RUN go build
+RUN go build -tags=go_json
 RUN go build ./cmd/startupCacher
 
 EXPOSE 8080

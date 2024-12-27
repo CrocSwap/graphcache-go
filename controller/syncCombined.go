@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
@@ -26,6 +28,7 @@ func NewCombinedSubgraphSyncerAtStart(controller *Controller, chainConfig loader
 	sync.lastBlocks.Bal = startBlocks.Bal
 	sync.lastBlocks.Swaps = startBlocks.Swaps
 	sync.lastBlocks.Aggs = startBlocks.Aggs
+	sync.lastBlocks.Liq = startBlocks.Liq
 	if startupCache != "" {
 		LoadStartupCache(startupCache, &sync)
 	}
@@ -47,7 +50,7 @@ func makeCombinedSubgraphSyncer(controller *Controller, chainConfig loader.Chain
 	}
 }
 
-const COMBINED_SUBGRAPH_POLL_SECS = 3
+const DEFAULT_SUBGRAPH_POLL_SECS = 4 * time.Second
 
 func (s *CombinedSubgraphSyncer) PollSubgraphUpdates() {
 	s.syncLoop(false)
@@ -61,13 +64,22 @@ func (s *CombinedSubgraphSyncer) syncStart() {
 const MAX_BLOCK = 999999999
 
 func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
+	pollInterval := DEFAULT_SUBGRAPH_POLL_SECS
+	if os.Getenv("SUBGRAPH_POLL_SECS") != "" {
+		pollSecs, err := strconv.Atoi(os.Getenv("SUBGRAPH_POLL_SECS"))
+		if err != nil {
+			log.Panicln("Invalid SUBGRAPH_POLL_SECS value", os.Getenv("SUBGRAPH_POLL_SECS"))
+		}
+		pollInterval = time.Duration(pollSecs) * time.Second
+	}
+
 	lastSyncBlock := 0
 	for {
 		newRows := false
 		syncBlock, comboData, err := loader.CombinedQuery(s.cfg, s.lastBlocks, MAX_BLOCK)
 		if err != nil {
 			log.Println("Warning unable to send combined query:", err.Error())
-			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
+			time.Sleep(pollInterval)
 			continue
 		}
 
@@ -80,7 +92,7 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 
 		if errSwaps != nil || errAggs != nil || errBals != nil || errLiqs != nil || errFees != nil {
 			log.Println("Warning unable to ingest entries:", errSwaps, errAggs, errBals, errLiqs, errFees)
-			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
+			time.Sleep(pollInterval)
 			continue
 		}
 
@@ -88,10 +100,11 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 			newRows = true
 		}
 		// Abnormal case, should sleep it off. But also if this happens during non-startup sync, not sleeping
-		// would repeat the quuery immediately (because `hasMore` needs to be true) which might lead to spam.
-		if lastObsSwaps == 0 || lastObsAgg == 0 || lastObsBal == 0 || lastObsLiq == 0 || lastObsFees == 0 {
+		// would repeat the query immediately (because `hasMore` needs to be true) which might lead to spam.
+		allowEmpty := os.Getenv("ALLOW_EMPTY_SUBGRAPH_TABLES") == "true"
+		if (lastObsSwaps == 0 || lastObsAgg == 0 || lastObsBal == 0 || lastObsLiq == 0 || lastObsFees == 0) && !allowEmpty {
 			log.Println("Warning: subgraph returned no rows for one or more tables")
-			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
+			time.Sleep(pollInterval)
 		}
 
 		if lastObsSwaps > s.lastBlocks.Swaps {
@@ -120,10 +133,10 @@ func (s *CombinedSubgraphSyncer) syncLoop(startupSync bool) {
 				break
 			}
 			if syncBlock > lastSyncBlock {
-				log.Printf("New subgraph time %d", syncBlock)
+				log.Printf("New subgraph block %d", syncBlock)
 				lastSyncBlock = syncBlock
 			}
-			time.Sleep(COMBINED_SUBGRAPH_POLL_SECS * time.Second)
+			time.Sleep(pollInterval)
 		}
 	}
 }

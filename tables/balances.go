@@ -2,8 +2,12 @@ package tables
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
+	"strings"
+
+	stdjson "encoding/json"
+
+	"github.com/goccy/go-json"
 )
 
 type BalanceTable struct{}
@@ -51,11 +55,11 @@ func (tbl BalanceTable) ConvertSubGraphRow(r BalanceSubGraph, network string) Ba
 	return Balance{
 		ID:      network + r.ID,
 		Network: network,
-		Tx:      r.TransactionHash,
+		Tx:      strings.Clone(r.TransactionHash),
 		Block:   parseInt(r.Block),
 		Time:    parseInt(r.Time),
-		User:    translateUser(r.User),
-		Token:   r.Token,
+		User:    strings.Clone(translateUser(r.User, "")),
+		Token:   strings.Clone(r.Token),
 	}
 }
 
@@ -81,12 +85,12 @@ func (tbl BalanceTable) ReadSqlRow(rows *sql.Rows) Balance {
 func (tbl BalanceTable) ParseSubGraphResp(body []byte) ([]BalanceSubGraph, error) {
 	var parsed BalanceSubGraphResp
 
-	err := json.Unmarshal(body, &parsed)
+	err := stdjson.Unmarshal(body, &parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]BalanceSubGraph, 0)
+	ret := make([]BalanceSubGraph, 0, len(parsed.Data.UserBalances))
 	for _, entry := range parsed.Data.UserBalances {
 		ret = append(ret, entry)
 	}
@@ -101,7 +105,7 @@ func (tbl BalanceTable) ParseSubGraphRespUnwrapped(body []byte) ([]BalanceSubGra
 		return nil, err
 	}
 
-	ret := make([]BalanceSubGraph, 0)
+	ret := make([]BalanceSubGraph, 0, len(parsed.UserBalances))
 	for _, entry := range parsed.UserBalances {
 		ret = append(ret, entry)
 	}

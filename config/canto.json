@@ -1,0 +1,14 @@
+{
+  "canto": {
+    "chain_id": 7700,
+    "subgraph": "http://159.203.175.107:8000/subgraphs/name/ambient-fix",
+    "rpc": "",
+    "indexer": "http://127.0.0.1:58082/gcgo",
+    "crocswap_contract": "0x9290c893ce949fe13ef3355660d07de0fb793618",
+    "query_contract": "0xfdf5ed2d354e05cf292808cf94bd5c972d842d09",
+    "knockout_tick_width": 64,
+    "multicall_disabled": false,
+    "multicall_contract": "0xca11bde05977b3631167028862be2a173976ca11",
+    "multicall_max_batch": 500
+  }
+}

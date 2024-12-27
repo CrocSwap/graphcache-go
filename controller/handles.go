@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"log"
 	"math/big"
 	"time"
@@ -11,7 +12,7 @@ import (
 )
 
 type IRefreshHandle interface {
-	Hash() [32]byte
+	Hash(buf *bytes.Buffer) [32]byte
 	RefreshTime() int64
 	Skippable() bool
 	RefreshQuery(query *loader.ICrocQuery)
@@ -37,20 +38,26 @@ type KnockoutPostHandle struct {
 	pos      *model.KnockoutSubplot
 }
 
+type PoolInitPriceHandle struct {
+	Pool  types.PoolLocation
+	Block int
+	Hist  *model.PoolTradingHistory
+}
+
 func (p *PositionRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
 	posType := types.PositionTypeForLiq(p.location.LiquidityLocation)
 
 	if posType == "ambient" {
 		liqFn := func() (*big.Int, error) { return (*query).QueryAmbientLiq(p.location) }
-		ambientLiq := tryQueryAttempt(liqFn, "ambientLiq")
+		ambientLiq, _ := tryQueryAttempt(liqFn, "ambientLiq", N_MAX_RETRIES, true)
 		p.pos.UpdateAmbient(*ambientLiq)
 	}
 
 	if posType == "range" {
 		liqFn := func() (*big.Int, error) { return (*query).QueryRangeLiquidity(p.location) }
 		rewardFn := func() (*big.Int, error) { return (*query).QueryRangeRewardsLiq(p.location) }
-		concLiq := tryQueryAttempt(liqFn, "rangeLiq")
-		rewardLiq := tryQueryAttempt(rewardFn, "rangeRewards")
+		concLiq, _ := tryQueryAttempt(liqFn, "rangeLiq", N_MAX_RETRIES, true)
+		rewardLiq, _ := tryQueryAttempt(rewardFn, "rangeRewards", N_MAX_RETRIES, true)
 		p.pos.UpdateRange(*concLiq, *rewardLiq)
 	}
 }
@@ -60,45 +67,53 @@ func (p *RewardsRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
 
 	if posType == "range" {
 		rewardFn := func() (*big.Int, error) { return (*query).QueryRangeRewardsLiq(p.location) }
-		rewardLiq := tryQueryAttempt(rewardFn, "rangeRewards")
+		rewardLiq, _ := tryQueryAttempt(rewardFn, "rangeRewards", N_MAX_RETRIES, true)
 		p.pos.UpdateRangeRewards(*rewardLiq)
 	}
 }
 
 func (p *KnockoutAliveHandle) RefreshQuery(query *loader.ICrocQuery) {
 	pivotTimeFn := func() (uint32, error) { return (*query).QueryKnockoutPivot(p.location) }
-	pivotTime := int(tryQueryAttempt(pivotTimeFn, "pivotTimeLatest"))
+	pivotTime, _ := tryQueryAttempt(pivotTimeFn, "pivotTimeLatest", N_MAX_RETRIES, true)
 
 	if pivotTime == 0 {
 		p.pos.Liq.UpdateActiveLiq(*big.NewInt(0), time.Now().Unix())
 
 	} else {
-		claimLoc := types.KOClaimLocation{PositionLocation: p.location, PivotTime: pivotTime}
+		claimLoc := types.KOClaimLocation{PositionLocation: p.location, PivotTime: int(pivotTime)}
 		liqFn := func() (loader.KnockoutLiqResp, error) { return (*query).QueryKnockoutLiq(claimLoc) }
-		koLiqResp := tryQueryAttempt(liqFn, "knockoutLiq")
+		koLiqResp, _ := tryQueryAttempt(liqFn, "knockoutLiq", N_MAX_RETRIES, true)
 		p.pos.Liq.UpdateActiveLiq(*koLiqResp.Liq, time.Now().Unix())
 	}
 }
 
 func (p *KnockoutPostHandle) RefreshQuery(query *loader.ICrocQuery) {
 	liqFn := func() (loader.KnockoutLiqResp, error) { return (*query).QueryKnockoutLiq(p.location) }
-	koLiqResp := tryQueryAttempt(liqFn, "knockoutLiq")
+	koLiqResp, _ := tryQueryAttempt(liqFn, "knockoutLiq", N_MAX_RETRIES, true)
 	if koLiqResp.KnockedOut {
 		p.pos.Liq.UpdatePostKOLiq(p.location.PivotTime, *koLiqResp.Liq, time.Now().Unix())
 	}
 }
 
-func tryQueryAttempt[T any](queryFn func() (T, error), label string) T {
-	result, err := queryFn()
-	for retryCount := 0; err != nil && retryCount < N_MAX_RETRIES; retryCount += 1 {
-		log.Printf("Query attempt %d/%d failed for \"%s\" with err: \"%s\"", retryCount, N_MAX_RETRIES, label, err)
+func (p *PoolInitPriceHandle) RefreshQuery(query *loader.ICrocQuery) {
+	// priceFn := func() (*big.Int, error) { return (*query).QueryPoolPrice(p.Pool) }
+}
+
+func tryQueryAttempt[T any](queryFn func() (T, error), label string, nAttempts int, fatal bool) (result T, err error) {
+	result, err = queryFn()
+	for retryCount := 0; err != nil && retryCount < nAttempts; retryCount += 1 {
+		log.Printf("Query attempt %d/%d failed for \"%s\" with err: \"%s\"", retryCount, nAttempts, label, err)
 		retryWaitRandom()
 		result, err = queryFn()
 	}
 	if err != nil {
-		log.Fatalf("Unable to query \"%s\", err: %s", label, err)
+		if fatal {
+			log.Fatalf("Unable to query \"%s\", err: %s", label, err)
+		} else {
+			log.Printf("Unable to query \"%s\", err: %s, giving up", label, err)
+		}
 	}
-	return result
+	return
 }
 
 func (p *PositionRefreshHandle) LabelTag() string {
@@ -117,6 +132,10 @@ func (p *KnockoutPostHandle) LabelTag() string {
 	return "knockoutPost"
 }
 
+func (p *PoolInitPriceHandle) LabelTag() string {
+	return "poolInitPrice"
+}
+
 func (p *PositionRefreshHandle) RefreshTime() int64 {
 	return p.pos.RefreshTime
 }
@@ -133,16 +152,20 @@ func (p *KnockoutPostHandle) RefreshTime() int64 {
 	return p.pos.Liq.Active.RefreshTime
 }
 
-func (p *PositionRefreshHandle) Hash() [32]byte {
-	return p.location.Hash()
+func (p *PoolInitPriceHandle) RefreshTime() int64 {
+	return 0
 }
 
-func (p *RewardsRefreshHandle) Hash() [32]byte {
-	return p.location.Hash()
+func (p *PositionRefreshHandle) Hash(buf *bytes.Buffer) [32]byte {
+	return p.location.Hash(buf)
 }
 
-func (p *KnockoutAliveHandle) Hash() [32]byte {
-	h := p.location.Hash()
+func (p *RewardsRefreshHandle) Hash(buf *bytes.Buffer) [32]byte {
+	return p.location.Hash(buf)
+}
+
+func (p *KnockoutAliveHandle) Hash(buf *bytes.Buffer) [32]byte {
+	h := p.location.Hash(buf)
 	// Since PositionLocation for regular positions also has an IsBid bool, it's
 	// possible for the hash of a knockout order to collide with a position of
 	// the same user. To avoid this, we increment the first byte of the hash.
@@ -151,8 +174,12 @@ func (p *KnockoutAliveHandle) Hash() [32]byte {
 	return h
 }
 
-func (p *KnockoutPostHandle) Hash() [32]byte {
-	return p.location.Hash()
+func (p *KnockoutPostHandle) Hash(buf *bytes.Buffer) [32]byte {
+	return p.location.Hash(buf)
+}
+
+func (p *PoolInitPriceHandle) Hash(buf *bytes.Buffer) [32]byte {
+	return p.Pool.Hash(buf)
 }
 
 func (p *PositionRefreshHandle) Skippable() bool {
@@ -168,5 +195,9 @@ func (p *KnockoutAliveHandle) Skippable() bool {
 }
 
 func (p *KnockoutPostHandle) Skippable() bool {
+	return false
+}
+
+func (p *PoolInitPriceHandle) Skippable() bool {
 	return false
 }

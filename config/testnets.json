@@ -1,19 +1,57 @@
 {
-    
-    "sepolia": {
-        "chain_id": 11155111,
-        "rpc": "https://sepolia.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
-        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-sepolia/version/latest",
-        "query_contract": "0xDB182F4687708D0F5798c77b4d02ad3425f4B672",
-        "knockout_tick_width": 16
-    },
-
-    "blastSepolia": {
-        "chain_id": 168587773,
-        "rpc": "https://sepolia.blast.io",
-        "subgraph": "https://api.studio.thegraph.com/query/47610/croc-blast-sepolia/version/latest",
-        "query_contract": "0x7757BAEC9c492691eAE235c6f01FB99AaA622975",
-        "knockout_tick_width": 1
-    }
-    
+  "sepolia": {
+    "chain_id": 11155111,
+    "rpc": "",
+    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-sepolia/version/latest",
+    "query_contract": "0xDB182F4687708D0F5798c77b4d02ad3425f4B672",
+    "knockout_tick_width": 16,
+    "multicall_disabled": false,
+    "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
+    "multicall_max_batch": 100,
+    "multicall_interval_ms": 1000
+  },
+  "blastSepolia": {
+    "chain_id": 168587773,
+    "rpc": "https://sepolia.blast.io",
+    "subgraph": "https://api.studio.thegraph.com/query/47610/croc-blast-sepolia/version/latest",
+    "query_contract": "0x7757BAEC9c492691eAE235c6f01FB99AaA622975",
+    "knockout_tick_width": 1,
+    "multicall_disabled": false,
+    "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
+    "multicall_max_batch": 100,
+    "multicall_interval_ms": 1000
+  },
+  "plumeDevnet": {
+    "chain_id": 98864,
+    "rpc": "https://test-rpc.plumenetwork.xyz/",
+    "subgraph": "https://api.goldsky.com/api/public/project_clta9z2ot03vy01wicycm0hvj/subgraphs/croc-plume-devnet/v0.4.1/gn",
+    "query_contract": "0x1C74Dd2DF010657510715244DA10ba19D1F3D2B7",
+    "knockout_tick_width": 1,
+    "multicall_disabled": false,
+    "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
+    "multicall_max_batch": 100,
+    "multicall_interval_ms": 1000
+  },
+  "swellTestnet": {
+    "chain_id": 1924,
+    "rpc": "https://swell-testnet.alt.technology",
+    "subgraph": "https://api.goldsky.com/api/public/project_clta9z2ot03vy01wicycm0hvj/subgraphs/croc-swell-testnet/v0.4.1/gn",
+    "query_contract": "0x1C74Dd2DF010657510715244DA10ba19D1F3D2B7",
+    "knockout_tick_width": 1,
+    "multicall_disabled": false,
+    "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
+    "multicall_max_batch": 100,
+    "multicall_interval_ms": 1000
+  },
+  "baseSepolia": {
+    "chain_id": 84532,
+    "rpc": "https://sepolia.base.org",
+    "subgraph": "https://api.goldsky.com/api/public/project_clta9z2ot03vy01wicycm0hvj/subgraphs/croc-base-sepolia/v0.4.1/gn",
+    "query_contract": "0x70a6a0C905af5737aD73Ceba4e6158e995031d4B",
+    "knockout_tick_width": 1,
+    "multicall_disabled": false,
+    "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",
+    "multicall_max_batch": 100,
+    "multicall_interval_ms": 1000
+  }
 }

@@ -30,8 +30,9 @@ func parseNullableInt(s string) *int {
 }
 
 func parseNullableFloat64(s string) *float64 {
+	null := 0.0
 	if s == "" {
-		return nil
+		return &null
 	}
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {

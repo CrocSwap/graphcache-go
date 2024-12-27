@@ -30,7 +30,11 @@ func NewLiquidityCurve() *LiquidityCurve {
 
 func (c *LiquidityCurve) UpdateLiqChange(l tables.LiqChange) {
 	if l.PositionType == tables.PosTypeAmbient {
-		c.AmbientLiq += determineLiquidityMagn(l)
+		liqMagn := determineLiquidityMagn(l)
+		if l.ChangeType == tables.ChangeTypeBurn {
+			liqMagn = -liqMagn
+		}
+		c.AmbientLiq += liqMagn
 	}
 
 	if l.ChangeType == tables.ChangeTypeMint || l.ChangeType == tables.ChangeTypeBurn {

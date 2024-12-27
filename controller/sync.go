@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -66,19 +68,25 @@ func makeSubgraphSyncer(controller *Controller, chainConfig loader.ChainConfig, 
 	}
 }
 
-const SUBGRAPH_POLL_SECS = 3
-
 // Used because subgraph synchronization is not observed to be non-atomic
 // between meta latest time and updating individual tables. Gives the subraph
 // indexer time to index the incremental rows
 const SUBGRAPH_SYNC_DELAY = 1
 
 func (s *NormalSubgraphSyncer) PollSubgraphUpdates() {
+	pollInterval := DEFAULT_SUBGRAPH_POLL_SECS
+	if os.Getenv("SUBGRAPH_POLL_SECS") != "" {
+		pollSecs, err := strconv.Atoi(os.Getenv("SUBGRAPH_POLL_SECS"))
+		if err != nil {
+			log.Panicln("Invalid SUBGRAPH_POLL_SECS value", os.Getenv("SUBGRAPH_POLL_SECS"))
+		}
+		pollInterval = time.Duration(pollSecs) * time.Second
+	}
 	for {
-		time.Sleep(SUBGRAPH_POLL_SECS * time.Second)
+		time.Sleep(pollInterval)
 		hasMore, _ := s.checkNewSubgraphSync()
 		if hasMore {
-			log.Printf("New subgraph time %d", s.lastSyncBlock)
+			log.Printf("New subgraph block %d", s.lastSyncBlock)
 		}
 	}
 }

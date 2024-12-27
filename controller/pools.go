@@ -17,11 +17,11 @@ func (c *ControllerOverNetwork) resyncPoolOnSwap(l tables.Swap) []posImpactMsg {
 			Base:    types.RequireEthAddr(l.Base),
 			Quote:   types.RequireEthAddr(l.Quote),
 		}
-		positions := c.ctrl.cache.RetriveLastNPoolPos(loc, N_POSITIONS_REFRESH_ON_SWAP)
+		positions := c.ctrl.cache.RetrieveLastNPoolPos(loc, N_POSITIONS_REFRESH_ON_SWAP)
 
 		for _, pos := range positions {
 			if !pos.Pos.IsEmpty() {
-				msgs = append(msgs, posImpactMsg{pos.Loc, pos.Pos, l.Time})
+				msgs = append(msgs, posImpactMsg{pos.Loc, pos.Pos})
 			}
 		}
 	}

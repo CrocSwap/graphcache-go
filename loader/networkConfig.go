@@ -1,11 +1,12 @@
 package loader
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"encoding/json"
+	// "github.com/goccy/go-json"
 
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -27,7 +28,7 @@ type ChainConfig struct {
 type NetworkConfig map[types.NetworkName]ChainConfig
 
 func LoadNetworkConfig(path string) NetworkConfig {
-	jsonData, err := ioutil.ReadFile(path)
+	jsonData, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,4 +93,8 @@ func (c *NetworkConfig) RequireChainID(network types.NetworkName) types.ChainId 
 		log.Fatalf("No chainID found for %s", network)
 	}
 	return types.IntToChainId(lookup.ChainID)
+}
+
+func (c *ChainConfig) HexChainID() types.ChainId {
+	return types.IntToChainId(c.ChainID)
 }

@@ -1,7 +1,7 @@
 {
   "mainnet": {
     "chain_id": 1,
-    "rpc": "https://mainnet.infura.io/v3/4741d1713bff4013bc3075ed6e7ce091",
+    "rpc": "",
     "subgraph": "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/deployments/id/Qmdv8zRyxPC7cmi5fpTdcViptimbCwaHVdb71sXPdWzUhL",
     "query_contract": "0xc2e1f740E11294C64adE66f69a1271C5B32004c8",
     "multicall_contract": "0xcA11bde05977b3631167028862bE2a173976CA11",

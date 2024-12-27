@@ -41,7 +41,7 @@ func (l *LiquidityDeltaHist) weightedAverageTime() int {
 	openTime := 0.0
 
 	for _, delta := range l.Hist {
-		if delta.resetRewards == true {
+		if delta.resetRewards {
 			openTime = float64(delta.Time)
 		}
 

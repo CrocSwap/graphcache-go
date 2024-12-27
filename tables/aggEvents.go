@@ -1,8 +1,11 @@
 package tables
 
 import (
-	"encoding/json"
 	"strings"
+
+	stdjson "encoding/json"
+
+	"github.com/goccy/go-json"
 )
 
 type AggEventsTable struct{}
@@ -25,13 +28,10 @@ type AggEvent struct {
 	Base          string  `json:"base" db:"base"`
 	Quote         string  `json:"quote" db:"quote"`
 	PoolIdx       int     `json:"poolIdx" db:"poolIdx"`
-	PoolHash      string  `json:"poolHash" db:"poolHash"`
-	User          string  `json:"user" db:"user"`
 	Block         int     `json:"block" db:"block"`
 	Time          int     `json:"time" db:"time"`
 	BidTick       int     `json:"bidTick" db:"bidTick"`
 	AskTick       int     `json:"askTick" db:"askTick"`
-	SwapPrice     string  `json:"swapPrice"`
 	IsFeeChange   bool    `json:"isFeeChange" db:"isFeeChange"`
 	IsSwap        bool    `json:"isSwap" db:"isSwap"`
 	IsLiq         bool    `json:"isLiq" db:"isLiq"`
@@ -41,30 +41,26 @@ type AggEvent struct {
 	BaseFlow      float64 `json:"baseFlow" db:"baseFlow"`
 	QuoteFlow     float64 `json:"quoteFlow" db:"quoteFlow"`
 	FeeRate       int     `json:"feeRate" db:"feeRate"`
-	Source        string  `json:"source" db:"source"`
+	EventIndex    int     `json:"eventIndex" db:"eventIndex"`
 }
 
 type AggEventSubGraph struct {
-	ID   string `json:"id"`
-	Pool struct {
-		Base    string `json:"base"`
-		Quote   string `json:"quote"`
-		PoolIdx string `json:"poolIdx"`
-	} `json:"pool"`
-	Block         string `json:"block"`
-	Time          string `json:"time"`
-	BidTick       int    `json:"bidTick"`
-	AskTick       int    `json:"askTick"`
-	SwapPrice     string `json:"swapPrice"`
-	InBaseQty     bool   `json:"inBaseQty"`
-	IsSwap        bool   `json:"isSwap"`
-	IsLiq         bool   `json:"isLiq"`
-	IsFeeChange   bool   `json:"isFeeChange"`
-	IsTickSkewed  bool   `json:"isTickSkewed"`
-	FlowsAtMarket bool   `json:"flowsAtMarket"`
-	BaseFlow      string `json:"baseFlow"`
-	QuoteFlow     string `json:"quoteFlow"`
-	FeeRate       int    `json:"feeRate"`
+	ID            string       `json:"id"`
+	Pool          SubGraphPool `json:"pool"`
+	Block         string       `json:"block"`
+	Time          string       `json:"time"`
+	BidTick       int          `json:"bidTick"`
+	AskTick       int          `json:"askTick"`
+	InBaseQty     bool         `json:"inBaseQty"`
+	IsSwap        bool         `json:"isSwap"`
+	IsLiq         bool         `json:"isLiq"`
+	IsFeeChange   bool         `json:"isFeeChange"`
+	IsTickSkewed  bool         `json:"isTickSkewed"`
+	FlowsAtMarket bool         `json:"flowsAtMarket"`
+	BaseFlow      string       `json:"baseFlow"`
+	QuoteFlow     string       `json:"quoteFlow"`
+	FeeRate       int          `json:"feeRate"`
+	EventIndex    int          `json:"eventIndex"`
 }
 
 type AggEventSubGraphData struct {
@@ -86,18 +82,18 @@ func (tbl AggEventsTable) ConvertSubGraphRow(r AggEventSubGraph, network string)
 		baseFlow, quoteFlow = quoteFlow, baseFlow
 	}
 
+	// strings.Clone is needed because go-json doesn't let go of the original
+	// buffers, which leads to gigabytes of wasted RAM compared to std json.
 	return AggEvent{
 		ID:            network + r.ID,
 		Network:       network,
-		Base:          base,
-		Quote:         quote,
+		Base:          strings.Clone(base),
+		Quote:         strings.Clone(quote),
 		PoolIdx:       parseInt(r.Pool.PoolIdx),
-		PoolHash:      hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
 		Block:         parseInt(r.Block),
 		Time:          parseInt(r.Time),
 		BidTick:       r.BidTick,
 		AskTick:       r.AskTick,
-		SwapPrice:     r.SwapPrice,
 		IsFeeChange:   r.IsFeeChange,
 		IsLiq:         r.IsLiq,
 		IsSwap:        r.IsSwap,
@@ -105,21 +101,21 @@ func (tbl AggEventsTable) ConvertSubGraphRow(r AggEventSubGraph, network string)
 		InBaseQty:     r.InBaseQty,
 		FlowsAtMarket: r.FlowsAtMarket,
 		FeeRate:       r.FeeRate,
-		BaseFlow:      parseFloat(r.BaseFlow),
-		QuoteFlow:     parseFloat(r.QuoteFlow),
-		Source:        "graph",
+		BaseFlow:      *baseFlow,
+		QuoteFlow:     *quoteFlow,
+		EventIndex:    r.EventIndex,
 	}
 }
 
 func (tbl AggEventsTable) ParseSubGraphResp(body []byte) ([]AggEventSubGraph, error) {
 	var parsed AggEventSubGraphResp
 
-	err := json.Unmarshal(body, &parsed)
+	err := stdjson.Unmarshal(body, &parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]AggEventSubGraph, 0)
+	ret := make([]AggEventSubGraph, 0, len(parsed.Data.AggEvents))
 	for _, entry := range parsed.Data.AggEvents {
 		ret = append(ret, entry)
 	}
@@ -134,7 +130,7 @@ func (tbl AggEventsTable) ParseSubGraphRespUnwrapped(body []byte) ([]AggEventSub
 		return nil, err
 	}
 
-	ret := make([]AggEventSubGraph, 0)
+	ret := make([]AggEventSubGraph, 0, len(parsed.AggEvents))
 	for _, entry := range parsed.AggEvents {
 		ret = append(ret, entry)
 	}

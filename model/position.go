@@ -51,6 +51,10 @@ func (p *PositionTracker) UpdateRangeRewards(rewardsLiq big.Int) {
 	p.RefreshTime = time.Now().Unix()
 }
 
+func (p *PositionTracker) Time() int {
+	return p.LatestUpdateTime
+}
+
 func (p *PositionLiquidity) IsEmpty() bool {
 	zero := big.NewInt(0)
 	return p.AmbientLiq.Cmp(zero) == 0 &&

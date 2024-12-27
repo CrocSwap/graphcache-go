@@ -1,10 +1,12 @@
 package loader
 
 import (
-	"encoding/json"
 	"log"
 	"sync"
 	"time"
+
+	"encoding/json"
+	// "github.com/goccy/go-json"
 
 	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
