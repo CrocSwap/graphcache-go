@@ -2,6 +2,8 @@ package controller
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"log"
 	"math/big"
 	"time"
@@ -42,6 +44,13 @@ type PoolInitPriceHandle struct {
 	Pool  types.PoolLocation
 	Block int
 	Hist  *model.PoolTradingHistory
+}
+
+type BumpRefreshHandle struct {
+	pool  types.PoolLocation
+	tick  int
+	curve *model.LiquidityCurve
+	bump  *model.LiquidityBump
 }
 
 func (p *PositionRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
@@ -99,6 +108,16 @@ func (p *PoolInitPriceHandle) RefreshQuery(query *loader.ICrocQuery) {
 	// priceFn := func() (*big.Int, error) { return (*query).QueryPoolPrice(p.Pool) }
 }
 
+func (p *BumpRefreshHandle) RefreshQuery(query *loader.ICrocQuery) {
+	refreshFn := func() (loader.LevelResp, error) { return (*query).QueryLevel(p.pool, p.tick) }
+	levelResp, _ := tryQueryAttempt(refreshFn, "bumpRefresh", N_MAX_RETRIES, false)
+	askLiq := big.NewInt(0).Mul(levelResp.AskLots, big.NewInt(1024))
+	bidLiq := big.NewInt(0).Mul(levelResp.BidLots, big.NewInt(1024))
+	delta := big.NewInt(0).Sub(bidLiq, askLiq)
+	deltaF64, _ := delta.Float64()
+	p.bump.LiquidityDelta = deltaF64
+}
+
 func tryQueryAttempt[T any](queryFn func() (T, error), label string, nAttempts int, fatal bool) (result T, err error) {
 	result, err = queryFn()
 	for retryCount := 0; err != nil && retryCount < nAttempts; retryCount += 1 {
@@ -136,6 +155,10 @@ func (p *PoolInitPriceHandle) LabelTag() string {
 	return "poolInitPrice"
 }
 
+func (p *BumpRefreshHandle) LabelTag() string {
+	return "bumpRefresh"
+}
+
 func (p *PositionRefreshHandle) RefreshTime() int64 {
 	return p.pos.RefreshTime
 }
@@ -153,6 +176,10 @@ func (p *KnockoutPostHandle) RefreshTime() int64 {
 }
 
 func (p *PoolInitPriceHandle) RefreshTime() int64 {
+	return 0
+}
+
+func (p *BumpRefreshHandle) RefreshTime() int64 {
 	return 0
 }
 
@@ -182,6 +209,21 @@ func (p *PoolInitPriceHandle) Hash(buf *bytes.Buffer) [32]byte {
 	return p.Pool.Hash(buf)
 }
 
+func (p *BumpRefreshHandle) Hash(buf *bytes.Buffer) [32]byte {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+		buf.Grow(100)
+	} else {
+		buf.Reset()
+	}
+	buf.WriteString(string(p.pool.ChainId))
+	buf.WriteString(string(p.pool.Base))
+	buf.WriteString(string(p.pool.Quote))
+	binary.Write(buf, binary.BigEndian, int32(p.pool.PoolIdx))
+	binary.Write(buf, binary.BigEndian, int32(p.tick))
+	return sha256.Sum256(buf.Bytes())
+}
+
 func (p *PositionRefreshHandle) Skippable() bool {
 	return false
 }
@@ -199,5 +241,9 @@ func (p *KnockoutPostHandle) Skippable() bool {
 }
 
 func (p *PoolInitPriceHandle) Skippable() bool {
+	return false
+}
+
+func (p *BumpRefreshHandle) Skippable() bool {
 	return false
 }

@@ -91,6 +91,11 @@ func (msg *poolInitPriceMsg) processUpdate(lr *LiquidityRefresher) {
 	lr.PushRefresh(&handle, int(time.Now().Unix()))
 }
 
+func (msg *bumpRefreshMsg) processUpdate(lr *LiquidityRefresher) {
+	handle := BumpRefreshHandle{pool: msg.pool, tick: msg.tick, curve: msg.curve, bump: msg.bump}
+	lr.PushRefreshPoll(&handle)
+}
+
 type posUpdateMsg struct {
 	loc types.PositionLocation
 	pos *model.PositionTracker
@@ -125,4 +130,11 @@ type poolInitPriceMsg struct {
 	pool  types.PoolLocation
 	block int
 	hist  *model.PoolTradingHistory
+}
+
+type bumpRefreshMsg struct {
+	pool  types.PoolLocation
+	tick  int
+	curve *model.LiquidityCurve
+	bump  *model.LiquidityBump
 }

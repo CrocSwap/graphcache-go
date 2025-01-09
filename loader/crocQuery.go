@@ -18,6 +18,7 @@ type ICrocQuery interface {
 	QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error)
 	QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqResp, error)
 	QueryKnockoutPivot(pos types.PositionLocation) (uint32, error)
+	QueryLevel(pool types.PoolLocation, tick int) (LevelResp, error)
 }
 
 type NonCrocQuery struct{}
@@ -40,6 +41,10 @@ func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqR
 
 func (q *NonCrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
 	return 0, nil
+}
+
+func (q *NonCrocQuery) QueryLevel(pool types.PoolLocation, tick int) (LevelResp, error) {
+	return LevelResp{BidLots: big.NewInt(0), AskLots: big.NewInt(0), FeeOdometer: 0}, nil
 }
 
 type CrocQuery struct {
@@ -178,6 +183,33 @@ func (q *CrocQuery) QueryPoolPrice(pool types.PoolLocation, blockNumber *big.Int
 	return
 }
 
+type LevelResp struct {
+	BidLots     *big.Int
+	AskLots     *big.Int
+	FeeOdometer uint64
+}
+
+func (q *CrocQuery) QueryLevel(pool types.PoolLocation, tick int) (result LevelResp, err error) {
+	callData, err := q.queryAbi.Pack("queryLevel",
+		common.HexToAddress(string(pool.Base)), common.HexToAddress(string(pool.Quote)),
+		big.NewInt(int64(pool.PoolIdx)), big.NewInt(int64(tick)))
+	if err != nil {
+		log.Fatalf("Failed to parse queryLevel on ABI: %s", err.Error())
+	}
+
+	resp, err := q.callQueryResults(pool.ChainId, callData, "queryLevel", nil)
+	if err != nil {
+		return
+	}
+
+	result = LevelResp{
+		BidLots:     resp[0].(*big.Int),
+		AskLots:     resp[1].(*big.Int),
+		FeeOdometer: resp[2].(uint64),
+	}
+	return
+}
+
 func (q *CrocQuery) callQueryResults(chainId types.ChainId,
 	callData []byte, methodName string, blockNumber *big.Int) ([]interface{}, error) {
 
@@ -222,7 +254,7 @@ func crocQueryAbi() abi.ABI {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		log.Fatalf("Failed to read ABI contract at " + filePath)
+		log.Fatalf("Failed to read ABI contract at %s", filePath)
 	}
 
 	parsedABI, err := abi.JSON(file)

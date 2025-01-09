@@ -90,6 +90,10 @@ func (m *MemoryCache) RetrieveAllPositions() map[types.PositionLocation]*model.P
 	return m.liqPosition.clone()
 }
 
+func (m *MemoryCache) RetrieveAllCurves() map[types.PoolLocation]*model.LiquidityCurve {
+	return m.poolLiqCurve.clone()
+}
+
 // Returns all positions sorted by LatestUpdateTime in descending order
 func (m *MemoryCache) RetrieveAllPositionsSorted() []PosAndLocPair {
 	allPos := m.liqPosition.clone()

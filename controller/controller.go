@@ -275,15 +275,25 @@ func (c *Controller) StartupSubgraphSyncDone() {
 	for _, posLocPair := range allPos {
 		c.workers.omniUpdates <- &posRefreshMsg{posLocPair.Loc, posLocPair.Pos, posLocPair.Pos.LatestUpdateTime}
 	}
+	c.resyncBumps()
 	log.Println("Waiting for a few liquidity refreshes to go through...")
 	time.Sleep(2 * time.Second * time.Duration(len(allPos)/100000))
 }
 
-func (c *Controller) resyncFullCycle() {
+func (c *Controller) resyncLiquidity() {
 	allPos := c.cache.RetrieveAllPositionsSorted()
 	for _, posLocPair := range allPos {
 		if !posLocPair.Pos.IsEmpty() || posLocPair.Pos.RefreshTime == 0 {
 			c.workers.omniUpdates <- &posImpactMsg{posLocPair.Loc, posLocPair.Pos}
+		}
+	}
+}
+
+func (c *Controller) resyncBumps() {
+	poolCurves := c.cache.RetrieveAllCurves()
+	for pool, curve := range poolCurves {
+		for tick, bump := range curve.Bumps {
+			c.workers.omniUpdates <- &bumpRefreshMsg{pool, tick, curve, bump}
 		}
 	}
 }
@@ -297,6 +307,7 @@ func (c *Controller) runPeriodicRefresh() {
 		time.Sleep(time.Second * REFRESH_CYCLE_TIME)
 		refreshTime := time.Now().Unix()
 		log.Println("Running full refresh at", refreshTime)
-		c.resyncFullCycle()
+		c.resyncLiquidity()
+		c.resyncBumps()
 	}
 }
