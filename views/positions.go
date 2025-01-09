@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/CrocSwap/graphcache-go/model"
+	"github.com/CrocSwap/graphcache-go/tables"
 	"github.com/CrocSwap/graphcache-go/types"
 )
 
@@ -18,7 +19,7 @@ type UserPosition struct {
 
 type HistoricUserPosition struct {
 	types.PositionLocation
-	PositionType  string                   `json:"positionType"`
+	PositionType  tables.PosType           `json:"positionType"`
 	TimeFirstMint int                      `json:"timeFirstMint"`
 	FirstMintTx   string                   `json:"firstMintTx"`
 	PositionId    string                   `json:"positionId"`
@@ -182,11 +183,11 @@ func (v *Views) QueryHistoricPositions(chainId types.ChainId, base types.EthAddr
 			if position.TimeFirstMint > time {
 				continue
 			}
-			if position.PositionType == "concentrated" {
+			if position.PositionType == tables.PosTypeConcentrated {
 				liqSumBig, _ := big.NewFloat(liqSum).Int(nil)
 				position.Liq = liqSumBig
 				position.BaseTokens, position.QuoteTokens = model.DeriveTokensFromConcLiquidity(liqSum, position.BidTick, position.AskTick, poolPrice)
-			} else if position.PositionType == "ambient" {
+			} else if position.PositionType == tables.PosTypeAmbient {
 				liqSumBig, _ := big.NewFloat(liqSum).Int(nil)
 				position.Liq = liqSumBig
 				position.BaseTokens, position.QuoteTokens = model.DeriveTokensFromAmbLiquidity(liqSum, poolPrice)

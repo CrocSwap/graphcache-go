@@ -30,7 +30,6 @@ type NormalSubgraphSyncer struct {
 type syncChannels struct {
 	bal   loader.SyncChannel[tables.Balance, tables.BalanceSubGraph]
 	liq   loader.SyncChannel[tables.LiqChange, tables.LiqChangeSubGraph]
-	ko    loader.SyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph]
 	swaps loader.SyncChannel[tables.Swap, tables.SwapSubGraph]
 	fees  loader.SyncChannel[tables.FeeChange, tables.FeeChangeSubGraph]
 	aggs  loader.SyncChannel[tables.AggEvent, tables.AggEventSubGraph]
@@ -122,11 +121,6 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	syncSwap := loader.NewSyncChannel[tables.Swap, tables.SwapSubGraph](
 		tblSwap, cfg, cntr.IngestSwap)
 
-	cfg.Query = "./artifacts/graphQueries/knockoutcrosses.query"
-	tblKo := tables.KnockoutTable{}
-	syncKo := loader.NewSyncChannel[tables.KnockoutCross, tables.KnockoutCrossSubGraph](
-		tblKo, cfg, cntr.IngestKnockout)
-
 	cfg.Query = "./artifacts/graphQueries/feechanges.query"
 	tblFee := tables.FeeTable{}
 	syncFee := loader.NewSyncChannel[tables.FeeChange, tables.FeeChangeSubGraph](
@@ -145,7 +139,6 @@ func makeSyncChannels(cntr *ControllerOverNetwork, cfg loader.SyncChannelConfig)
 	return syncChannels{
 		bal:   syncBal,
 		liq:   syncLiq,
-		ko:    syncKo,
 		swaps: syncSwap,
 		fees:  syncFee,
 		aggs:  syncAgg,
@@ -169,7 +162,6 @@ func (s *NormalSubgraphSyncer) syncStep(syncBlock int) {
 	go s.channels.bal.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Bal), syncBlock, &wg)
 
 	go s.channels.liq.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Liq), syncBlock, &wg)
-	go s.channels.ko.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Ko), syncBlock, &wg)
 	go s.channels.fees.SyncTableToSubgraphWG(maxBlock(startBlock, s.startBlocks.Fee), syncBlock, &wg)
 
 	wg.Wait()
@@ -190,8 +182,6 @@ func (s *NormalSubgraphSyncer) IngestEntries(table string, entriesData []byte, s
 		return s.channels.aggs.IngestEntries(entriesData, startBlock, endBlock)
 	case "liquidityChanges":
 		return s.channels.liq.IngestEntries(entriesData, startBlock, endBlock)
-	case "knockoutCrosses":
-		return s.channels.ko.IngestEntries(entriesData, startBlock, endBlock)
 	case "feeChanges":
 		return s.channels.fees.IngestEntries(entriesData, startBlock, endBlock)
 	case "userBalances":

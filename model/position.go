@@ -8,11 +8,11 @@ import (
 )
 
 type PositionTracker struct {
-	TimeFirstMint    int    `json:"timeFirstMint"`
-	LatestUpdateTime int    `json:"latestUpdateTime"`
-	LastMintTx       string `json:"lastMintTx"`
-	FirstMintTx      string `json:"firstMintTx"`
-	PositionType     string `json:"positionType"`
+	TimeFirstMint    int            `json:"timeFirstMint"`
+	LatestUpdateTime int            `json:"latestUpdateTime"`
+	LastMintTx       string         `json:"lastMintTx"`
+	FirstMintTx      string         `json:"firstMintTx"`
+	PositionType     tables.PosType `json:"positionType"`
 	PositionLiquidity
 	LiqHist LiquidityDeltaHist `json:"-"`
 }
@@ -20,13 +20,13 @@ type PositionTracker struct {
 func (p *PositionTracker) UpdatePosition(l tables.LiqChange) {
 	if p.LatestUpdateTime == 0 || l.Time < p.LatestUpdateTime {
 		p.TimeFirstMint = l.Time
-		if l.ChangeType == "mint" {
+		if l.ChangeType == tables.ChangeTypeMint {
 			p.FirstMintTx = l.TX
 		}
 	}
 	if l.Time > p.LatestUpdateTime {
 		p.LatestUpdateTime = l.Time
-		if l.ChangeType == "mint" {
+		if l.ChangeType == tables.ChangeTypeMint {
 			p.LastMintTx = l.TX
 		}
 	}

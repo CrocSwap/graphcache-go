@@ -21,28 +21,157 @@ func (tbl LiqChangeTable) GetBlock(r LiqChange) int {
 	return r.Block
 }
 
+type PosType int8
+
+const (
+	PosTypeUnknown PosType = iota
+	PosTypeAmbient
+	PosTypeConcentrated
+	PosTypeKnockout
+	PosTypeSwap
+)
+
+var posTypeMap = map[string]PosType{
+	"unknown":      PosTypeUnknown,
+	"ambient":      PosTypeAmbient,
+	"concentrated": PosTypeConcentrated,
+	"knockout":     PosTypeKnockout,
+	"swap":         PosTypeSwap,
+}
+
+var posTypeStringMap = map[PosType]string{
+	PosTypeUnknown:      "unknown",
+	PosTypeAmbient:      "ambient",
+	PosTypeConcentrated: "concentrated",
+	PosTypeKnockout:     "knockout",
+	PosTypeSwap:         "swap",
+}
+
+func (p *PosType) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	*p = posTypeMap[s]
+	return nil
+}
+
+func (p PosType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(posTypeStringMap[p])
+}
+
+type ChangeType int8
+
+const (
+	ChangeTypeUnknown ChangeType = iota
+	ChangeTypeMint
+	ChangeTypeBurn
+	ChangeTypeCross
+	ChangeTypeRecover
+	ChangeTypeClaim
+	ChangeTypeHarvest
+	ChangeTypeSwap
+)
+
+var changeTypeMap = map[string]ChangeType{
+	"unknown": ChangeTypeUnknown,
+	"mint":    ChangeTypeMint,
+	"burn":    ChangeTypeBurn,
+	"cross":   ChangeTypeCross,
+	"recover": ChangeTypeRecover,
+	"claim":   ChangeTypeClaim,
+	"harvest": ChangeTypeHarvest,
+	"swap":    ChangeTypeSwap,
+}
+
+var changeTypeStringMap = map[ChangeType]string{
+	ChangeTypeUnknown: "unknown",
+	ChangeTypeMint:    "mint",
+	ChangeTypeBurn:    "burn",
+	ChangeTypeCross:   "cross",
+	ChangeTypeRecover: "recover",
+	ChangeTypeClaim:   "claim",
+	ChangeTypeHarvest: "harvest",
+	ChangeTypeSwap:    "swap",
+}
+
+func (c *ChangeType) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	*c = changeTypeMap[s]
+	return nil
+}
+
+func (c ChangeType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(changeTypeStringMap[c])
+}
+
+type EntityType int8
+
+const (
+	EntityTypeUnknown EntityType = iota
+	EntityTypeSwap
+	EntityTypeLimit
+	EntityTypeLiqChange
+)
+
+var entityTypeMap = map[string]EntityType{
+	"unknown":    EntityTypeUnknown,
+	"swap":       EntityTypeSwap,
+	"limitOrder": EntityTypeLimit,
+	"liqchange":  EntityTypeLiqChange,
+}
+
+var entityTypeStringMap = map[EntityType]string{
+	EntityTypeUnknown:   "unknown",
+	EntityTypeSwap:      "swap",
+	EntityTypeLimit:     "limitOrder",
+	EntityTypeLiqChange: "liqchange",
+}
+
+func (e *EntityType) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	*e = entityTypeMap[s]
+	return nil
+}
+
+func (e EntityType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(entityTypeStringMap[e])
+}
+
 type LiqChange struct {
-	ID           string   `json:"id" db:"id"`
-	CallIndex    int      `json:"callIndex" db:"callIndex"`
-	Network      string   `json:"network" db:"network"`
-	TX           string   `json:"tx" db:"tx"`
-	Base         string   `json:"base" db:"base"`
-	Quote        string   `json:"quote" db:"quote"`
-	PoolIdx      int      `json:"poolIdx" db:"poolIdx"`
-	PoolHash     string   `json:"poolHash" db:"poolHash"`
-	User         string   `json:"user" db:"user"`
-	Block        int      `json:"block" db:"block"`
-	Time         int      `json:"time" db:"time"`
-	PositionType string   `json:"positionType" db:"positionType"`
-	ChangeType   string   `json:"changeType" db:"changeType"`
-	BidTick      int      `json:"bidTick" db:"bidTick"`
-	AskTick      int      `json:"askTick" db:"askTick"`
-	IsBid        int      `json:"isBid" db:"isBid"`
-	Liq          *float64 `json:"liq" db:"liq"`
-	BaseFlow     *float64 `json:"baseFlow" db:"baseFlow"`
-	QuoteFlow    *float64 `json:"quoteFlow" db:"quoteFlow"`
-	Source       string   `json:"source" db:"source"`
-	PivotTime    *int     `json:"pivotTime" db:"pivotTime"`
+	ID           string     `json:"id" db:"id"`
+	CallIndex    int        `json:"callIndex" db:"callIndex"`
+	Network      string     `json:"network" db:"network"`
+	TX           string     `json:"tx" db:"tx"`
+	Base         string     `json:"base" db:"base"`
+	Quote        string     `json:"quote" db:"quote"`
+	PoolIdx      int        `json:"poolIdx" db:"poolIdx"`
+	PoolHash     string     `json:"poolHash" db:"poolHash"`
+	User         string     `json:"user" db:"user"`
+	Block        int        `json:"block" db:"block"`
+	Time         int        `json:"time" db:"time"`
+	PositionType PosType    `json:"positionType" db:"positionType"`
+	ChangeType   ChangeType `json:"changeType" db:"changeType"`
+	BidTick      int        `json:"bidTick" db:"bidTick"`
+	AskTick      int        `json:"askTick" db:"askTick"`
+	IsBid        int        `json:"isBid" db:"isBid"`
+	Liq          *float64   `json:"liq" db:"liq"`
+	BaseFlow     *float64   `json:"baseFlow" db:"baseFlow"`
+	QuoteFlow    *float64   `json:"quoteFlow" db:"quoteFlow"`
+	Source       string     `json:"source" db:"source"`
+	PivotTime    *int       `json:"pivotTime" db:"pivotTime"`
 }
 
 type LiqChangeSubGraph struct {
@@ -55,19 +184,18 @@ type LiqChangeSubGraph struct {
 		Quote   string `json:"quote"`
 		PoolIdx string `json:"poolIdx"`
 	} `json:"pool"`
-	Block        string `json:"block"`
-	Time         string `json:"time"`
-	PositionType string `json:"positionType"`
-	ChangeType   string `json:"changeType"`
-	BidTick      int    `json:"bidTick"`
-	AskTick      int    `json:"askTick"`
-	IsBid        bool   `json:"isBid"`
-	Liq          string `json:"liq"`
-	BaseFlow     string `json:"baseFlow"`
-	QuoteFlow    string `json:"quoteFlow"`
-	PivotTime    string `json:"pivotTime"`
+	Block        string     `json:"block"`
+	Time         string     `json:"time"`
+	PositionType PosType    `json:"positionType"`
+	ChangeType   ChangeType `json:"changeType"`
+	BidTick      int        `json:"bidTick"`
+	AskTick      int        `json:"askTick"`
+	IsBid        bool       `json:"isBid"`
+	Liq          string     `json:"liq"`
+	BaseFlow     string     `json:"baseFlow"`
+	QuoteFlow    string     `json:"quoteFlow"`
+	PivotTime    string     `json:"pivotTime"`
 }
-
 type LiqChangeSubGraphData struct {
 	LiqChanges []LiqChangeSubGraph `json:"liquidityChanges"`
 }

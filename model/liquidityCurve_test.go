@@ -13,8 +13,8 @@ func TestAmbientNoop(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "ambient",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeAmbient,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 		IsBid:        1,
@@ -30,8 +30,8 @@ func TestRangeMint(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "concentrated",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeConcentrated,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 	})
@@ -57,8 +57,8 @@ func TestKnockoutBid(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "concentrated",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeConcentrated,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 	})
@@ -70,8 +70,8 @@ func TestKnockoutBid(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "knockout",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeKnockout,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 		IsBid:        1,
@@ -80,8 +80,8 @@ func TestKnockoutBid(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      -250,
-		ChangeType:   "cross",
-		PositionType: "knockout",
+		ChangeType:   tables.ChangeTypeCross,
+		PositionType: tables.PosTypeKnockout,
 		IsBid:        1,
 	})
 
@@ -109,8 +109,8 @@ func TestKnockoutAsk(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "concentrated",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeConcentrated,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 	})
@@ -122,8 +122,8 @@ func TestKnockoutAsk(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      -250,
 		AskTick:      500,
-		ChangeType:   "mint",
-		PositionType: "knockout",
+		ChangeType:   tables.ChangeTypeMint,
+		PositionType: tables.PosTypeKnockout,
 		BaseFlow:     &liqFlow,
 		QuoteFlow:    &liqFlow,
 		IsBid:        0,
@@ -132,8 +132,8 @@ func TestKnockoutAsk(t *testing.T) {
 	curve.UpdateLiqChange(tables.LiqChange{
 		BidTick:      500,
 		AskTick:      500,
-		ChangeType:   "cross",
-		PositionType: "knockout",
+		ChangeType:   tables.ChangeTypeCross,
+		PositionType: tables.PosTypeKnockout,
 		IsBid:        0,
 	})
 
