@@ -25,7 +25,6 @@ func getMemoryLimit() {
 }
 
 func main() {
-	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 	getMemoryLimit()
 	var netCfgPath = flag.String("netCfg", "./config/ethereum.json", "network config file")
 	var apiPath = flag.String("apiPath", "gcgo", "API server root path")

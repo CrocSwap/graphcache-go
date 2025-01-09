@@ -69,15 +69,14 @@ func (tbl KnockoutTable) ConvertSubGraphRow(r KnockoutCrossSubGraph, network str
 	}
 
 	return KnockoutCross{
-		ID:      r.ID + network,
-		Network: network,
-		Tx:      strings.Clone(r.TransactionHash),
-		Block:   parseInt(r.Block),
-		Time:    parseInt(r.Time),
-		Base:    strings.Clone(base),
-		Quote:   strings.Clone(quote),
-		PoolIdx: parseInt(r.Pool.PoolIdx),
-		// PoolHash:   hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
+		ID:         r.ID + network,
+		Network:    network,
+		Tx:         strings.Clone(r.TransactionHash),
+		Block:      parseInt(r.Block),
+		Time:       parseInt(r.Time),
+		Base:       strings.Clone(base),
+		Quote:      strings.Clone(quote),
+		PoolIdx:    parseInt(r.Pool.PoolIdx),
 		Tick:       r.Tick,
 		IsBid:      boolToInt(r.IsBid),
 		PivotTime:  parseInt(r.PivotTime),

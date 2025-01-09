@@ -106,7 +106,6 @@ func (v *Views) QueryPoolPositions(chainId types.ChainId,
 			break
 		} else {
 			beforeTime = positions[len(positions)-1].Time() - 1
-			// log.Println("QueryPoolPositions: beforeTime", beforeTime)
 		}
 	}
 	sort.Sort(byTime(results))
@@ -229,7 +228,6 @@ func (v *Views) QueryHistoricPositions(chainId types.ChainId, base types.EthAddr
 }
 
 func formPositionId(loc types.PositionLocation) string {
-	// hash := loc.Hash(nil)
 	return "pos_" + hex.EncodeToString(loc.CachedHash[:])
 }
 

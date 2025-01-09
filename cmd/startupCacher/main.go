@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -12,9 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"encoding/json"
-	// "github.com/goccy/go-json"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/types"

@@ -355,8 +355,7 @@ func (s *APIWebServer) queryUserPoolTxHist(c *gin.Context) {
 	base := parseAddrParam(c, "base")
 	quote := parseAddrParam(c, "quote")
 	poolIdx := parseIntParam(c, "poolIdx")
-	// n := parseIntMaxParam(c, "n", 200) // TODO: uncomment after infinite scrolling is merged on the frontend
-	n := 999999
+	n := parseIntMaxParam(c, "n", 200)
 	var err error
 	nStr := c.Query("n")
 	if nStr != "" {

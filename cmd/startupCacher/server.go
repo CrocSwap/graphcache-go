@@ -36,9 +36,7 @@ func passwordMiddleware(next http.Handler) http.Handler {
 
 func rewriteFsPathMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// log.Println("Rewriting path", r.URL.Path)
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/gcgo-startupcache")
-		// log.Println("Rewritten path", r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }

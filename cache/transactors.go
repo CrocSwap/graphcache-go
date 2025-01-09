@@ -248,13 +248,10 @@ func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime 
 		if pool.TimeSnaps[i].LatestTime >= startTime && pool.TimeSnaps[i].LatestTime < endTime {
 			retSeries = append(retSeries, pool.TimeSnaps[i])
 		} else if pool.TimeSnaps[i].LatestTime < startTime {
-			// log.Println("stopping at i", i, "len", len(pos.TimeSnaps))
 			openVal = pool.TimeSnaps[i]
-			// log.Println("openVal", openVal.LastPriceIndic)
 			break
 		}
 	}
-	// log.Println("i", i, "len", len(retSeries))
 	diff = time.Since(start)
 	if diff > 200*time.Millisecond {
 		log.Println("Slow loop:", diff)
@@ -268,17 +265,7 @@ func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime 
 	}
 	// If entire history was added to the series, then the openVal is the first element
 	if openVal.LatestTime == 0 && len(pool.TimeSnaps) > 0 {
-		// log.Println("1")
 		openVal = pool.TimeSnaps[0]
-		// 	// If no
-		// } else if len(pool.TimeSnaps) == 0 {
-		// 	log.Println("3")
-		// 	retSeries = append(retSeries, pool.StatsCounter)
-		// } else if openVal.LatestTime == 0 {
-		// 	log.Println("2")
-		// 	openVal = pool.StatsCounter
-		// } else {
-		// 	log.Println("4 lmao")
 	}
 
 	return

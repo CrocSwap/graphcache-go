@@ -25,22 +25,18 @@ func (tbl SwapsTable) GetBlock(r Swap) int {
 }
 
 type Swap struct {
-	ID        string `json:"id" db:"id"`
-	CallIndex int    `json:"callIndex" db:"callIndex"`
-	Network   string `json:"network" db:"network"`
-	TX        string `json:"tx" db:"tx"`
-	User      string `json:"user" db:"user"`
-	Block     int    `json:"block" db:"block"`
-	Time      int    `json:"time" db:"time"`
-	Base      string `json:"base" db:"base"`
-	Quote     string `json:"quote" db:"quote"`
-	PoolIdx   int    `json:"poolIdx" db:"poolIdx"`
-	// PoolHash  string `json:"poolHash" db:"poolHash"`
-	IsBuy     int `json:"isBuy" db:"isBuy"`
-	InBaseQty int `json:"inBaseQty" db:"inBaseQty"`
-	// Qty       float64 `json:"qty" db:"qty"`
-	// LimitPrice *float64 `json:"limitPrice" db:"limitPrice"`
-	// MinOut     *float64 `json:"minOut" db:"minOut"`
+	ID        string  `json:"id" db:"id"`
+	CallIndex int     `json:"callIndex" db:"callIndex"`
+	Network   string  `json:"network" db:"network"`
+	TX        string  `json:"tx" db:"tx"`
+	User      string  `json:"user" db:"user"`
+	Block     int     `json:"block" db:"block"`
+	Time      int     `json:"time" db:"time"`
+	Base      string  `json:"base" db:"base"`
+	Quote     string  `json:"quote" db:"quote"`
+	PoolIdx   int     `json:"poolIdx" db:"poolIdx"`
+	IsBuy     int     `json:"isBuy" db:"isBuy"`
+	InBaseQty int     `json:"inBaseQty" db:"inBaseQty"`
 	BaseFlow  float64 `json:"baseFlow" db:"baseFlow"`
 	QuoteFlow float64 `json:"quoteFlow" db:"quoteFlow"`
 }
@@ -61,11 +57,8 @@ type SwapSubGraph struct {
 	Time            string       `json:"time"`
 	IsBuy           bool         `json:"isBuy"`
 	InBaseQty       bool         `json:"inBaseQty"`
-	// Qty       string `json:"qty"`
-	// LimitPrice string `json:"limitPrice"`
-	// MinOut     string `json:"minOut"`
-	BaseFlow  string `json:"baseFlow"`
-	QuoteFlow string `json:"quoteFlow"`
+	BaseFlow        string       `json:"baseFlow"`
+	QuoteFlow       string       `json:"quoteFlow"`
 }
 
 type SwapSubGraphData struct {
@@ -98,12 +91,8 @@ func (tbl SwapsTable) ConvertSubGraphRow(r SwapSubGraph, network string) Swap {
 		Base:      strings.Clone(base),
 		Quote:     strings.Clone(quote),
 		PoolIdx:   parseInt(r.Pool.PoolIdx),
-		// PoolHash:  hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
 		IsBuy:     boolToInt(r.IsBuy),
 		InBaseQty: boolToInt(r.InBaseQty),
-		// Qty:       *parseNullableFloat64(r.Qty),
-		// LimitPrice: parseNullableFloat64(r.LimitPrice),
-		// MinOut:     parseNullableFloat64(r.MinOut),
 		BaseFlow:  *baseFlow,
 		QuoteFlow: *quoteFlow,
 	}
@@ -124,12 +113,8 @@ func (tbl SwapsTable) ReadSqlRow(rows *sql.Rows) Swap {
 		&swap.Base,
 		&swap.Quote,
 		&swap.PoolIdx,
-		// &swap.PoolHash,
 		&swap.IsBuy,
 		&swap.InBaseQty,
-		// &swap.Qty,
-		// &swap.LimitPrice,
-		// &swap.MinOut,
 		&swap.BaseFlow,
 		&swap.QuoteFlow,
 	)

@@ -2,6 +2,7 @@ package loader
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,9 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"encoding/json"
-	// "github.com/goccy/go-json"
 )
 
 type GraphRequest[V GraphReqVars | CombinedGraphReqVars] struct {

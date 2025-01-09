@@ -106,7 +106,6 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 
 	startTime = startTime - startTime%timeRange.Period
 	endTime = endTime - endTime%timeRange.Period
-	// log.Println("QueryPoolCandles", timeRange, startTime, endTime)
 
 	if timeRange.Period >= 3600 && timeRange.Period%3600 == 0 {
 		return v.fastHourlyCandles(loc, timeRange, startTime, endTime)
@@ -118,8 +117,6 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 	if diff > 250*time.Millisecond {
 		log.Println("Slow RetrievePoolAccumSeries:", diff)
 	}
-
-	// log.Println("open", open, "series", len(series), "from", startTime, "to", endTime)
 
 	start = time.Now()
 	builder := model.NewCandleBuilder(startTime, timeRange.Period, open)
@@ -138,9 +135,6 @@ func (v *Views) QueryPoolCandles(chainId types.ChainId, base types.EthAddress, q
 func (v *Views) fastHourlyCandles(loc types.PoolLocation, timeRange CandleRangeArgs, startTime int, endTime int) []model.Candle {
 	candlesPtr, candleLock := v.Cache.BorrowPoolHourlyCandles(loc, false)
 	candles := *candlesPtr
-	if len(candles) > 0 {
-		// log.Println("Cached candles", len(candles), candles[0].Time, candles[len(candles)-1].Time)
-	}
 	// If no cached candles or the last candle is stale, refresh
 	if len(candles) == 0 || (len(candles) > 0 && time.Since(time.Unix(int64(candles[len(candles)-1].Time), 0)) > 2*time.Hour+1*time.Minute) {
 		pos, poolLock := v.Cache.BorrowPoolTradingHist(loc, false)
@@ -170,9 +164,6 @@ func (v *Views) fastHourlyCandles(loc types.PoolLocation, timeRange CandleRangeA
 		}
 		*candlesPtr = candles
 	}
-	if len(candles) > 0 {
-		// log.Println("CombineHourlyCandles", candles[0].Time, candles[len(candles)-1].Time, startTime, endTime)
-	}
 	candles = model.CombineHourlyCandles(candles, timeRange.Period/3600, startTime, endTime, timeRange.N)
 	candleLock.RUnlock()
 
@@ -184,26 +175,17 @@ func (v *Views) fastHourlyCandles(loc types.PoolLocation, timeRange CandleRangeA
 		if diff > 250*time.Millisecond {
 			log.Println("Slow fastRetrievePoolAccumSeries:", diff)
 		}
-		// log.Println("fastRetrievePoolAccumSeries", len(series), open, endTime-timeRange.Period*2, endTime-timeRange.Period)
-		if len(series) > 0 {
-			// log.Println(series[0].LatestTime, "---", series[len(series)-1].LatestTime)
-		}
 
 		start = time.Now()
 		builder := model.NewCandleBuilder(endTime-timeRange.Period*2, timeRange.Period, open)
 		for _, accum := range series {
 			builder.Increment(accum)
 		}
-		// if pos.StatsCounter.LatestTime < lastHourly {
-		// 	builder.Increment(pos.StatsCounter)
-		// }
 		diff = time.Since(start)
 		if diff > 25*time.Millisecond {
 			log.Println("Slow fastBuildCandles:", diff)
 		}
 		lastCandle := builder.Close(endTime)
-		// log.Println("Last candle fast", candles[len(candles)-1])
-		// log.Println("Last candle new ", lastCandle)
 		if len(lastCandle) > 0 {
 			if len(candles) > 0 && lastCandle[0].Time == candles[len(candles)-1].Time {
 				candles[len(candles)-1] = lastCandle[0]

@@ -63,10 +63,8 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 		var positions []cache.KoAndLocPair
 		if afterTime == 0 && beforeTime == 0 {
 			positions = v.Cache.RetrieveLastNPoolKo(loc, nResults*EMPTY_MULT)
-			// log.Println("Got", len(positions), "latest positions")
 		} else {
 			positions = v.Cache.RetrievePoolKoAtTime(loc, afterTime, beforeTime, nResults*EMPTY_MULT, hasSeen)
-			// log.Println("Got", len(positions), "positions at time", afterTime, beforeTime, "seen", len(hasSeen))
 		}
 
 		for _, val := range positions {
@@ -87,7 +85,6 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 			break
 		} else {
 			beforeTime = positions[len(positions)-1].Time() - 1
-			// log.Println("QueryPoolLimits: beforeTime", beforeTime)
 		}
 	}
 	sort.Sort(byTimeLO(results))

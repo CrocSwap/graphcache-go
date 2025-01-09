@@ -78,8 +78,7 @@ func (tbl FeeTable) ConvertSubGraphRow(r FeeChangeSubGraph, network string) FeeC
 		Base:      strings.Clone(base),
 		Quote:     strings.Clone(quote),
 		PoolIdx:   parseInt(r.Pool.PoolIdx),
-		// PoolHash:  hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
-		FeeRate: r.FeeRate,
+		FeeRate:   r.FeeRate,
 	}
 }
 
@@ -97,7 +96,6 @@ func (tbl FeeTable) ReadSqlRow(rows *sql.Rows) FeeChange {
 		&feeChange.Base,
 		&feeChange.Quote,
 		&feeChange.PoolIdx,
-		// &feeChange.PoolHash,
 		&feeChange.FeeRate,
 	)
 	if err != nil {

@@ -112,16 +112,11 @@ func CombineHourlyCandles(candles []Candle, hours int, startTime int, endTime in
 	combined := make([]Candle, 0, max((endTime-startTime)/hours/3600, 1)) // max(1, ...) so that JSON is always an array
 	period := hours * 3600
 	startGroup := -1
-	if len(candles) > 0 {
-		// log.Println("got candles:", candles[0].Time, candles[len(candles)-1].Time)
-	}
 	for _, candle := range candles {
 		if candle.Time < startTime {
-			// log.Println("Skipping candle", candle.Time, startTime)
 			continue
 		}
 		if candle.Time >= endTime || len(combined) >= n {
-			// log.Println("Breaking at", candle.Time, endTime, len(combined), n)
 			break
 		}
 		if startGroup == -1 {
@@ -129,7 +124,6 @@ func CombineHourlyCandles(candles []Candle, hours int, startTime int, endTime in
 		}
 		ci := (candle.Time-(candle.Time%period))/period - startGroup
 
-		// log.Println("Processing candle", candle.Time, startTime, endTime, ci)
 		if ci >= len(combined) {
 			combined = append(combined, Candle{})
 		}

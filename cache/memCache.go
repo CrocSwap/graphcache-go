@@ -42,12 +42,10 @@ func New() *MemoryCache {
 		liqPosition:   newRwLockMap[types.PositionLocation, *model.PositionTracker](),
 		userPositions: newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.PositionTracker](),
 		poolPositions: newRwLockMapMap[types.PoolLocation, types.PositionLocation, *model.PositionTracker](),
-		// userAndPoolPositions: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.PositionTracker](),
 
 		liqKnockouts:  newRwLockMap[types.PositionLocation, *model.KnockoutSubplot](),
 		userKnockouts: newRwLockMapMap[chainAndAddr, types.PositionLocation, *model.KnockoutSubplot](),
 		poolKnockouts: newRwLockMapMap[types.PoolLocation, types.PositionLocation, *model.KnockoutSubplot](),
-		// userAndPoolKnockouts: newRwLockMapMap[chainUserAndPool, types.PositionLocation, *model.KnockoutSubplot](),
 
 		knockoutSagas:      newRwLockMap[types.BookLocation, *model.KnockoutSaga](),
 		knockoutPivotTimes: newRwLockMap[types.BookLocation, int](),
