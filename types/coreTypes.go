@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+	"encoding/hex"
 	"log"
 	"strconv"
 	"strings"
@@ -11,6 +13,15 @@ type EthAddress string
 type EthTxHash string
 type EthStorageHash string
 type NetworkName string
+
+func (a EthAddress) Time() int {
+	return 0
+}
+
+func (a EthAddress) Hash(buf *bytes.Buffer) (hash [32]byte) {
+	hex.Decode(hash[:], []byte(a[2:]))
+	return
+}
 
 func ValidateEthAddr(arg string) EthAddress {
 	if strings.HasPrefix(arg, "0x") && len(arg) == 42 {

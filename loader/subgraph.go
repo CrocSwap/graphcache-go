@@ -95,7 +95,7 @@ func queryFromSubgraph(cfg ChainConfig, query SubgraphQuery, startTime int, endT
 	result, err := queryFromSubgraphTry(cfg, req)
 
 	for err != nil {
-		log.Println("Subgraph query failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
+		log.Printf("Subgraph %s query failed. Retrying in %d seconds. Error: %s", cfg.HexChainID(), SUBGRAPH_RETRY_SECS, err.Error())
 
 		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
 		result, err = queryFromSubgraphTry(cfg, req)
@@ -112,7 +112,7 @@ func queryFromSubgraphCombined(cfg ChainConfig, query SubgraphQuery, isAsc bool,
 	result, err := queryFromSubgraphTry(cfg, req)
 
 	for err != nil {
-		log.Println("Subgraph combined query failed. Retrying in", SUBGRAPH_RETRY_SECS, "seconds. Error: ", err)
+		log.Printf("Subgraph %s combined query failed. Retrying in %d seconds. Error: %s", cfg.HexChainID(), SUBGRAPH_RETRY_SECS, err.Error())
 
 		time.Sleep(time.Duration(SUBGRAPH_RETRY_SECS) * time.Second)
 		result, err = queryFromSubgraphTry(cfg, req)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/model"
@@ -45,6 +46,11 @@ func (msg *posUpdateMsg) processUpdate(lr *LiquidityRefresher) {
 	lr.PushRefresh(&handle, msg.liq.Time)
 }
 
+func (msg *posRefreshMsg) processUpdate(lr *LiquidityRefresher) {
+	handle := PositionRefreshHandle{location: msg.loc, pos: msg.pos}
+	lr.PushRefresh(&handle, msg.refreshTime)
+}
+
 func (msg *posImpactMsg) processUpdate(lr *LiquidityRefresher) {
 	handle := RewardsRefreshHandle{location: msg.loc, pos: msg.pos}
 	lr.PushRefreshPoll(&handle)
@@ -80,16 +86,32 @@ func (msg *koCrossUpdateMsg) processUpdate(lr *LiquidityRefresher) {
 	}
 }
 
+func (msg *poolInitPriceMsg) processUpdate(lr *LiquidityRefresher) {
+	handle := PoolInitPriceHandle{Pool: msg.pool, Block: msg.block, Hist: msg.hist}
+	lr.PushRefresh(&handle, int(time.Now().Unix()))
+}
+
+func (msg *bumpRefreshMsg) processUpdate(lr *LiquidityRefresher) {
+	handle := BumpRefreshHandle{pool: msg.pool, tick: msg.tick, curve: msg.curve, bump: msg.bump}
+	lr.PushRefreshPoll(&handle)
+}
+
 type posUpdateMsg struct {
 	loc types.PositionLocation
 	pos *model.PositionTracker
 	liq tables.LiqChange
 }
 
+// Version of posUpdateMsg that doesn't update the position state, only queries liq and rewards
+type posRefreshMsg struct {
+	loc         types.PositionLocation
+	pos         *model.PositionTracker
+	refreshTime int
+}
+
 type posImpactMsg struct {
-	loc       types.PositionLocation
-	pos       *model.PositionTracker
-	eventTime int
+	loc types.PositionLocation
+	pos *model.PositionTracker
 }
 
 type koPosUpdateMsg struct {
@@ -102,4 +124,17 @@ type koCrossUpdateMsg struct {
 	loc   types.BookLocation
 	pos   *model.KnockoutSaga
 	cross tables.LiqChange
+}
+
+type poolInitPriceMsg struct {
+	pool  types.PoolLocation
+	block int
+	hist  *model.PoolTradingHistory
+}
+
+type bumpRefreshMsg struct {
+	pool  types.PoolLocation
+	tick  int
+	curve *model.LiquidityCurve
+	bump  *model.LiquidityBump
 }

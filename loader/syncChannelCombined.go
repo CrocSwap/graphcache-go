@@ -1,8 +1,10 @@
 package loader
 
 import (
-	"encoding/json"
 	"log"
+	"os"
+
+	"encoding/json"
 )
 
 type combinedEntry struct {
@@ -88,7 +90,11 @@ func (s *SyncChannel[R, S]) IngestEntries(data []byte, queryStartBlock, queryEnd
 		// but returning `false` could potentially cause the sync to exit early.
 		// Returning `true` during normal runtime would cause the subgraph to
 		// be polled again immediately, which is not ideal.
-		return 0, true, nil
+		if os.Getenv("ALLOW_EMPTY_SUBGRAPH_TABLES") != "true" {
+			return 0, true, nil
+		} else {
+			return 0, false, nil
+		}
 	}
 
 	for _, entry := range entries {

@@ -23,6 +23,8 @@ type PositionLocation struct {
 	PoolLocation
 	LiquidityLocation
 	User EthAddress `json:"user"`
+	// Used to speed up `memcache.poolPosUpdates.lookupLastNTimeNonUnique()`
+	CachedHash [32]byte `json:"-"`
 }
 
 type KOClaimLocation struct {
@@ -78,9 +80,16 @@ func (l PositionLocation) ToBookLoc() BookLocation {
 	}
 }
 
-func (p PositionLocation) Hash() [32]byte {
-	buf := new(bytes.Buffer)
-	buf.Grow(160)
+func (p PositionLocation) Hash(buf *bytes.Buffer) [32]byte {
+	if p.CachedHash != [32]byte{} {
+		return p.CachedHash
+	}
+	if buf == nil {
+		buf = new(bytes.Buffer)
+		buf.Grow(160)
+	} else {
+		buf.Reset()
+	}
 	buf.WriteString(string(p.ChainId))
 	buf.WriteString(string(p.Base))
 	buf.WriteString(string(p.Quote))
@@ -92,9 +101,13 @@ func (p PositionLocation) Hash() [32]byte {
 	return sha256.Sum256(buf.Bytes())
 }
 
-func (k KOClaimLocation) Hash() [32]byte {
-	buf := new(bytes.Buffer)
-	buf.Grow(160)
+func (k KOClaimLocation) Hash(buf *bytes.Buffer) [32]byte {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+		buf.Grow(160)
+	} else {
+		buf.Reset()
+	}
 	buf.WriteString(string(k.ChainId))
 	buf.WriteString(string(k.Base))
 	buf.WriteString(string(k.Quote))
@@ -107,12 +120,29 @@ func (k KOClaimLocation) Hash() [32]byte {
 	return sha256.Sum256(buf.Bytes())
 }
 
+func (p PoolLocation) Hash(buf *bytes.Buffer) [32]byte {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+		buf.Grow(100)
+	} else {
+		buf.Reset()
+	}
+	buf.WriteString(string(p.ChainId))
+	buf.WriteString(string(p.Base))
+	buf.WriteString(string(p.Quote))
+	binary.Write(buf, binary.BigEndian, int32(p.PoolIdx))
+	return sha256.Sum256(buf.Bytes())
+}
+
 func (l BookLocation) ToPositionLocation(user EthAddress) PositionLocation {
-	return PositionLocation{
+	loc := PositionLocation{
 		l.PoolLocation,
 		l.LiquidityLocation,
 		user,
+		[32]byte{},
 	}
+	loc.CachedHash = loc.Hash(nil)
+	return loc
 }
 
 func (l PositionLocation) ToClaimLoc(pivot int) KOClaimLocation {

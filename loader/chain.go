@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"strconv"
 	"time"
@@ -35,6 +36,7 @@ type CallJob struct {
 type OnChainLoader struct {
 	Cfg          NetworkConfig
 	jobChans     map[int]chan CallJob
+	callCount    int
 	multicallAbi abi.ABI
 }
 
@@ -58,7 +60,7 @@ func multicallAbi() abi.ABI {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		log.Fatalf("Failed to read ABI contract at " + filePath)
+		log.Fatalln("Failed to read ABI contract at " + filePath)
 	}
 
 	parsedABI, err := abi.JSON(file)
@@ -87,10 +89,10 @@ func (c *OnChainLoader) ethClientForChain(chainId types.ChainId) (*ethclient.Cli
 	return client, err
 }
 
-func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
-	contract types.EthAddress, client *ethclient.Client, chainId types.ChainId, abi abi.ABI) ([]interface{}, error) {
+func (c *OnChainLoader) callContractFn(callData []byte, methodName string, contract types.EthAddress,
+	client *ethclient.Client, chainId types.ChainId, abi abi.ABI, blockNumber *big.Int) ([]interface{}, error) {
 
-	result, err := c.contractDataCall(client, chainId, contract, callData)
+	result, err := c.contractDataCall(client, chainId, contract, callData, blockNumber)
 	if err != nil {
 		log.Printf("Warning calling %s() on contract: %s", methodName, err.Error())
 		return nil, err
@@ -106,11 +108,13 @@ func (c *OnChainLoader) callContractFn(callData []byte, methodName string,
 
 const MULTICALL_TIMEOUT_MS = 5000
 
-func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
+func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types.ChainId,
+	contract types.EthAddress, data []byte, blockNumber *big.Int) ([]byte, error) {
+
 	chainIdInt, _ := strconv.ParseInt(string(chainId)[2:], 16, 32)
 	jobChan := c.jobChans[int(chainIdInt)]
-	if jobChan == nil { // if multicall is disabled for this chain
-		return c.singleContractDataCall(client, chainId, contract, data)
+	if jobChan == nil || blockNumber != nil { // if multicall is disabled for this chain or a block is specified
+		return c.singleContractDataCall(client, chainId, contract, data, blockNumber)
 	}
 
 	job := CallJob{
@@ -129,12 +133,13 @@ func (c *OnChainLoader) contractDataCall(client *ethclient.Client, chainId types
 		return result, nil
 	case <-time.After(MULTICALL_TIMEOUT_MS * time.Millisecond):
 		log.Println("Multicall timed out, calling manually")
-		return c.singleContractDataCall(client, chainId, contract, data)
+		return c.singleContractDataCall(client, chainId, contract, data, nil)
 	}
 }
 
 // Call a contract directly
-func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, _ types.ChainId, contract types.EthAddress, data []byte) ([]byte, error) {
+func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, chainId types.ChainId,
+	contract types.EthAddress, data []byte, blockNumber *big.Int) ([]byte, error) {
 	addr := common.HexToAddress(string(contract))
 
 	msg := ethereum.CallMsg{
@@ -144,9 +149,13 @@ func (c *OnChainLoader) singleContractDataCall(client *ethclient.Client, _ types
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	result, err := client.CallContract(ctx, msg, nil)
+	result, err := client.CallContract(ctx, msg, blockNumber)
+	c.callCount++
+	if c.callCount%100 == 0 {
+		log.Printf("RPC calls for %s: %d", chainId, c.callCount)
+	}
 	if err != nil {
-		log.Println("Error calling the contract:", err)
+		log.Printf("Error calling the contract on %s: %s", chainId, err.Error())
 		return []byte{}, err
 	}
 	return result, nil
@@ -228,7 +237,7 @@ func (c *OnChainLoader) multicall(jobs []CallJob, chainId int, networkName types
 	if err != nil {
 		return err
 	}
-	multicallResult, err := c.singleContractDataCall(client, types.IntToChainId(chainId), types.EthAddress(c.Cfg[networkName].MulticallContract), packed)
+	multicallResult, err := c.singleContractDataCall(client, types.IntToChainId(chainId), types.EthAddress(c.Cfg[networkName].MulticallContract), packed, nil)
 	if err != nil {
 		return err
 	}

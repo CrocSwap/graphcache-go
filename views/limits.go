@@ -1,11 +1,13 @@
 package views
 
 import (
+	"bytes"
 	"encoding/hex"
 	"log"
 	"math/big"
 	"sort"
 
+	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
 )
@@ -37,7 +39,8 @@ func (v *Views) QueryUserLimits(chainId types.ChainId, user types.EthAddress) []
 }
 
 func (v *Views) QueryPoolLimits(chainId types.ChainId,
-	base types.EthAddress, quote types.EthAddress, poolIdx int, nResults int) []UserLimitOrder {
+	base types.EthAddress, quote types.EthAddress, poolIdx int,
+	nResults int, afterTime int, beforeTime int) []UserLimitOrder {
 	results := make([]UserLimitOrder, 0)
 
 	loc := types.PoolLocation{
@@ -49,25 +52,43 @@ func (v *Views) QueryPoolLimits(chainId types.ChainId,
 
 	// Retrieve X times the number of results to make it likely we have enough after filtering empty
 	const EMPTY_MULT = 12
+	hasSeen := make(map[[32]byte]struct{}, nResults*EMPTY_MULT)
+	buf := new(bytes.Buffer)
+	buf.Grow(300)
 
-	positions := v.Cache.RetriveLastNPoolKo(loc, nResults*EMPTY_MULT)
+	// Keep retrieving updates until we have nResults or until iter limit is reached.
+	// Without the limit it could stall for like 10 seconds searching for non-empty
+	// positions, especially if the startup RPC liq refresh isn't done yet.
+	for i := 0; i < 5; i++ {
+		var positions []cache.KoAndLocPair
+		if afterTime == 0 && beforeTime == 0 {
+			positions = v.Cache.RetrieveLastNPoolKo(loc, nResults*EMPTY_MULT)
+		} else {
+			positions = v.Cache.RetrievePoolKoAtTime(loc, afterTime, beforeTime, nResults*EMPTY_MULT, hasSeen)
+		}
 
-	hasSeen := make(map[types.PositionLocation]bool, 0)
+		for _, val := range positions {
+			hash := val.Loc.Hash(buf)
+			if _, ok := hasSeen[hash]; !ok || (afterTime != 0 || beforeTime != 0) {
+				hasSeen[hash] = struct{}{}
+				results = append(results, unrollSubplot(val.Loc, val.Ko)...)
+			}
+			if len(results) >= nResults {
+				break
+			}
+		}
 
-	for _, val := range positions {
-		if !hasSeen[val.Loc] {
-			hasSeen[val.Loc] = true
-			results = append(results, unrollSubplot(val.Loc, val.Ko)...)
+		if len(results) >= nResults {
+			results = results[0:nResults]
+			break
+		} else if len(positions) == 0 {
+			break
+		} else {
+			beforeTime = positions[len(positions)-1].Time() - 1
 		}
 	}
-
 	sort.Sort(byTimeLO(results))
-
-	if len(results) > nResults {
-		return results[0:nResults]
-	} else {
-		return results
-	}
+	return results
 }
 
 func (v *Views) QueryUserPoolLimits(chainId types.ChainId, user types.EthAddress,
@@ -146,7 +167,7 @@ func unrollSubplot(pos types.PositionLocation, subplot *model.KnockoutSubplot) [
 }
 
 func formLimitId(loc types.KOClaimLocation) string {
-	hash := loc.Hash()
+	hash := loc.Hash(nil)
 	return "limit_" + hex.EncodeToString(hash[:])
 }
 

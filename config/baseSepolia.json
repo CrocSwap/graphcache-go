@@ -1,0 +1,13 @@
+{
+    "baseSepolia": {
+      "chain_id": 84532,
+      "rpc": "https://sepolia.base.org",
+      "subgraph": "https://api.goldsky.com/api/public/project_clv48bjfg3wyi01rfcojf8ha2/subgraphs/croc-base-sepolia/v0.4.1/gn",
+      "query_contract": "0x1C74Dd2DF010657510715244DA10ba19D1F3D2B7",
+      "knockout_tick_width": 1,
+      "multicall_disabled": false,
+      "multicall_contract": "0x70a6a0C905af5737aD73Ceba4e6158e995031d4B",
+      "multicall_max_batch": 100,
+      "multicall_interval_ms": 1000
+    }
+  }

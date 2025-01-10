@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"runtime/debug"
 
 	"github.com/CrocSwap/graphcache-go/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -17,6 +18,7 @@ type ICrocQuery interface {
 	QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error)
 	QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqResp, error)
 	QueryKnockoutPivot(pos types.PositionLocation) (uint32, error)
+	QueryLevel(pool types.PoolLocation, tick int) (LevelResp, error)
 }
 
 type NonCrocQuery struct{}
@@ -39,6 +41,10 @@ func (q *NonCrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (KnockoutLiqR
 
 func (q *NonCrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, error) {
 	return 0, nil
+}
+
+func (q *NonCrocQuery) QueryLevel(pool types.PoolLocation, tick int) (LevelResp, error) {
+	return LevelResp{BidLots: big.NewInt(0), AskLots: big.NewInt(0), FeeOdometer: 0}, nil
 }
 
 type CrocQuery struct {
@@ -64,7 +70,7 @@ func (q *CrocQuery) QueryAmbientLiq(pos types.PositionLocation) (*big.Int, error
 		log.Fatalf("Failed to parse queryPrice on ABI: %s", err.Error())
 	}
 
-	return q.callQueryFirstReturn(pos.ChainId, callData, "queryAmbientTokens")
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryAmbientTokens", nil)
 }
 
 func (q *CrocQuery) QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, error) {
@@ -80,7 +86,7 @@ func (q *CrocQuery) QueryRangeLiquidity(pos types.PositionLocation) (*big.Int, e
 		log.Fatalf("Failed to parse queryRangeTokens on ABI: %s", err.Error())
 	}
 
-	return q.callQueryFirstReturn(pos.ChainId, callData, "queryRangeTokens")
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryRangeTokens", nil)
 }
 
 func (q *CrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, error) {
@@ -95,7 +101,7 @@ func (q *CrocQuery) QueryRangeRewardsLiq(pos types.PositionLocation) (*big.Int, 
 		log.Fatalf("Failed to parse queryConcRewards on ABI: %s", err.Error())
 	}
 
-	return q.callQueryFirstReturn(pos.ChainId, callData, "queryConcRewards")
+	return q.callQueryFirstReturn(pos.ChainId, callData, "queryConcRewards", nil)
 }
 
 type KnockoutLiqResp struct {
@@ -118,7 +124,7 @@ func (q *CrocQuery) QueryKnockoutLiq(pos types.KOClaimLocation) (resp KnockoutLi
 		log.Fatalf("Failed to parse queryKnockoutTokens on ABI: %s", err.Error())
 	}
 
-	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens")
+	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutTokens", nil)
 
 	if err != nil {
 		return
@@ -141,7 +147,7 @@ func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, erro
 		log.Fatalf("Failed to parse queryKnockoutPivot on ABI: %s", err.Error())
 	}
 
-	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutPivot")
+	result, err := q.callQueryResults(pos.ChainId, callData, "queryKnockoutPivot", nil)
 
 	if err != nil {
 		return 0, err
@@ -150,8 +156,62 @@ func (q *CrocQuery) QueryKnockoutPivot(pos types.PositionLocation) (uint32, erro
 	return result[1].(uint32), nil
 }
 
+func (q *CrocQuery) QueryPoolPrice(pool types.PoolLocation, blockNumber *big.Int) (price float64, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in QueryPoolPrice: %v", r)
+			log.Println("Stack trace: ", string(debug.Stack()))
+			price = 0.0
+			err = fmt.Errorf("panic in QueryPoolPrice")
+		}
+	}()
+	callData, err := q.queryAbi.Pack("queryPrice",
+		common.HexToAddress(string(pool.Base)), common.HexToAddress(string(pool.Quote)), big.NewInt(int64(pool.PoolIdx)))
+	if err != nil {
+		log.Fatalf("Failed to parse queryPrice on ABI: %s", err.Error())
+	}
+
+	crocPrice, err := q.callQueryFirstReturn(pool.ChainId, callData, "queryPrice", blockNumber)
+	if err != nil {
+		return 0.0, err
+	}
+	crocPriceF := new(big.Float).SetInt(crocPrice)
+	denom := new(big.Float).SetInt(new(big.Int).Lsh(big.NewInt(1), 64))
+	crocPriceF.Quo(crocPriceF, denom)
+	crocPriceF.Mul(crocPriceF, crocPriceF)
+	price, _ = crocPriceF.Float64()
+	return
+}
+
+type LevelResp struct {
+	BidLots     *big.Int
+	AskLots     *big.Int
+	FeeOdometer uint64
+}
+
+func (q *CrocQuery) QueryLevel(pool types.PoolLocation, tick int) (result LevelResp, err error) {
+	callData, err := q.queryAbi.Pack("queryLevel",
+		common.HexToAddress(string(pool.Base)), common.HexToAddress(string(pool.Quote)),
+		big.NewInt(int64(pool.PoolIdx)), big.NewInt(int64(tick)))
+	if err != nil {
+		log.Fatalf("Failed to parse queryLevel on ABI: %s", err.Error())
+	}
+
+	resp, err := q.callQueryResults(pool.ChainId, callData, "queryLevel", nil)
+	if err != nil {
+		return
+	}
+
+	result = LevelResp{
+		BidLots:     resp[0].(*big.Int),
+		AskLots:     resp[1].(*big.Int),
+		FeeOdometer: resp[2].(uint64),
+	}
+	return
+}
+
 func (q *CrocQuery) callQueryResults(chainId types.ChainId,
-	callData []byte, methodName string) ([]interface{}, error) {
+	callData []byte, methodName string, blockNumber *big.Int) ([]interface{}, error) {
 
 	client, err := q.chain.ethClientForChain(chainId)
 
@@ -164,18 +224,17 @@ func (q *CrocQuery) callQueryResults(chainId types.ChainId,
 		return make([]interface{}, 0), err
 	}
 
-	return q.chain.callContractFn(callData, methodName, contractAddr, client, chainId, q.queryAbi)
+	return q.chain.callContractFn(callData, methodName, contractAddr, client, chainId, q.queryAbi, blockNumber)
 }
 
 func (q *CrocQuery) callQueryFirstReturn(chainId types.ChainId,
-	callData []byte, methodName string) (*big.Int, error) {
-	result, err := q.callQueryResults(chainId, callData, methodName)
+	callData []byte, methodName string, blockNumber *big.Int) (*big.Int, error) {
+	result, err := q.callQueryResults(chainId, callData, methodName, blockNumber)
 
 	if err != nil {
 		return big.NewInt(0), err
 	}
 	return result[0].(*big.Int), nil
-
 }
 
 func (q *CrocQuery) getQueryContractAddr(chain types.ChainId) (types.EthAddress, error) {
@@ -195,7 +254,7 @@ func crocQueryAbi() abi.ABI {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		log.Fatalf("Failed to read ABI contract at " + filePath)
+		log.Fatalf("Failed to read ABI contract at %s", filePath)
 	}
 
 	parsedABI, err := abi.JSON(file)

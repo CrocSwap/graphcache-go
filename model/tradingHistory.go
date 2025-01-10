@@ -36,6 +36,18 @@ func (h *PoolTradingHistory) NextEvent(r tables.AggEvent) {
 	h.StatsCounter.Accumulate(r)
 }
 
+func (h *PoolTradingHistory) Len() int {
+	return len(h.TimeSnaps)
+}
+
+func (h *PoolTradingHistory) SetInitPrice(price float64) {
+	if len(h.TimeSnaps) > 0 {
+		h.TimeSnaps[0].LastPriceSwap = price
+		h.TimeSnaps[0].LastPriceIndic = price
+		h.TimeSnaps[0].LastPriceLiq = price
+	}
+}
+
 type AccumPoolStats struct {
 	LatestTime     int     `json:"latestTime"`
 	BaseTvl        float64 `json:"baseTvl"`

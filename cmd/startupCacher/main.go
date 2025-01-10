@@ -96,8 +96,11 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 			"aggEvents":        &combined.Aggs,
 			"userBalances":     &combined.Bals,
 			"feeChanges":       &combined.Fees,
-			"knockoutCrosses":  &combined.Kos,
 			"liquidityChanges": &combined.Liqs,
+		}
+
+		if cfg.ChainID != 7700 {
+			tables["knockoutCrosses"] = &combined.Kos
 		}
 
 		anyTableHasMore := false
@@ -106,12 +109,15 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 			err = json.Unmarshal(*tableData, &entries)
 			if err != nil {
 				log.Printf("Error unmarshalling %s data for chain %s: %s", tableName, chainId, err)
+				log.Println(string(*tableData))
 				anyTableHasMore = true
+				time.Sleep(10 * time.Second)
 				continue
 			}
 			if len(entries) == 0 {
 				log.Printf("Warning subgraph for chain %s for table %s returned no entries while at least one was expected", chainId, tableName)
 				anyTableHasMore = true
+				time.Sleep(10 * time.Second)
 				continue
 			}
 			for _, entry := range entries {
@@ -142,7 +148,7 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 		}
 
 		log.Println("Table lengths for", chainId, tableLengths)
-		saveChunks(&tableEntries, string(chainId), chainPath, false)
+		saveChunks(&tableEntries, string(chainId), chainPath, false, ENTRIES_PER_FILE)
 		if !anyTableHasMore {
 			log.Printf("Finished querying %s: Swap: %d Agg: %d Bal: %d Liq: %d Ko: %d Fee: %d", chainId, minBlocks.Swaps, minBlocks.Aggs, minBlocks.Bal, minBlocks.Liq, minBlocks.Ko, minBlocks.Fee)
 			break
@@ -150,8 +156,7 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 	}
 
 	sanityCheck(tableStates)
-
-	saveChunks(&tableEntries, string(chainId), chainPath, true)
+	saveChunks(&tableEntries, string(chainId), chainPath, true, ENTRIES_PER_FILE)
 
 	meta.MaxBlocks = *minBlocks
 	metaData, err := json.MarshalIndent(meta, "", "  ")
@@ -166,14 +171,14 @@ func startupCacher(cfg loader.ChainConfig, startupCacheDir string, wg *sync.Wait
 }
 
 // Bigger files make more sense but they take longer to load because of insertion sorting.
-const ENTRIES_PER_FILE = 3000
+const ENTRIES_PER_FILE = 1000
 
 // Saves chunks to storage, either all of them if `saveAll` is `true` or only until
-// less than `ENTRIES_PER_FILE` entries are left.
-func saveChunks(tableEntries *map[string][]Entry, chainId string, chainPath string, saveAll bool) {
+// less than `entriesPerFile` entries are left.
+func saveChunks(tableEntries *map[string][]Entry, chainId string, chainPath string, saveAll bool, entriesPerFile int) {
 	for tableName, entries := range *tableEntries {
 		tablePath := filepath.Join(chainPath, tableName)
-		if len(entries) == 0 || (len(entries) < ENTRIES_PER_FILE && !saveAll) {
+		if len(entries) == 0 || (len(entries) < entriesPerFile && !saveAll) {
 			continue
 		}
 
@@ -183,10 +188,10 @@ func saveChunks(tableEntries *map[string][]Entry, chainId string, chainPath stri
 			continue
 		}
 
-		// Write entries as chunks of ENTRIES_PER_FILE entries
+		// Write entries as chunks of entriesPerFile entries
 		remainingEntries := entries
 		for {
-			entryCount := min(ENTRIES_PER_FILE, len(remainingEntries))
+			entryCount := min(entriesPerFile, len(remainingEntries))
 			savingChunk := remainingEntries[:entryCount]
 			_, _, firstBlock := parseEntryFields(savingChunk[0])
 			_, _, lastBlock := parseEntryFields(savingChunk[len(savingChunk)-1])
@@ -200,7 +205,7 @@ func saveChunks(tableEntries *map[string][]Entry, chainId string, chainPath stri
 			log.Printf("Saving entries for chain %s, table %s %d-%d to %s", chainId, tableName, firstBlock, lastBlock, chunkFilename)
 			saveToFile(tableData, tablePath, chunkFilename)
 			remainingEntries = remainingEntries[entryCount:]
-			if (len(remainingEntries) < ENTRIES_PER_FILE && !saveAll) || (len(remainingEntries) == 0) {
+			if (len(remainingEntries) < entriesPerFile && !saveAll) || (len(remainingEntries) == 0) {
 				break
 			}
 		}
@@ -335,7 +340,7 @@ func sanityCheck(states map[string]TableState) bool {
 		}
 	}
 	if aggPartsSum != len(states["aggEvents"].ObsIds) {
-		log.Printf("Warning: lenght of liq+swap+fee tables %d is different than agg table %d, cache is likely corrupted!", aggPartsSum, len(states["aggEvents"].ObsIds))
+		log.Printf("Warning: length of liq+swap+fee tables %d is different than agg table %d, cache is likely corrupted!", aggPartsSum, len(states["aggEvents"].ObsIds))
 		return false
 	}
 	return true

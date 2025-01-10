@@ -1,7 +1,10 @@
 package cache
 
 import (
+	"log"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/CrocSwap/graphcache-go/model"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -22,9 +25,15 @@ func (m *MemoryCache) RetrieveUserBalances(chainId types.ChainId, user types.Eth
 	return tokens
 }
 
-func (m *MemoryCache) RetrieveUserTxs(chainId types.ChainId, user types.EthAddress) []types.PoolTxEvent {
+func (m *MemoryCache) RetrieveLastNUserTxs(chainId types.ChainId, user types.EthAddress, nResults int) []types.PoolTxEvent {
 	key := chainAndAddr{chainId, user}
-	txs, _ := m.userTxs.lookupCopy(key)
+	txs, _ := m.userTxs.lookupLastN(key, nResults)
+	return txs
+}
+
+func (m *MemoryCache) RetrieveUserTxsAtTime(chainId types.ChainId, user types.EthAddress, afterTime int, beforeTime int, nResults int) []types.PoolTxEvent {
+	key := chainAndAddr{chainId, user}
+	txs, _ := m.userTxs.lookupLastNAtTime(key, afterTime, beforeTime, nResults)
 	return txs
 }
 
@@ -32,29 +41,42 @@ func (m *MemoryCache) RetrievePoolSet() []types.PoolLocation {
 	return m.poolTradingHistory.keySet()
 }
 
-func (m *MemoryCache) RetrivePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
+func (m *MemoryCache) RetrievePoolTxs(pool types.PoolLocation) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupCopy(pool)
 	return txs
 }
 
-func (m *MemoryCache) RetriveLastNPoolTxs(pool types.PoolLocation, lastN int) []types.PoolTxEvent {
+func (m *MemoryCache) RetrieveLastNPoolTxs(pool types.PoolLocation, lastN int) []types.PoolTxEvent {
 	txs, _ := m.poolTxs.lookupLastN(pool, lastN)
 	return txs
 }
 
-func (m *MemoryCache) RetriveLastNPoolPos(pool types.PoolLocation, lastN int) []posAndLocPair {
+func (m *MemoryCache) RetrievePoolTxsAtTime(pool types.PoolLocation, afterTime int, beforeTime int, n int) []types.PoolTxEvent {
+	txs, _ := m.poolTxs.lookupLastNAtTime(pool, afterTime, beforeTime, n)
+	return txs
+}
+
+func (m *MemoryCache) RetrieveLastNPoolPos(pool types.PoolLocation, lastN int) []PosAndLocPair {
 	txs, _ := m.poolPosUpdates.lookupLastN(pool, lastN)
 	return txs
 }
 
-func (m *MemoryCache) RetriveLastNPoolKo(pool types.PoolLocation, lastN int) []koAndLocPair {
+func (m *MemoryCache) RetrievePoolPosAtTime(pool types.PoolLocation, afterTime int, beforeTime int, n int, seen map[[32]byte]struct{}) []PosAndLocPair {
+	txs, _ := m.poolPosUpdates.lookupLastNTimeNonUnique(pool, afterTime, beforeTime, n, seen)
+	return txs
+}
+
+func (m *MemoryCache) RetrieveLastNPoolKo(pool types.PoolLocation, lastN int) []KoAndLocPair {
 	txs, _ := m.poolKoUpdates.lookupLastN(pool, lastN)
 	return txs
 }
 
-func (m *MemoryCache) RetrieveUserPositions(
-	chainId types.ChainId,
-	user types.EthAddress) map[types.PositionLocation]*model.PositionTracker {
+func (m *MemoryCache) RetrievePoolKoAtTime(pool types.PoolLocation, afterTime int, beforeTime int, n int, seen map[[32]byte]struct{}) []KoAndLocPair {
+	txs, _ := m.poolKoUpdates.lookupLastNTimeNonUnique(pool, afterTime, beforeTime, n, seen)
+	return txs
+}
+
+func (m *MemoryCache) RetrieveUserPositions(chainId types.ChainId, user types.EthAddress) map[types.PositionLocation]*model.PositionTracker {
 	key := chainAndAddr{chainId, user}
 	pos, okay := m.userPositions.lookupSet(key)
 	if okay {
@@ -66,6 +88,23 @@ func (m *MemoryCache) RetrieveUserPositions(
 
 func (m *MemoryCache) RetrieveAllPositions() map[types.PositionLocation]*model.PositionTracker {
 	return m.liqPosition.clone()
+}
+
+func (m *MemoryCache) RetrieveAllCurves() map[types.PoolLocation]*model.LiquidityCurve {
+	return m.poolLiqCurve.clone()
+}
+
+// Returns all positions sorted by LatestUpdateTime in descending order
+func (m *MemoryCache) RetrieveAllPositionsSorted() []PosAndLocPair {
+	allPos := m.liqPosition.clone()
+	posUpdates := make([]PosAndLocPair, 0, len(allPos))
+	for loc, pos := range allPos {
+		posUpdates = append(posUpdates, PosAndLocPair{loc, pos})
+	}
+	slices.SortFunc(posUpdates, func(a, b PosAndLocPair) int {
+		return b.Pos.LatestUpdateTime - a.Pos.LatestUpdateTime
+	})
+	return posUpdates
 }
 
 func (m *MemoryCache) RetrieveUserLimits(
@@ -112,10 +151,9 @@ func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*
 	var returnVal []*model.LiquidityBump
 	ambientLiq := 0.0
 
-	pos, okay := m.poolLiqCurve.lookup(loc)
+	pos, okay, lock := m.poolLiqCurve.lockLookup(loc, false)
 	if okay {
-		defer m.poolLiqCurve.lock.RUnlock()
-		m.poolLiqCurve.lock.RLock()
+		defer lock.RUnlock()
 		for _, bump := range pos.Bumps {
 			returnVal = append(returnVal, bump)
 		}
@@ -124,12 +162,12 @@ func (m *MemoryCache) RetrievePoolLiqCurve(loc types.PoolLocation) (float64, []*
 	return ambientLiq, returnVal
 }
 
-func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) model.AccumPoolStats {
+func (m *MemoryCache) RetrievePoolAccum(loc types.PoolLocation) (stats model.AccumPoolStats, eventCount int) {
 	pos, okay := m.poolTradingHistory.lookup(loc)
 	if !okay {
-		return model.AccumPoolStats{}
+		return model.AccumPoolStats{}, 0
 	}
-	return pos.StatsCounter
+	return pos.StatsCounter, len(pos.TimeSnaps) + 1
 }
 
 func (m *MemoryCache) RetrievePoolAccumFirst(loc types.PoolLocation) model.AccumPoolStats {
@@ -160,28 +198,82 @@ func (m *MemoryCache) RetrieveChainAccums(chainId types.ChainId) []AccumTagged {
 	return retVal
 }
 
-func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime int) model.AccumPoolStats {
-	pos, okay := m.poolTradingHistory.lookup(loc)
+func (m *MemoryCache) RetrievePoolAccumBefore(loc types.PoolLocation, histTime int) (stats model.AccumPoolStats, eventCount int) {
+	pos, okay, lock := m.poolTradingHistory.lockLookup(loc, false)
 	if !okay {
-		return model.AccumPoolStats{}
+		return model.AccumPoolStats{}, 0
 	}
 
-	defer m.poolTradingHistory.lock.RUnlock()
-	m.poolTradingHistory.lock.RLock()
+	defer lock.RUnlock()
 
-	lastAccum := model.AccumPoolStats{}
-	for _, accum := range pos.TimeSnaps {
-		if accum.LatestTime > histTime {
-			return lastAccum
+	if histTime >= pos.StatsCounter.LatestTime {
+		return pos.StatsCounter, len(pos.TimeSnaps) + 1
+	} else {
+		// Iteration in reverse order because the frontend requests only 24 hours back
+		for i := len(pos.TimeSnaps) - 1; i >= 0; i-- {
+			if pos.TimeSnaps[i].LatestTime <= histTime {
+				return pos.TimeSnaps[i], i + 1
+			}
 		}
-		lastAccum = accum
+		// If histTime is before the first snapshot then return nothing
+		return model.AccumPoolStats{}, 0
 	}
-	return lastAccum
 }
 
-func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime int, endTime int) (model.AccumPoolStats, []model.AccumPoolStats) {
+func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime int, endTime int) (openVal model.AccumPoolStats, retSeries []model.AccumPoolStats) {
+	retSeries = make([]model.AccumPoolStats, 0, 1000)
+
+	start := time.Now()
+	pool, okay, lock := m.poolTradingHistory.lockLookup(loc, false)
+	if !okay {
+		return
+	}
+	diff := time.Since(start)
+	if diff > 200*time.Millisecond {
+		log.Println("Slow lock:", diff)
+	}
+	defer lock.RUnlock()
+
+	if pool.StatsCounter.LatestTime >= startTime && pool.StatsCounter.LatestTime < endTime {
+		retSeries = append(retSeries, pool.StatsCounter)
+	} else if len(pool.TimeSnaps) > 0 && endTime < pool.TimeSnaps[0].LatestTime {
+		return
+	} else if pool.StatsCounter.LatestTime < startTime {
+		openVal = pool.StatsCounter
+		return
+	}
+	start = time.Now()
+	var i int
+	for i = len(pool.TimeSnaps) - 1; i >= 0; i-- {
+		if pool.TimeSnaps[i].LatestTime >= startTime && pool.TimeSnaps[i].LatestTime < endTime {
+			retSeries = append(retSeries, pool.TimeSnaps[i])
+		} else if pool.TimeSnaps[i].LatestTime < startTime {
+			openVal = pool.TimeSnaps[i]
+			break
+		}
+	}
+	diff = time.Since(start)
+	if diff > 200*time.Millisecond {
+		log.Println("Slow loop:", diff)
+	}
+
+	start = time.Now()
+	slices.Reverse(retSeries)
+	diff = time.Since(start)
+	if diff > 50*time.Millisecond {
+		log.Println("Slow reverse:", diff)
+	}
+	// If entire history was added to the series, then the openVal is the first element
+	if openVal.LatestTime == 0 && len(pool.TimeSnaps) > 0 {
+		openVal = pool.TimeSnaps[0]
+	}
+
+	return
+}
+
+func (m *MemoryCache) RetrievePoolAccumSeriesOld(loc types.PoolLocation, startTime int, endTime int) (model.AccumPoolStats, []model.AccumPoolStats) {
 	retSeries := make([]model.AccumPoolStats, 0)
-	openVal := m.RetrievePoolAccumBefore(loc, startTime)
+	openVal, _ := m.RetrievePoolAccumBefore(loc, startTime)
 
 	pos, okay := m.poolTradingHistory.lookup(loc)
 	if !okay {
@@ -199,24 +291,41 @@ func (m *MemoryCache) RetrievePoolAccumSeries(loc types.PoolLocation, startTime 
 	return openVal, retSeries
 }
 
-func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
-	loc := chainUserAndPool{user, pool}
-	pos, okay := m.userAndPoolPositions.lookupSet(loc)
-	if okay {
-		return pos
-	} else {
-		return make(map[types.PositionLocation]*model.PositionTracker)
+func (m *MemoryCache) BorrowPoolHourlyCandles(loc types.PoolLocation, writeLock bool) (*[]model.Candle, *sync.RWMutex) {
+	candles, okay, lock := m.poolHourlyCandles.lockLookup(loc, writeLock)
+	if !okay {
+		candlesO := make([]model.Candle, 0)
+		candles = &candlesO
+		lock = m.poolHourlyCandles.insert(loc, candles)
+		if writeLock {
+			lock.Lock()
+		} else {
+			lock.RLock()
+		}
 	}
+	return candles, lock
+}
+
+func (m *MemoryCache) RetrieveUserPoolPositions(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.PositionTracker {
+	userPositions := m.RetrieveUserPositions(pool.ChainId, user)
+	filtered := make(map[types.PositionLocation]*model.PositionTracker)
+	for loc, pos := range userPositions {
+		if loc.PoolLocation == pool {
+			filtered[loc] = pos
+		}
+	}
+	return filtered
 }
 
 func (m *MemoryCache) RetrieveUserPoolLimits(user types.EthAddress, pool types.PoolLocation) map[types.PositionLocation]*model.KnockoutSubplot {
-	loc := chainUserAndPool{user, pool}
-	pos, okay := m.userAndPoolKnockouts.lookupSet(loc)
-	if okay {
-		return pos
-	} else {
-		return make(map[types.PositionLocation]*model.KnockoutSubplot)
+	userLimits := m.RetrieveUserLimits(pool.ChainId, user)
+	filtered := make(map[types.PositionLocation]*model.KnockoutSubplot)
+	for loc, pos := range userLimits {
+		if loc.PoolLocation == pool {
+			filtered[loc] = pos
+		}
 	}
+	return filtered
 }
 
 func (m *MemoryCache) AddUserBalance(chainId types.ChainId, user types.EthAddress, token types.EthAddress) {
@@ -226,10 +335,15 @@ func (m *MemoryCache) AddUserBalance(chainId types.ChainId, user types.EthAddres
 
 func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
 	userKey := chainAndAddr{tx.ChainId, tx.User}
-	m.userTxs.insert(userKey, tx)
-	m.poolTxs.insertSorted(tx.PoolLocation, tx, func(i, j types.PoolTxEvent) bool {
+	// m.userTxs.insert(userKey, tx)
+	// m.poolTxs.insert(tx.PoolLocation, tx)
+	m.userTxs.insertSorted(userKey, tx, func(i, j types.PoolTxEvent) bool {
 		if i.TxTime != j.TxTime {
 			return i.TxTime > j.TxTime
+		}
+
+		if i.CallIndex != j.CallIndex {
+			return i.CallIndex > j.CallIndex
 		}
 
 		// Tie breakers if occurs at same time
@@ -241,12 +355,39 @@ func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
 			return i.PositionType > j.PositionType
 		}
 
-		if string(i.Base) != string(j.Base) {
+		if i.Base != j.Base {
 			return i.Base > j.Base
 		}
 
-		if string(i.Quote) != string(j.Quote) {
+		if i.Quote != j.Quote {
 			return i.Quote > j.Quote
+		}
+
+		if i.BidTick != j.BidTick {
+			return i.BidTick > j.BidTick
+		}
+
+		if i.AskTick != j.AskTick {
+			return i.BidTick > j.BidTick
+		}
+		return false
+	})
+	m.poolTxs.insertSorted(tx.PoolLocation, tx, func(i, j types.PoolTxEvent) bool {
+		if i.TxTime != j.TxTime {
+			return i.TxTime > j.TxTime
+		}
+
+		if i.CallIndex != j.CallIndex {
+			return i.CallIndex > j.CallIndex
+		}
+
+		// Tie breakers if occurs at same time
+		if i.ChangeType != j.ChangeType {
+			return i.ChangeType > j.ChangeType
+		}
+
+		if i.PositionType != j.PositionType {
+			return i.PositionType > j.PositionType
 		}
 
 		if i.BidTick != j.BidTick {
@@ -260,22 +401,37 @@ func (m *MemoryCache) AddPoolEvent(tx types.PoolTxEvent) {
 	})
 }
 
-func (m *MemoryCache) MaterializePoolLiqCurve(loc types.PoolLocation) *model.LiquidityCurve {
-	val, okay := m.poolLiqCurve.lookup(loc)
+func (m *MemoryCache) MaterializePoolLiqCurve(loc types.PoolLocation, writeLock bool) (*model.LiquidityCurve, *sync.RWMutex) {
+	val, okay, lock := m.poolLiqCurve.lockLookup(loc, writeLock)
 	if !okay {
 		val = model.NewLiquidityCurve()
-		m.poolLiqCurve.insert(loc, val)
+		lock = m.poolLiqCurve.insert(loc, val)
+		if writeLock {
+			lock.Lock()
+		} else {
+			lock.RLock()
+		}
 	}
-	return val
+	return val, lock
 }
 
-func (m *MemoryCache) MaterializePoolTradingHist(loc types.PoolLocation) *model.PoolTradingHistory {
-	val, okay := m.poolTradingHistory.lookup(loc)
+func (m *MemoryCache) MaterializePoolTradingHist(loc types.PoolLocation, writeLock bool) (*model.PoolTradingHistory, *sync.RWMutex) {
+	val, okay, lock := m.poolTradingHistory.lockLookup(loc, writeLock)
 	if !okay {
 		val = model.NewPoolTradingHistory()
-		m.poolTradingHistory.insert(loc, val)
+		lock = m.poolTradingHistory.insert(loc, val)
+		if writeLock {
+			lock.Lock()
+		} else {
+			lock.RLock()
+		}
 	}
-	return val
+	return val, lock
+}
+
+func (m *MemoryCache) BorrowPoolTradingHist(loc types.PoolLocation, writeLock bool) (*model.PoolTradingHistory, *sync.RWMutex) {
+	val, _, lock := m.poolTradingHistory.lockLookup(loc, writeLock)
+	return val, lock
 }
 
 func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.PositionTracker {
@@ -285,11 +441,11 @@ func (m *MemoryCache) MaterializePosition(loc types.PositionLocation) *model.Pos
 		m.liqPosition.insert(loc, val)
 		m.userPositions.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
 		m.poolPositions.insert(loc.PoolLocation, loc, val)
-		m.userAndPoolPositions.insert(
-			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
+		// m.userAndPoolPositions.insert(
+		// 	chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
 	}
 
-	m.poolPosUpdates.insert(loc.PoolLocation, posAndLocPair{loc, val})
+	m.poolPosUpdates.insert(loc.PoolLocation, PosAndLocPair{loc, val})
 	return val
 }
 
@@ -310,11 +466,9 @@ func (m *MemoryCache) MaterializeKnockoutPos(loc types.PositionLocation) *model.
 		m.liqKnockouts.insert(loc, val)
 		m.userKnockouts.insert(chainAndAddr{loc.ChainId, loc.User}, loc, val)
 		m.poolKnockouts.insert(loc.PoolLocation, loc, val)
-		m.userAndPoolKnockouts.insert(
-			chainUserAndPool{loc.User, loc.PoolLocation}, loc, val)
 	}
 
-	m.poolKoUpdates.insert(loc.PoolLocation, koAndLocPair{loc, val})
+	m.poolKoUpdates.insert(loc.PoolLocation, KoAndLocPair{loc, val})
 	return val
 }
 

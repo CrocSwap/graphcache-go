@@ -92,3 +92,7 @@ func (c *NetworkConfig) RequireChainID(network types.NetworkName) types.ChainId 
 	}
 	return types.IntToChainId(lookup.ChainID)
 }
+
+func (c *ChainConfig) HexChainID() types.ChainId {
+	return types.IntToChainId(c.ChainID)
+}

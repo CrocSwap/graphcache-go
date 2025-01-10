@@ -137,6 +137,10 @@ func (k *KnockoutSubplot) AppendBurn(burn KnockoutSagaTx) {
 	k.Burns = append(k.Burns, burn)
 }
 
+func (k *KnockoutSubplot) Time() int {
+	return k.LatestUpdateTime
+}
+
 func (k *KnockoutSaga) UpdateCross(l tables.LiqChange) []KnockoutPivotCands {
 	k.lock.Lock()
 	defer k.lock.Unlock()

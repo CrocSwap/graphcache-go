@@ -17,10 +17,11 @@ type PoolTxEvent struct {
 }
 
 type EthTxHeader struct {
-	BlockNum int        `json:"blockNum"`
-	TxHash   EthTxHash  `json:"txHash"`
-	TxTime   int        `json:"txTime"`
-	User     EthAddress `json:"user"`
+	BlockNum  int        `json:"blockNum"`
+	TxHash    EthTxHash  `json:"txHash"`
+	TxTime    int        `json:"txTime"`
+	User      EthAddress `json:"user"`
+	CallIndex int        `json:"callIndex"`
 }
 
 type PoolEventFlow struct {
@@ -41,8 +42,16 @@ type PoolRangeFields struct {
 	InBaseQty bool `json:"inBaseQty"`
 }
 
-func (p PoolTxEvent) Hash() [32]byte {
-	buf := new(bytes.Buffer)
+func (t PoolTxEvent) Time() int {
+	return t.TxTime
+}
+
+func (p PoolTxEvent) Hash(buf *bytes.Buffer) [32]byte {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+	} else {
+		buf.Reset()
+	}
 	buf.Grow(270)
 	binary.Write(buf, binary.BigEndian, int32(p.BlockNum))
 	buf.WriteString(string(p.TxHash))

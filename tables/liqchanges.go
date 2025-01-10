@@ -2,9 +2,12 @@ package tables
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"strings"
+
+	stdjson "encoding/json"
+
+	"github.com/goccy/go-json"
 )
 
 type LiqChangeTable struct{}
@@ -47,17 +50,6 @@ var posTypeStringMap = map[PosType]string{
 	PosTypeSwap:         "swap",
 }
 
-func (p *PosType) UnmarshalJSON(b []byte) error {
-	var s string
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-
-	*p = posTypeMap[s]
-	return nil
-}
-
 func (p PosType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(posTypeStringMap[p])
 }
@@ -97,17 +89,6 @@ var changeTypeStringMap = map[ChangeType]string{
 	ChangeTypeSwap:    "swap",
 }
 
-func (c *ChangeType) UnmarshalJSON(b []byte) error {
-	var s string
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-
-	*c = changeTypeMap[s]
-	return nil
-}
-
 func (c ChangeType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(changeTypeStringMap[c])
 }
@@ -133,17 +114,6 @@ var entityTypeStringMap = map[EntityType]string{
 	EntityTypeSwap:      "swap",
 	EntityTypeLimit:     "limitOrder",
 	EntityTypeLiqChange: "liqchange",
-}
-
-func (e *EntityType) UnmarshalJSON(b []byte) error {
-	var s string
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-
-	*e = entityTypeMap[s]
-	return nil
 }
 
 func (e EntityType) MarshalJSON() ([]byte, error) {
@@ -175,26 +145,22 @@ type LiqChange struct {
 }
 
 type LiqChangeSubGraph struct {
-	ID              string `json:"id"`
-	TransactionHash string `json:"transactionHash"`
-	CallIndex       int    `json:"callIndex"`
-	User            string `json:"user"`
-	Pool            struct {
-		Base    string `json:"base"`
-		Quote   string `json:"quote"`
-		PoolIdx string `json:"poolIdx"`
-	} `json:"pool"`
-	Block        string     `json:"block"`
-	Time         string     `json:"time"`
-	PositionType PosType    `json:"positionType"`
-	ChangeType   ChangeType `json:"changeType"`
-	BidTick      int        `json:"bidTick"`
-	AskTick      int        `json:"askTick"`
-	IsBid        bool       `json:"isBid"`
-	Liq          string     `json:"liq"`
-	BaseFlow     string     `json:"baseFlow"`
-	QuoteFlow    string     `json:"quoteFlow"`
-	PivotTime    string     `json:"pivotTime"`
+	ID              string       `json:"id"`
+	TransactionHash string       `json:"transactionHash"`
+	CallIndex       int          `json:"callIndex"`
+	User            string       `json:"user"`
+	Pool            SubGraphPool `json:"pool"`
+	Block           string       `json:"block"`
+	Time            string       `json:"time"`
+	PositionType    string       `json:"positionType"`
+	ChangeType      string       `json:"changeType"`
+	BidTick         int          `json:"bidTick"`
+	AskTick         int          `json:"askTick"`
+	IsBid           bool         `json:"isBid"`
+	Liq             string       `json:"liq"`
+	BaseFlow        string       `json:"baseFlow"`
+	QuoteFlow       string       `json:"quoteFlow"`
+	PivotTime       string       `json:"pivotTime"`
 }
 type LiqChangeSubGraphData struct {
 	LiqChanges []LiqChangeSubGraph `json:"liquidityChanges"`
@@ -216,19 +182,19 @@ func (tbl LiqChangeTable) ConvertSubGraphRow(r LiqChangeSubGraph, network string
 	}
 
 	return LiqChange{
-		ID:           network + r.ID,
-		CallIndex:    r.CallIndex,
-		Network:      network,
-		TX:           r.TransactionHash,
-		Base:         base,
-		Quote:        quote,
-		PoolIdx:      parseInt(r.Pool.PoolIdx),
-		PoolHash:     hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
-		User:         translateUser(r.User),
+		ID:        network + r.ID,
+		CallIndex: r.CallIndex,
+		Network:   network,
+		TX:        strings.Clone(r.TransactionHash),
+		Base:      strings.Clone(base),
+		Quote:     strings.Clone(quote),
+		PoolIdx:   parseInt(r.Pool.PoolIdx),
+		// PoolHash:     hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
+		User:         strings.Clone(translateUser(r.User, r.TransactionHash)),
 		Block:        parseInt(r.Block),
 		Time:         parseInt(r.Time),
-		PositionType: r.PositionType,
-		ChangeType:   r.ChangeType,
+		PositionType: posTypeMap[r.PositionType],
+		ChangeType:   changeTypeMap[r.ChangeType],
 		BidTick:      r.BidTick,
 		AskTick:      r.AskTick,
 		IsBid:        boolToInt(r.IsBid),
@@ -276,12 +242,12 @@ func (tbl LiqChangeTable) ReadSqlRow(rows *sql.Rows) LiqChange {
 func (tbl LiqChangeTable) ParseSubGraphResp(body []byte) ([]LiqChangeSubGraph, error) {
 	var parsed LiqChangeSubGraphResp
 
-	err := json.Unmarshal(body, &parsed)
+	err := stdjson.Unmarshal(body, &parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]LiqChangeSubGraph, 0)
+	ret := make([]LiqChangeSubGraph, 0, len(parsed.Data.LiqChanges))
 	for _, entry := range parsed.Data.LiqChanges {
 		ret = append(ret, entry)
 	}
@@ -296,7 +262,7 @@ func (tbl LiqChangeTable) ParseSubGraphRespUnwrapped(body []byte) ([]LiqChangeSu
 		return nil, err
 	}
 
-	ret := make([]LiqChangeSubGraph, 0)
+	ret := make([]LiqChangeSubGraph, 0, len(parsed.LiqChanges))
 	for _, entry := range parsed.LiqChanges {
 		ret = append(ret, entry)
 	}

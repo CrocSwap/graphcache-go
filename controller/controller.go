@@ -30,6 +30,7 @@ func New(netCfg loader.NetworkConfig, cache *cache.MemoryCache, chain *loader.On
 func NewOnQuery(netCfg loader.NetworkConfig, cache *cache.MemoryCache, query loader.ICrocQuery) *Controller {
 	history := model.NewHistoryWriter(netCfg, cache.AddPoolEvent)
 	workers, refresher := initWorkers(netCfg, &query)
+	refresher.SetPause(true)
 
 	ctrl := &Controller{
 		netCfg:    netCfg,
@@ -105,6 +106,8 @@ func (c *ControllerOverNetwork) applyToPosition(l tables.LiqChange) {
 		LiquidityLocation: liq,
 		User:              types.RequireEthAddr(l.User),
 	}
+	hash := loc.Hash(nil)
+	loc.CachedHash = hash
 
 	if l.PositionType == tables.PosTypeKnockout {
 		c.applyToKnockout(l, loc)
@@ -121,7 +124,8 @@ func (c *ControllerOverNetwork) applyToLiqCurve(l tables.LiqChange) {
 		Base:    types.RequireEthAddr(l.Base),
 		Quote:   types.RequireEthAddr(l.Quote),
 	}
-	curve := c.ctrl.cache.MaterializePoolLiqCurve(pool)
+	curve, lock := c.ctrl.cache.MaterializePoolLiqCurve(pool, true)
+	defer lock.Unlock()
 	curve.UpdateLiqChange(l)
 }
 
@@ -211,8 +215,10 @@ func (c *ControllerOverNetwork) IngestAggEvent(r tables.AggEvent) {
 		Base:    types.RequireEthAddr(r.Base),
 		Quote:   types.RequireEthAddr(r.Quote),
 	}
-	hist := c.ctrl.cache.MaterializePoolTradingHist(pool)
+	hist, lock := c.ctrl.cache.MaterializePoolTradingHist(pool, true)
+	defer lock.Unlock()
 	hist.NextEvent(r)
+	// c.ctrl.workers.omniUpdates <- &poolInitPriceMsg{pool: pool, block: r.Block, hist: hist}
 }
 
 func (c *ControllerOverNetwork) IngestKnockout(l tables.LiqChange) {
@@ -255,10 +261,39 @@ func formLiqLoc(l tables.LiqChange) types.LiquidityLocation {
 	}
 }
 
-func (c *Controller) resyncFullCycle(time int) {
-	for poolLoc, poolPos := range c.cache.RetrieveAllPositions() {
-		if !poolPos.IsEmpty() || poolPos.RefreshTime == 0 {
-			c.workers.omniUpdates <- &posImpactMsg{poolLoc, poolPos, time}
+// Since subgraph is loaded in chrolonogical order, the refresher receives old
+// positions first - it will be refreshing long removed positions for like 20
+// minutes, while newer positions will be stuck with no APR visible in the UI.
+// So on startup it's better to pause the refresher, unpause it after subgraph
+// fully loaded, and then refresh all positions in a reverse chronological order.
+// Just a few seconds of running the refresher will be enough to refresh the
+// most recent positions, leading to a better experience overall despite the
+// delay before starting refreshes.
+func (c *Controller) StartupSubgraphSyncDone() {
+	c.refresher.SetPause(false)
+	allPos := c.cache.RetrieveAllPositionsSorted()
+	for _, posLocPair := range allPos {
+		c.workers.omniUpdates <- &posRefreshMsg{posLocPair.Loc, posLocPair.Pos, posLocPair.Pos.LatestUpdateTime}
+	}
+	c.resyncBumps()
+	log.Println("Waiting for a few liquidity refreshes to go through...")
+	time.Sleep(2 * time.Second * time.Duration(len(allPos)/100000))
+}
+
+func (c *Controller) resyncLiquidity() {
+	allPos := c.cache.RetrieveAllPositionsSorted()
+	for _, posLocPair := range allPos {
+		if !posLocPair.Pos.IsEmpty() || posLocPair.Pos.RefreshTime == 0 {
+			c.workers.omniUpdates <- &posImpactMsg{posLocPair.Loc, posLocPair.Pos}
+		}
+	}
+}
+
+func (c *Controller) resyncBumps() {
+	poolCurves := c.cache.RetrieveAllCurves()
+	for pool, curve := range poolCurves {
+		for tick, bump := range curve.Bumps {
+			c.workers.omniUpdates <- &bumpRefreshMsg{pool, tick, curve, bump}
 		}
 	}
 }
@@ -272,6 +307,7 @@ func (c *Controller) runPeriodicRefresh() {
 		time.Sleep(time.Second * REFRESH_CYCLE_TIME)
 		refreshTime := time.Now().Unix()
 		log.Println("Running full refresh at", refreshTime)
-		c.resyncFullCycle(int(refreshTime))
+		c.resyncLiquidity()
+		c.resyncBumps()
 	}
 }

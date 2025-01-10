@@ -24,6 +24,7 @@ type LiquidityRefresher struct {
 	postProcess    chan string
 	query          *loader.ICrocQuery
 	lastRefreshSec int64
+	paused         bool
 }
 
 const NUM_PARALLEL_WORKERS = 200 // Should be higher than multicall_max_batch for the given chain
@@ -39,6 +40,7 @@ func NewLiquidityRefresher(query *loader.ICrocQuery) *LiquidityRefresher {
 		pendingLock: sync.Mutex{},
 		query:       query,
 		postProcess: make(chan string),
+		paused:      false,
 	}
 
 	go liqRefresher.watchPostProcess()
@@ -74,10 +76,10 @@ func (lr *LiquidityRefresher) PushRefreshPoll(hndl IRefreshHandle) {
 }
 
 func (lr *LiquidityRefresher) requestRefresh(hndl IRefreshHandle, urgent bool) {
-	if time.Now().Unix()-hndl.RefreshTime() < SKIPPABLE_REFRESH_INTERVAL && hndl.Skippable() {
+	if (time.Now().Unix()-hndl.RefreshTime() < SKIPPABLE_REFRESH_INTERVAL && hndl.Skippable()) || lr.paused {
 		return
 	}
-	hash := hndl.Hash()
+	hash := hndl.Hash(nil)
 	lr.pendingLock.Lock()
 	defer lr.pendingLock.Unlock()
 	queuedUrgent, alreadyQueued := lr.pending[hash]
@@ -96,7 +98,7 @@ const FOLLOWUP_WINDOW = 5 // Followup refreshes are grouped to be sent at this i
 /* Followup after refresh, in case RPC node hasn't synced to last
  * block at first call. */
 func (lr *LiquidityRefresher) pushFollowup(hndl IRefreshHandle) {
-	REFRESH_FOLLOWUP_SECS := []time.Duration{2, 10, 30, 60}
+	REFRESH_FOLLOWUP_SECS := []time.Duration{2, 10, 45, 600}
 	for _, interval := range REFRESH_FOLLOWUP_SECS {
 		refreshTime := time.Now().Add(interval * time.Second)
 		nextWindow := (refreshTime.Unix() - refreshTime.Unix()%FOLLOWUP_WINDOW) + FOLLOWUP_WINDOW
@@ -125,7 +127,7 @@ func (lr *LiquidityRefresher) watchWork() {
 	var hndl IRefreshHandle
 	defer func() {
 		if r := recover(); r != nil {
-			hash := hndl.Hash()
+			hash := hndl.Hash(nil)
 			log.Println("Panic recovered in watchWork for id", hex.EncodeToString(hash[:]), r)
 			if hndlPending && hndl != nil {
 				lr.workUrgent <- hndl
@@ -150,7 +152,7 @@ func (lr *LiquidityRefresher) watchWork() {
 			}
 		}
 		// Check whether the request has been upgraded to urgent, and skip it if it was
-		hash := hndl.Hash()
+		hash := hndl.Hash(nil)
 		lr.pendingLock.Lock()
 		urgent, queued := lr.pending[hash]
 		if (fromSlowQueue && urgent) || !queued {
@@ -190,8 +192,13 @@ func (lr *LiquidityRefresher) watchPostProcess() {
 	for {
 		tag := <-lr.postProcess
 		pendingCount += 1
-		if pendingCount%100 == 0 {
+		if pendingCount%1000 == 0 {
 			log.Printf("Processed %d total liq refreshes. Last=%s. len(urgent)=%d, len(slow)=%d", pendingCount, tag, len(lr.workUrgent), len(lr.workSlow))
 		}
 	}
+}
+
+func (lr *LiquidityRefresher) SetPause(pause bool) {
+	log.Printf("Liquidity refresher pause=%v", pause)
+	lr.paused = pause
 }

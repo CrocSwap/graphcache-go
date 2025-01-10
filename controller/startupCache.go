@@ -1,17 +1,19 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"encoding/json"
 
 	"github.com/CrocSwap/graphcache-go/loader"
 	"github.com/CrocSwap/graphcache-go/types"
@@ -21,6 +23,7 @@ func LoadStartupCache(startupCacheSource string, syncer SubgraphSyncer) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Warning: panic during startup cache loading:", r)
+			log.Println(string(debug.Stack()))
 		}
 	}()
 	log.Printf("Loading startup cache from %s", startupCacheSource)
@@ -127,7 +130,18 @@ func (p startupCacheProvider) GetChunks(tableName string) (chunks []string, err 
 				return nil, err
 			}
 			h := http.Client{Timeout: 10 * time.Second}
-			resp, err = h.Get(fmt.Sprintf("%s/%s/%s/chunks.json", p.cacheSource, p.chainId, tableName))
+			url := fmt.Sprintf("%s/%s/%s/chunks.json", p.cacheSource, p.chainId, tableName)
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				log.Printf("Warning: failed to create startup cache request: %s. Attempt %d/%d", err, attempts, HTTP_MAX_ATTEMPTS)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			req.Header.Set("Password", os.Getenv("STARTUPCACHE_PASSWORD"))
+			resp, err = h.Do(req)
+			if resp.StatusCode == 404 {
+				return nil, nil
+			}
 			if err != nil {
 				log.Printf("Warning: failed to fetch startup cache days: %s. Attempt %d/%d", err, attempts, HTTP_MAX_ATTEMPTS)
 				time.Sleep(5 * time.Second)
@@ -193,7 +207,15 @@ func (p startupCacheProvider) GetTableChunk(tableName string, chunkName string) 
 			}
 			// call the http endpoint with /{chainId}/{day}/{table} to get the table data
 			h := http.Client{Timeout: 10 * time.Second}
-			resp, err = h.Get(fmt.Sprintf("%s/%s/%s/%s", p.cacheSource, p.chainId, tableName, chunkName))
+			req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s/%s/%s", p.cacheSource, p.chainId, tableName, chunkName), nil)
+			req.Header.Set("Password", os.Getenv("STARTUPCACHE_PASSWORD"))
+			if err != nil {
+				log.Printf("Warning: failed to create startup cache request: %s. Attempt %d/%d", err, attempts, HTTP_MAX_ATTEMPTS)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			resp, err = h.Do(req)
 			if err != nil {
 				log.Printf("Warning: failed to fetch startup cache chunk %s for table %s: %s. Attempt %d/%d", chunkName, tableName, err, attempts, HTTP_MAX_ATTEMPTS)
 				time.Sleep(5 * time.Second)

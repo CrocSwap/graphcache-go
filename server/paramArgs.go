@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"strconv"
 
 	"github.com/CrocSwap/graphcache-go/types"
@@ -10,7 +11,7 @@ import (
 func parseAddrParam(c *gin.Context, paramName string) types.EthAddress {
 	arg := c.Query(paramName)
 	if arg == "" {
-		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		wrapMissingParam(c, paramName)
 		return ""
 	}
 
@@ -26,7 +27,7 @@ func parseAddrParam(c *gin.Context, paramName string) types.EthAddress {
 func parseChainParam(c *gin.Context, paramName string) types.ChainId {
 	arg := c.Query(paramName)
 	if arg == "" {
-		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		wrapMissingParam(c, paramName)
 		return ""
 	}
 
@@ -40,7 +41,7 @@ func parseChainParam(c *gin.Context, paramName string) types.ChainId {
 func parseIntParam(c *gin.Context, paramName string) int {
 	arg := c.Query(paramName)
 	if arg == "" {
-		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		wrapMissingParam(c, paramName)
 		return -1
 	}
 
@@ -70,8 +71,10 @@ func parseIntOptional(c *gin.Context, paramName string, dflt int) int {
 
 func parseIntMaxParam(c *gin.Context, paramName string, maxSize int) int {
 	parsed := parseIntParam(c, paramName)
+	// If the unrestricted password is set and the unr param is set to it, then we allow the max size to be exceeded
+	unrestricted := (os.Getenv("UNRESTRICT_PASSWORD") != "" && c.Query("unr") == os.Getenv("UNRESTRICT_PASSWORD"))
 
-	if parsed > maxSize {
+	if parsed > maxSize && !unrestricted {
 		wrapErrMsgFmt(c, "n Exceeds max size of %d", maxSize)
 	}
 
@@ -81,7 +84,7 @@ func parseIntMaxParam(c *gin.Context, paramName string, maxSize int) int {
 func parseBoolParam(c *gin.Context, paramName string) bool {
 	arg := c.Query(paramName)
 	if arg == "" {
-		wrapErrMsgFmt(c, "Missing param=%s", paramName)
+		wrapMissingParam(c, paramName)
 		return false
 	}
 

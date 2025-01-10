@@ -2,9 +2,12 @@ package tables
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"strings"
+
+	stdjson "encoding/json"
+
+	"github.com/goccy/go-json"
 )
 
 type FeeTable struct{}
@@ -69,13 +72,12 @@ func (tbl FeeTable) ConvertSubGraphRow(r FeeChangeSubGraph, network string) FeeC
 		ID:        r.ID + network,
 		CallIndex: r.CallIndex,
 		Network:   network,
-		Tx:        r.TransactionHash,
+		Tx:        strings.Clone(r.TransactionHash),
 		Block:     parseInt(r.Block),
 		Time:      parseInt(r.Time),
-		Base:      base,
-		Quote:     quote,
+		Base:      strings.Clone(base),
+		Quote:     strings.Clone(quote),
 		PoolIdx:   parseInt(r.Pool.PoolIdx),
-		PoolHash:  hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
 		FeeRate:   r.FeeRate,
 	}
 }
@@ -94,7 +96,6 @@ func (tbl FeeTable) ReadSqlRow(rows *sql.Rows) FeeChange {
 		&feeChange.Base,
 		&feeChange.Quote,
 		&feeChange.PoolIdx,
-		&feeChange.PoolHash,
 		&feeChange.FeeRate,
 	)
 	if err != nil {
@@ -106,12 +107,12 @@ func (tbl FeeTable) ReadSqlRow(rows *sql.Rows) FeeChange {
 func (tbl FeeTable) ParseSubGraphResp(body []byte) ([]FeeChangeSubGraph, error) {
 	var parsed FeeChangeSubGraphResp
 
-	err := json.Unmarshal(body, &parsed)
+	err := stdjson.Unmarshal(body, &parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]FeeChangeSubGraph, 0)
+	ret := make([]FeeChangeSubGraph, 0, len(parsed.Data.FeeChanges))
 	for _, entry := range parsed.Data.FeeChanges {
 		ret = append(ret, entry)
 	}
@@ -126,7 +127,7 @@ func (tbl FeeTable) ParseSubGraphRespUnwrapped(body []byte) ([]FeeChangeSubGraph
 		return nil, err
 	}
 
-	ret := make([]FeeChangeSubGraph, 0)
+	ret := make([]FeeChangeSubGraph, 0, len(parsed.FeeChanges))
 	for _, entry := range parsed.FeeChanges {
 		ret = append(ret, entry)
 	}

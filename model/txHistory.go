@@ -21,10 +21,11 @@ func NewHistoryWriter(netCfg loader.NetworkConfig, commitFn func(types.PoolTxEve
 func (h *HistoryWriter) CommitSwap(s tables.Swap) {
 	h.commitEventFn(types.PoolTxEvent{
 		EthTxHeader: types.EthTxHeader{
-			BlockNum: s.Block,
-			TxHash:   types.ValidateEthHash(s.TX),
-			TxTime:   s.Time,
-			User:     types.ValidateEthAddr(s.User),
+			BlockNum:  s.Block,
+			TxHash:    types.ValidateEthHash(s.TX),
+			TxTime:    s.Time,
+			User:      types.ValidateEthAddr(s.User),
+			CallIndex: s.CallIndex,
 		},
 
 		PoolLocation: types.PoolLocation{
@@ -70,10 +71,11 @@ func (h *HistoryWriter) CommitLiqChange(s tables.LiqChange) {
 
 	h.commitEventFn(types.PoolTxEvent{
 		EthTxHeader: types.EthTxHeader{
-			BlockNum: s.Block,
-			TxHash:   types.ValidateEthHash(s.TX),
-			TxTime:   s.Time,
-			User:     types.ValidateEthAddr(s.User),
+			BlockNum:  s.Block,
+			TxHash:    types.ValidateEthHash(s.TX),
+			TxTime:    s.Time,
+			User:      types.ValidateEthAddr(s.User),
+			CallIndex: s.CallIndex,
 		},
 
 		PoolLocation: types.PoolLocation{

@@ -2,9 +2,12 @@ package tables
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"strings"
+
+	stdjson "encoding/json"
+
+	"github.com/goccy/go-json"
 )
 
 type KnockoutTable struct{}
@@ -38,19 +41,15 @@ type KnockoutCross struct {
 }
 
 type KnockoutCrossSubGraph struct {
-	ID              string `json:"id"`
-	TransactionHash string `json:"transactionHash"`
-	Pool            struct {
-		Base    string `json:"base"`
-		Quote   string `json:"quote"`
-		PoolIdx string `json:"poolIdx"`
-	} `json:"pool"`
-	Block      string `json:"block"`
-	Time       string `json:"time"`
-	Tick       int    `json:"tick"`
-	IsBid      bool   `json:"isBid"`
-	PivotTime  string `json:"pivotTime"`
-	FeeMileage string `json:"feeMileage"`
+	ID              string       `json:"id"`
+	TransactionHash string       `json:"transactionHash"`
+	Pool            SubGraphPool `json:"pool"`
+	Block           string       `json:"block"`
+	Time            string       `json:"time"`
+	Tick            int          `json:"tick"`
+	IsBid           bool         `json:"isBid"`
+	PivotTime       string       `json:"pivotTime"`
+	FeeMileage      string       `json:"feeMileage"`
 }
 
 type KnockoutCrossSubGraphData struct {
@@ -72,13 +71,12 @@ func (tbl KnockoutTable) ConvertSubGraphRow(r KnockoutCrossSubGraph, network str
 	return KnockoutCross{
 		ID:         r.ID + network,
 		Network:    network,
-		Tx:         r.TransactionHash,
+		Tx:         strings.Clone(r.TransactionHash),
 		Block:      parseInt(r.Block),
 		Time:       parseInt(r.Time),
-		Base:       base,
-		Quote:      quote,
+		Base:       strings.Clone(base),
+		Quote:      strings.Clone(quote),
 		PoolIdx:    parseInt(r.Pool.PoolIdx),
-		PoolHash:   hashPool(base, quote, parseInt(r.Pool.PoolIdx)),
 		Tick:       r.Tick,
 		IsBid:      boolToInt(r.IsBid),
 		PivotTime:  parseInt(r.PivotTime),
@@ -114,12 +112,12 @@ func (tbl KnockoutTable) ReadSqlRow(rows *sql.Rows) KnockoutCross {
 func (tbl KnockoutTable) ParseSubGraphResp(body []byte) ([]KnockoutCrossSubGraph, error) {
 	var parsed KnockoutCrossSubGraphResp
 
-	err := json.Unmarshal(body, &parsed)
+	err := stdjson.Unmarshal(body, &parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]KnockoutCrossSubGraph, 0)
+	ret := make([]KnockoutCrossSubGraph, 0, len(parsed.Data.KnockoutCrosses))
 	for _, entry := range parsed.Data.KnockoutCrosses {
 		ret = append(ret, entry)
 	}
@@ -134,7 +132,7 @@ func (tbl KnockoutTable) ParseSubGraphRespUnwrapped(body []byte) ([]KnockoutCros
 		return nil, err
 	}
 
-	ret := make([]KnockoutCrossSubGraph, 0)
+	ret := make([]KnockoutCrossSubGraph, 0, len(parsed.KnockoutCrosses))
 	for _, entry := range parsed.KnockoutCrosses {
 		ret = append(ret, entry)
 	}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"runtime/metrics"
 
 	"github.com/CrocSwap/graphcache-go/cache"
 	"github.com/CrocSwap/graphcache-go/controller"
@@ -10,7 +12,20 @@ import (
 	"github.com/CrocSwap/graphcache-go/views"
 )
 
+func getMemoryLimit() {
+	const myMetric = "/gc/gomemlimit:bytes"
+	sample := make([]metrics.Sample, 1)
+	sample[0].Name = myMetric
+	metrics.Read(sample)
+	if sample[0].Value.Kind() == metrics.KindBad {
+		panic(fmt.Sprintf("metric %q no longer supported", myMetric))
+	}
+	freeBytes := sample[0].Value.Uint64()
+	fmt.Printf("memlimit: %d\n", freeBytes)
+}
+
 func main() {
+	getMemoryLimit()
 	var netCfgPath = flag.String("netCfg", "./config/ethereum.json", "network config file")
 	var apiPath = flag.String("apiPath", "gcgo", "API server root path")
 	var listenAddr = flag.String("listenAddr", ":8080", "HTTP server listen address")
@@ -52,7 +67,10 @@ func main() {
 		syncs = append(syncs, syncer)
 	}
 
-	// cntrl.SpinUntilLiqSync()
+	if *noRpcMode == false {
+		cntrl.StartupSubgraphSyncDone()
+	}
+
 	for _, syncer := range syncs {
 		go syncer.PollSubgraphUpdates()
 	}

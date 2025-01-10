@@ -51,9 +51,9 @@ func wrapErrMsg(c *gin.Context, err string) {
 }
 
 func wrapErrMsgFmt(c *gin.Context, err string, a ...any) {
-	wrapErrResp(c, fmt.Errorf(err, a...))
+	wrapErrResp(c, fmt.Errorf(err+". ", a...))
 }
 
-func wrapMissingParams(c *gin.Context, paramName string) {
+func wrapMissingParam(c *gin.Context, paramName string) {
 	wrapErrMsgFmt(c, "Missing parameter=%s", paramName)
 }
